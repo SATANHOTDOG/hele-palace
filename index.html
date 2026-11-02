@@ -3,194 +3,322 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>河樂宮 He-Le Palace (Alpha)</title>
-    <!-- 匯入復古像素中文字體 -->
+    <title>河樂宮 He-Le Palace - 專屬家具求籤所</title>
+    <!-- 匯入復古字體與 SweetAlert2 彈窗套件 -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
         
         body {
-            background-color: #111; /* 深色背景 */
+            background-color: #1a1a1a;
             color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
             font-family: 'DotGothic16', sans-serif;
-            margin-top: 20px;
+            margin: 0;
+            padding: 20px;
         }
-        
         h1 {
             color: #f39c12;
             letter-spacing: 5px;
             text-shadow: 2px 2px #c0392b;
+            margin-bottom: 10px;
         }
-
-        /* 遊戲畫布本身 */
+        .subtitle {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        /* 遊戲畫布 */
         canvas {
             background-color: #000;
-            border: 6px solid #bdc3c7;
-            border-radius: 4px;
-            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
-            image-rendering: pixelated; /* 讓邊緣保持像素鋸齒感，不模糊 */
-        }
-
-        /* 復古對話框 */
-        .dialog-box {
-            width: 480px;
-            min-height: 100px;
-            border: 4px solid #fff;
-            background: #000;
-            margin-top: 15px;
-            padding: 15px;
+            border: 8px solid #34495e;
             border-radius: 8px;
-            font-size: 1.2rem;
-            line-height: 1.6;
-            box-sizing: border-box;
-            box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+            box-shadow: 0 0 30px rgba(241, 196, 15, 0.2);
+            image-rendering: pixelated; /* 保持像素銳利感 */
+            max-width: 100%;
         }
-        
-        /* 手機虛擬按鍵 (預留給之後用) */
-        .controls {
-            display: none; /* 在電腦版先隱藏 */
+        /* 操作說明區 */
+        .controls-hint {
             margin-top: 15px;
+            background: #2c3e50;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 2px dashed #7f8c8d;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            text-align: center;
+        }
+        .key {
+            background: #ecf0f1;
+            color: #2c3e50;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-family: monospace;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
-    <h1>🏰 河樂宮</h1>
+    <h1>⛩️ 河樂宮</h1>
+    <div class="subtitle" id="dataStatus">🔄 正在與神界資料庫連線中... (讀取試算表)</div>
     
-    <!-- 遊戲主要視窗：設定為 480x480 像素 -->
-    <canvas id="gameCanvas" width="480" height="480"></canvas>
+    <!-- 遊戲視窗：640x640 像素 -->
+    <canvas id="gameCanvas" width="640" height="640"></canvas>
     
-    <!-- 對話框 -->
-    <div class="dialog-box" id="dialog">
-        系統：勇者 KOBE，歡迎來到河樂宮的雛型。<br>
-        ▶ 請使用鍵盤【上下左右】方向鍵來移動。<br>
-        ▶ 試著去撞牆看看。
+    <div class="controls-hint">
+        移動：使用鍵盤 <span class="key">上</span> <span class="key">下</span> <span class="key">左</span> <span class="key">右</span><br>
+        互動：面對物件按下 <span class="key">空白鍵 (Space)</span> 或 <span class="key">Enter</span>
     </div>
 
     <script>
-        // 抓取畫布與渲染環境 (Context)
+        // ==========================================
+        // 1. 遊戲核心設定與 Canvas 綁定
+        // ==========================================
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const dialog = document.getElementById('dialog');
+        const tileSize = 64; // 畫面中每格的大小
+        let isDialogActive = false; // 彈跳視窗打開時，暫停走路
 
-        // 定義世界規格：每格 32x32 像素，總共 15x15 格 = 480 尺寸
-        const tileSize = 32;
-        const rows = 15;
-        const cols = 15;
+        // 載入精靈圖 tileset.png
+        const tileset = new Image();
+        tileset.src = './tileset.png'; // 讀取你剛剛上傳的圖檔
 
-        // 🗺️ 繪製地圖陣列 (0=地板, 1=磚牆, 2=寶箱或特殊物件)
-        // 你可以像畫十字繡一樣在這裡排版你的宮殿格局
-        const map = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-            [1,0,0,0,0,0,1,0,0,0,2,0,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,0,1,1,1,0,0,0,1,1,1,0,0,1],
-            [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
-            [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,1,1,0,0,1,1,0,1,1,0,0,1,1,1],
-            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-        ];
-
-        // 🧑‍🎤 定義主角屬性 (起始座標 X:7, Y:12)
-        let player = {
-            x: 7, 
-            y: 12,
-            color: '#e74c3c' // 目前先用紅磚色代替
+        // 網格切割資料 (基於你圖片約 6x4 網格的佈局)
+        // 系統會自動計算寬高，切出對應的圖片
+        let spW = 0, spH = 0; 
+        tileset.onload = () => {
+            spW = tileset.width / 6; // 切成 6 欄
+            spH = tileset.height / 4; // 切成 4 列
+            update(); // 圖片載入完成後畫出第一幀
         };
 
-        // 負責畫出地形
-        function drawMap() {
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    let tile = map[r][c];
-                    
-                    if (tile === 1) {
-                        // 畫牆壁
-                        ctx.fillStyle = '#7f8c8d'; 
-                        ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
-                        ctx.strokeStyle = '#2c3e50';
-                        ctx.strokeRect(c * tileSize, r * tileSize, tileSize, tileSize);
-                    } else if (tile === 2) {
-                        // 畫寶箱 (暫定黃色)
-                        ctx.fillStyle = '#f1c40f';
-                        ctx.fillRect(c * tileSize + 4, r * tileSize + 4, tileSize - 8, tileSize - 8);
-                    } else {
-                        // 畫地板
-                        ctx.fillStyle = '#2c3e50'; 
-                        ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+        // ==========================================
+        // 2. 地圖陣列設計 (10x10格 = 640x640)
+        // 0:地板, 1:灰牆, 2:蓮花牆, 3:神明桌, 4:籤筒, 5:佛像, 6:藍貓廟公, 7:牌樓
+        // ==========================================
+        const map = [
+            [1, 1, 1, 2, 2, 2, 2, 1, 1, 1],
+            [1, 5, 0, 0, 3, 3, 0, 0, 5, 1], // 神明桌佔兩個位置
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 4, 0, 0, 0, 0, 0, 0, 6, 1], // 左邊籤筒(4)，右邊廟公(6)
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 5, 0, 0, 0, 0, 5, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+            [1, 1, 1, 1, 0, 0, 1, 1, 1, 1] // 下方出口
+        ];
+
+        // 玩家 (三花貓) 狀態
+        let player = {
+            x: 4, y: 8, // 出生點座標
+            facing: 'up' // 面對方向：up, down, left, right
+        };
+
+        // ==========================================
+        // 3. 讀取商品試算表資料 (你的報價單資料庫)
+        // ==========================================
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv';
+        let products = [];
+        let promoProducts = []; // 專門存特價商品給籤筒抽
+
+        async function fetchProducts() {
+            try {
+                const response = await fetch(SHEET_URL);
+                const csvText = await response.text();
+                const lines = csvText.split(/\r?\n/);
+                let headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim());
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    let values = parseCSVLine(lines[i]);
+                    let p = {};
+                    headers.forEach((h, index) => { p[h] = values[index] ? values[index].trim() : ''; });
+                    products.push(p);
+
+                    // 找出有特價且楊梅有庫存的商品 (塞進籤筒)
+                    let origPrice = parseInt((p['一般售價']||'0').replace(/,/g, ''));
+                    let promoPrice = parseInt((p['促銷售價']||'0').replace(/,/g, ''));
+                    let ymStock = parseInt(p['楊梅庫存']||'0');
+                    if(promoPrice > 0 && promoPrice < origPrice && ymStock > 0) {
+                        promoProducts.push(p);
                     }
                 }
+                document.getElementById('dataStatus').innerText = `✅ 神界連線完成！已載入 ${products.length} 樣法寶。`;
+            } catch (e) {
+                document.getElementById('dataStatus').innerText = `❌ 神界連線失敗，請確認網路。`;
             }
         }
+        function parseCSVLine(line) {
+            let values = []; let current = ''; let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                let char = line[i];
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) { values.push(current); current = ''; }
+                else current += char;
+            }
+            values.push(current); return values.map(v => v.replace(/^["']|["']$/g, ''));
+        }
+        fetchProducts(); // 網頁載入時立刻去抓資料
 
-        // 負責畫出主角 (目前是個方塊帶兩顆眼睛)
+        // ==========================================
+        // 4. 繪製畫面函數 (渲染引擎)
+        // ==========================================
+        function drawSprite(col, row, dx, dy, dw=1, dh=1) {
+            if(spW === 0) return; // 圖片還沒載入完
+            ctx.drawImage(tileset, col*spW, row*spH, spW*dw, spH*dh, dx*tileSize, dy*tileSize, tileSize*dw, tileSize*dh);
+        }
+
+        function drawMap() {
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    let tile = map[r][c];
+                    // 先鋪地板 (第5欄, 第3列)
+                    drawSprite(5, 3, c, r);
+
+                    // 根據地圖代碼畫上物件
+                    if (tile === 1) drawSprite(0, 0, c, r); // 灰牆
+                    else if (tile === 2) drawSprite(1, 0, c, r); // 蓮花牆
+                    else if (tile === 4) drawSprite(2, 3, c, r); // 籤筒
+                    else if (tile === 5) drawSprite(1, 2, c, r); // 佛像
+                    else if (tile === 6) drawSprite(5, 0, c, r); // 藍貓廟公
+                }
+            }
+            // 畫神明桌 (涵蓋 4,1 和 5,1 兩格)
+            drawSprite(0, 3, 4, 1, 2, 1); // 大張神桌
+        }
+
         function drawPlayer() {
-            let px = player.x * tileSize;
-            let py = player.y * tileSize;
+            // 三花貓的圖示：正面(3,0), 背面(2,0), 右走(3,1), 左走(1,2)
+            let col = 3, row = 0; 
+            if(player.facing === 'up') { col = 2; row = 0; }
+            else if(player.facing === 'left') { col = 1; row = 2; }
+            else if(player.facing === 'right') { col = 3; row = 1; }
             
-            ctx.fillStyle = player.color;
-            ctx.fillRect(px, py, tileSize, tileSize);
-            
-            // 給勇者畫個簡單的白色眼睛，讓他有點生命力
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(px + 6, py + 8, 6, 6);
-            ctx.fillRect(px + 20, py + 8, 6, 6);
+            drawSprite(col, row, player.x, player.y);
         }
 
-        // 核心渲染引擎：每次移動都會觸發此函數重畫畫面
         function update() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // 先清空畫布
-            drawMap(); // 鋪上地磚
-            drawPlayer(); // 放上主角
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawMap();
+            drawPlayer();
         }
 
-        // 監聽鍵盤事件 (上下左右移動)
+        // ==========================================
+        // 5. 角色移動與互動邏輯
+        // ==========================================
         window.addEventListener('keydown', (e) => {
+            if (isDialogActive) return; // 對話框開啟時，禁止走路
+
             let nextX = player.x;
             let nextY = player.y;
 
-            if (e.key === 'ArrowUp') nextY--;
-            else if (e.key === 'ArrowDown') nextY++;
-            else if (e.key === 'ArrowLeft') nextX--;
-            else if (e.key === 'ArrowRight') nextX++;
-            else return; // 案其他按鍵不反應
+            if (e.key === 'ArrowUp' || e.key === 'w') { nextY--; player.facing = 'up'; }
+            else if (e.key === 'ArrowDown' || e.key === 's') { nextY++; player.facing = 'down'; }
+            else if (e.key === 'ArrowLeft' || e.key === 'a') { nextX--; player.facing = 'left'; }
+            else if (e.key === 'ArrowRight' || e.key === 'd') { nextX++; player.facing = 'right'; }
+            else if (e.key === ' ' || e.key === 'Enter') {
+                checkInteraction(); // 觸發互動
+                return;
+            } else return;
 
-            // 防止預設的網頁滾動
-            e.preventDefault();
+            e.preventDefault(); // 防止網頁上下捲動
 
-            // ⛔ 碰撞偵測機制 ⛔
-            let targetTile = map[nextY][nextX];
-            
-            if (targetTile === 1) {
-                // 撞牆了，發出抱怨對話
-                dialog.innerHTML = "系統：碰！你撞到了牆壁，這不是幻覺。<br>（請往別的方向走）";
-            } else if (targetTile === 2) {
-                // 踩到寶箱
-                dialog.innerHTML = "<span style='color:#f1c40f;'>👑 發現神秘寶箱！但目前你還沒有鑰匙。</span>";
-                player.x = nextX;
-                player.y = nextY;
-            } else {
-                // 一般移動
-                dialog.innerHTML = "勇者 KOBE 移動中...";
-                player.x = nextX;
-                player.y = nextY;
+            // 邊界與碰撞判定 (不為 0 的東西都不能踩)
+            if (nextX >= 0 && nextX < 10 && nextY >= 0 && nextY < 10) {
+                if (map[nextY][nextX] === 0) {
+                    player.x = nextX;
+                    player.y = nextY;
+                }
             }
-
-            // 更新畫面
             update();
         });
 
-        // 網頁載入時，先畫出第一幀
-        update();
+        // ==========================================
+        // 6. 互動事件：籤筒與廟公
+        // ==========================================
+        function checkInteraction() {
+            // 計算玩家面朝的下一格座標
+            let targetX = player.x;
+            let targetY = player.y;
+            if(player.facing === 'up') targetY--;
+            if(player.facing === 'down') targetY++;
+            if(player.facing === 'left') targetX--;
+            if(player.facing === 'right') targetX++;
+
+            // 確保目標在邊界內
+            if(targetX < 0 || targetX >= 10 || targetY < 0 || targetY >= 10) return;
+
+            let targetTile = map[targetY][targetX];
+
+            // --- 互動：籤筒 (代碼 4) ---
+            if (targetTile === 4) {
+                if(promoProducts.length === 0) return Swal.fire('求籤失敗', '神明表示目前沒有特價品！', 'warning');
+                isDialogActive = true;
+                
+                // 隨機抽一個特價商品
+                let luckyItem = promoProducts[Math.floor(Math.random() * promoProducts.length)];
+                
+                Swal.fire({
+                    title: '🌟 上上籤 🌟',
+                    html: `神明指示，今日與您有緣的法寶是：<br><br>
+                           <div style="font-size:1.2rem; font-weight:bold; color:#2c3e50;">【${luckyItem['商品名稱']}】</div>
+                           <div style="margin-top:10px; font-size:0.9rem; color:#7f8c8d;">SKU: ${luckyItem['SKU']}</div>
+                           <div style="font-size:1.5rem; font-weight:900; color:#e74c3c; margin-top:10px;">結緣價 $${luckyItem['促銷售價']}</div>
+                           <div style="text-decoration:line-through; color:#95a5a6;">原價 $${luckyItem['一般售價']}</div>`,
+                    confirmButtonText: '叩謝神明',
+                    confirmButtonColor: '#e67e22'
+                }).then(() => { isDialogActive = false; });
+            }
+
+            // --- 互動：藍貓廟公 (代碼 6) ---
+            if (targetTile === 6) {
+                isDialogActive = true;
+                Swal.fire({
+                    title: '🐾 藍貓廟公',
+                    text: '施主，想問什麼法寶的價格？報上 SKU 來。',
+                    input: 'text',
+                    inputPlaceholder: '請輸入 SKU (例如: 014332211)',
+                    showCancelButton: true,
+                    confirmButtonText: '查詢天書',
+                    cancelButtonText: '沒事我逛逛',
+                    confirmButtonColor: '#2c3e50'
+                }).then((result) => {
+                    if (result.isConfirmed && result.value) {
+                        let sku = result.value.trim().padStart(9, '0');
+                        let p = products.find(item => item['SKU'] === sku);
+                        
+                        if(p) {
+                            let price = p['促銷售價'] && p['促銷售價'] !== '#N/A' && p['促銷售價'] !== '0' ? p['促銷售價'] : p['一般售價'];
+                            let ymStock = p['楊梅庫存'] || '0';
+                            let storeStock = p['HOLA630庫存'] || '0';
+                            
+                            Swal.fire({
+                                title: '📖 天書有云',
+                                html: `<div style="color:#2c3e50; font-weight:bold; font-size:1.1rem; margin-bottom:10px;">${p['商品名稱']}</div>
+                                       <div style="color:#e74c3c; font-size:1.5rem; font-weight:900;">特價/原價：$${price}</div>
+                                       <hr>
+                                       <div style="font-size:0.9rem; color:#34495e; text-align:left; padding-left:20%;">
+                                       📦 楊梅總倉庫存：${ymStock} 件<br>
+                                       🏠 大墩店庫存：${storeStock} 件
+                                       </div>`,
+                                confirmButtonText: '瞭解',
+                                confirmButtonColor: '#27ae60'
+                            }).then(() => { isDialogActive = false; });
+                        } else {
+                            Swal.fire('查無此物', '施主，天書上沒有這個 SKU，你是不是記錯了？', 'error')
+                            .then(() => { isDialogActive = false; });
+                        }
+                    } else {
+                        isDialogActive = false; // 取消對話
+                    }
+                });
+            }
+        }
+
     </script>
 </body>
 </html>
