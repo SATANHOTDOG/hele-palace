@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>河樂宮 He-Le Palace (Alpha)</title>
+    <!-- 匯入復古像素中文字體 -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+        
+        body {
+            background-color: #111; /* 深色背景 */
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'DotGothic16', sans-serif;
+            margin-top: 20px;
+        }
+        
+        h1 {
+            color: #f39c12;
+            letter-spacing: 5px;
+            text-shadow: 2px 2px #c0392b;
+        }
+
+        /* 遊戲畫布本身 */
+        canvas {
+            background-color: #000;
+            border: 6px solid #bdc3c7;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+            image-rendering: pixelated; /* 讓邊緣保持像素鋸齒感，不模糊 */
+        }
+
+        /* 復古對話框 */
+        .dialog-box {
+            width: 480px;
+            min-height: 100px;
+            border: 4px solid #fff;
+            background: #000;
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            box-sizing: border-box;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+        }
+        
+        /* 手機虛擬按鍵 (預留給之後用) */
+        .controls {
+            display: none; /* 在電腦版先隱藏 */
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏰 河樂宮</h1>
+    
+    <!-- 遊戲主要視窗：設定為 480x480 像素 -->
+    <canvas id="gameCanvas" width="480" height="480"></canvas>
+    
+    <!-- 對話框 -->
+    <div class="dialog-box" id="dialog">
+        系統：勇者 KOBE，歡迎來到河樂宮的雛型。<br>
+        ▶ 請使用鍵盤【上下左右】方向鍵來移動。<br>
+        ▶ 試著去撞牆看看。
+    </div>
+
+    <script>
+        // 抓取畫布與渲染環境 (Context)
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const dialog = document.getElementById('dialog');
+
+        // 定義世界規格：每格 32x32 像素，總共 15x15 格 = 480 尺寸
+        const tileSize = 32;
+        const rows = 15;
+        const cols = 15;
+
+        // 🗺️ 繪製地圖陣列 (0=地板, 1=磚牆, 2=寶箱或特殊物件)
+        // 你可以像畫十字繡一樣在這裡排版你的宮殿格局
+        const map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,1,0,0,0,2,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,1,1,1,0,0,0,1,1,1,0,0,1],
+            [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+            [1,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,0,0,1,1,0,1,1,0,0,1,1,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        // 🧑‍🎤 定義主角屬性 (起始座標 X:7, Y:12)
+        let player = {
+            x: 7, 
+            y: 12,
+            color: '#e74c3c' // 目前先用紅磚色代替
+        };
+
+        // 負責畫出地形
+        function drawMap() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let tile = map[r][c];
+                    
+                    if (tile === 1) {
+                        // 畫牆壁
+                        ctx.fillStyle = '#7f8c8d'; 
+                        ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+                        ctx.strokeStyle = '#2c3e50';
+                        ctx.strokeRect(c * tileSize, r * tileSize, tileSize, tileSize);
+                    } else if (tile === 2) {
+                        // 畫寶箱 (暫定黃色)
+                        ctx.fillStyle = '#f1c40f';
+                        ctx.fillRect(c * tileSize + 4, r * tileSize + 4, tileSize - 8, tileSize - 8);
+                    } else {
+                        // 畫地板
+                        ctx.fillStyle = '#2c3e50'; 
+                        ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+                    }
+                }
+            }
+        }
+
+        // 負責畫出主角 (目前是個方塊帶兩顆眼睛)
+        function drawPlayer() {
+            let px = player.x * tileSize;
+            let py = player.y * tileSize;
+            
+            ctx.fillStyle = player.color;
+            ctx.fillRect(px, py, tileSize, tileSize);
+            
+            // 給勇者畫個簡單的白色眼睛，讓他有點生命力
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(px + 6, py + 8, 6, 6);
+            ctx.fillRect(px + 20, py + 8, 6, 6);
+        }
+
+        // 核心渲染引擎：每次移動都會觸發此函數重畫畫面
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // 先清空畫布
+            drawMap(); // 鋪上地磚
+            drawPlayer(); // 放上主角
+        }
+
+        // 監聽鍵盤事件 (上下左右移動)
+        window.addEventListener('keydown', (e) => {
+            let nextX = player.x;
+            let nextY = player.y;
+
+            if (e.key === 'ArrowUp') nextY--;
+            else if (e.key === 'ArrowDown') nextY++;
+            else if (e.key === 'ArrowLeft') nextX--;
+            else if (e.key === 'ArrowRight') nextX++;
+            else return; // 案其他按鍵不反應
+
+            // 防止預設的網頁滾動
+            e.preventDefault();
+
+            // ⛔ 碰撞偵測機制 ⛔
+            let targetTile = map[nextY][nextX];
+            
+            if (targetTile === 1) {
+                // 撞牆了，發出抱怨對話
+                dialog.innerHTML = "系統：碰！你撞到了牆壁，這不是幻覺。<br>（請往別的方向走）";
+            } else if (targetTile === 2) {
+                // 踩到寶箱
+                dialog.innerHTML = "<span style='color:#f1c40f;'>👑 發現神秘寶箱！但目前你還沒有鑰匙。</span>";
+                player.x = nextX;
+                player.y = nextY;
+            } else {
+                // 一般移動
+                dialog.innerHTML = "勇者 KOBE 移動中...";
+                player.x = nextX;
+                player.y = nextY;
+            }
+
+            // 更新畫面
+            update();
+        });
+
+        // 網頁載入時，先畫出第一幀
+        update();
+    </script>
+</body>
+</html>
