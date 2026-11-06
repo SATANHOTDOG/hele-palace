@@ -2,6 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <!-- 物理鎖死螢幕，禁止長輩亂滑縮放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>河樂宮 - 庫存通靈系統</title>
     <style>
@@ -12,7 +13,7 @@
             height: 100%;
             background-color: #1a1a1a;
             overflow: hidden;
-            touch-action: none; /* 物理超渡手機預設手勢 */
+            touch-action: none;
             font-family: 'Courier New', Courier, monospace;
         }
         #gameCanvas {
@@ -21,7 +22,7 @@
             image-rendering: pixelated;
             width: 100vw;
             height: 100vh;
-            object-fit: contain; /* 確保各種手機螢幕比例都不會變形 */
+            object-fit: contain;
         }
         #loading {
             color: #fff;
@@ -36,51 +37,74 @@
             display: block;
             margin-top: 10px;
         }
-        /* 自訂對話框/互動彈窗 */
+        /* 自訂法器對話框 */
         #dialogBox {
             display: none;
             position: absolute;
-            bottom: 10%;
+            bottom: 15%;
             left: 50%;
             transform: translateX(-50%);
-            width: 80%;
-            max-width: 400px;
-            background: rgba(0, 0, 0, 0.85);
+            width: 85%;
+            max-width: 450px;
+            background: rgba(0, 0, 0, 0.9);
             color: #fff;
             border: 2px solid #d4af37;
             border-radius: 8px;
             padding: 20px;
             font-size: 1.1rem;
             text-align: center;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
             pointer-events: none;
             z-index: 10;
+        }
+        /* 手機版與電腦版通用的調查按鈕 */
+        #actionBtn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            background: rgba(212, 175, 55, 0.85);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 32px;
+            line-height: 64px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            user-select: none;
+            z-index: 100;
+            cursor: pointer;
+            display: none; /* 遊戲載入完才顯示 */
+        }
+        #actionBtn:active {
+            background: rgba(255, 215, 0, 1);
+            transform: scale(0.95);
         }
     </style>
 </head>
 <body>
 
 <div id="loading">
-    請神降駕中 (載入圖片)...<br>
-    <span style="font-size: 0.9rem; color: #888;">正在盤點供品與建材...</span>
+    請神降駕中 (載入圖片與 CSV 資料)...<br>
+    <span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
 </div>
 
-<!-- 遊戲主畫布 -->
 <canvas id="gameCanvas" width="640" height="640"></canvas>
-
-<!-- 對話框介面 (下一步串聯 Google Sheets 用的) -->
 <div id="dialogBox"></div>
+<!-- 調查 / 擲筊 按鈕 -->
+<div id="actionBtn">🔍</div>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const loadingDiv = document.getElementById('loading');
     const dialogBox = document.getElementById('dialogBox');
+    const actionBtn = document.getElementById('actionBtn');
     
-    // 設定網格大小
     const TILE_SIZE = 64; 
 
-    // 所有素材清單 (必須與你的檔案名稱完全一致)
+    // --- 圖檔資源 ---
     const assetNames = [
         'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
         'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
@@ -89,32 +113,77 @@
     
     const images = {};
     let loadedCount = 0;
+    let inventoryData = []; // 存放解析後的 CSV 資料
 
-    // 載入圖片與抓蟲雷達
+    // --- CSV 通靈法陣 ---
+    async function fetchInventory() {
+        try {
+            const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
+            const res = await fetch(url);
+            const text = await res.text();
+            
+            // 嚴謹的 CSV 剖析器 (防呆處理包含雙引號內的逗號)
+            let result = [];
+            let row = [], col = "", quote = false;
+            for (let i = 0; i < text.length; i++) {
+                let cc = text[i], nc = text[i+1];
+                if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
+                if (cc === '"') { quote = !quote; continue; }
+                if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
+                if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
+                if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
+                col += cc;
+            }
+            if (col !== "" || text.endsWith(',')) row.push(col);
+            if (row.length > 0) result.push(row);
+
+            // 轉成 JSON 陣列
+            const headers = result[0].map(h => h.trim());
+            for (let i = 1; i < result.length; i++) {
+                let obj = {};
+                headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
+                inventoryData.push(obj);
+            }
+            console.log("神蹟顯靈！成功載入商品數:", inventoryData.length);
+        } catch(err) {
+            console.error("連線 Google Sheets 失敗", err);
+            loadingDiv.innerHTML += `<span class="error-msg">⚠️ 業障警告：無法載入 Google Sheets。</span>`;
+        }
+    }
+
+    // --- 載入圖片 ---
     assetNames.forEach(name => {
         images[name] = new Image();
         images[name].src = name + '.png'; 
         
         images[name].onload = () => {
             loadedCount++;
-            if (loadedCount === assetNames.length) {
-                loadingDiv.style.display = 'none';
-                canvas.style.display = 'block';
-                startGame();
-            }
+            checkStartGame();
         };
-
         images[name].onerror = () => {
             loadingDiv.innerHTML += `<span class="error-msg">⚠️ 業障警告：找不到 ${name}.png</span>`;
         };
     });
 
-    // --- 完整宮廟格局 (10 x 10) ---
-    // 0:地板(可走) | 1,2:牆壁 | 3:大門 | 4:神桌 | 5:籤筒 | 6:廟公
-    // 10:主佛 | 11~15:眾神明 
+    // 確定圖片跟資料庫都好了才開門營業
+    async function init() {
+        await fetchInventory();
+        checkStartGame();
+    }
+
+    function checkStartGame() {
+        if (loadedCount === assetNames.length && inventoryData.length > 0) {
+            loadingDiv.style.display = 'none';
+            canvas.style.display = 'block';
+            actionBtn.style.display = 'block';
+            startGame();
+        }
+    }
+
+    // --- 修補後的完美宮廟格局 (10 x 10) ---
     const mapLayout = [
         [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
-        [1, 14, 11, 12, 10, 13, 15, 16, 1], 
+        [1, 14, 11, 12, 10, 13, 15, 16, 1, 1], // 右上角黑洞已封印
         [1, 0, 0, 0, 4, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 6, 0, 0, 1],
         [1, 0, 5, 0, 0, 0, 0, 0, 0, 1],
@@ -122,31 +191,38 @@
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 3, 3, 1, 1, 1, 1] // 大牌樓佔兩個位子
+        [1, 1, 1, 1, 3, 3, 1, 1, 1, 1] 
     ];
 
-    // --- 貓咪物理狀態 ---
+    // --- 貓咪物件 ---
     const cat = {
-        x: 5 * TILE_SIZE, // 初始位置 (X)
-        y: 7 * TILE_SIZE, // 初始位置 (Y)
-        width: 32,        // 碰撞箱寬度 (比圖塊小，走起來比較順)
-        height: 32,       // 碰撞箱高度
+        x: 5 * TILE_SIZE, 
+        y: 7 * TILE_SIZE, 
         speed: 4,
         dir: 'up',
-        isMoving: false
+        isMoving: false,
+        isInteracting: false
     };
 
-    // --- 控制與互動系統 ---
+    // --- 鍵盤與搖桿控制 ---
     const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
     let touchDir = null;
-    let isInteracting = false;
-    let interactionCooldown = 0;
 
-    window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+    window.addEventListener('keydown', e => { 
+        if (keys.hasOwnProperty(e.key)) keys[e.key] = true; 
+        // 鍵盤空白鍵或 Enter = 調查按鈕
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            tryInteract();
+        }
+    });
     window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
     let touchStartX = 0, touchStartY = 0, isTouching = false;
     window.addEventListener('touchstart', e => {
+        // 如果按到調查按鈕就不要當成搖桿
+        if(e.target === actionBtn) return;
+        
         isTouching = true;
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
@@ -154,8 +230,8 @@
     }, { passive: false });
 
     window.addEventListener('touchmove', e => {
-        e.preventDefault(); 
         if (!isTouching) return;
+        e.preventDefault(); 
         let diffX = e.touches[0].clientX - touchStartX;
         let diffY = e.touches[0].clientY - touchStartY;
         
@@ -173,53 +249,125 @@
         touchDir = null;
     });
 
-    // --- 碰撞檢測系統 (Collision Detection) ---
-    function isWalkable(newX, newY) {
-        // 設定貓咪腳底的實體碰撞範圍 (Hitbox)
-        let left = newX + 16;
-        let right = newX + TILE_SIZE - 16;
-        let top = newY + 32; 
-        let bottom = newY + TILE_SIZE - 4;
+    // 綁定虛擬按鈕事件
+    actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
+    actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
 
-        // 算出四個角落踩在陣列的哪一格
+    // --- 物理防撞 ---
+    function isWalkable(newX, newY) {
+        let left = newX + 16, right = newX + TILE_SIZE - 16;
+        let top = newY + 32, bottom = newY + TILE_SIZE - 4;
+
         let c1 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
         let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
         let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
         let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
 
-        // 檢查是否撞到互動性物件 (5:籤筒, 6:廟公)
-        checkInteraction(c1, c2, c3, c4);
-
-        // 只有遇到 0 (地板) 才可以通行
-        return (c1 === 0 && c2 === 0 && c3 === 0 && c4 === 0);
+        // 只允許在地板 (0) 或是沒有碰撞體積的大牌樓 (3) 穿行
+        return ((c1 === 0 || c1 === 3) && (c2 === 0 || c2 === 3) && (c3 === 0 || c3 === 3) && (c4 === 0 || c4 === 3));
     }
 
-    // --- 事件互動系統 ---
-    function checkInteraction(...corners) {
-        if (interactionCooldown > 0) return; // 冷卻中不重複觸發
+    // --- 主動通靈互動 (面向判定) ---
+    let isPrompting = false; // 鎖住 prompt 防止連續彈出
+    function tryInteract() {
+        if (cat.isInteracting || isPrompting) return; // 正在對話中就不理他
 
-        if (corners.includes(5)) {
-            showDialog("🐈 神奇籤筒：<br>你撞到了籤筒！即將串接 Google Sheets 查詢大墩店庫存...");
-            triggerCooldown();
-        } else if (corners.includes(6)) {
-            showDialog("🐱 藍貓廟公：<br>「來問事的嗎？今天楊梅店的業績可不太好啊...」");
-            triggerCooldown();
+        // 抓貓咪中心點
+        let cx = cat.x + (TILE_SIZE / 2);
+        let cy = cat.y + (TILE_SIZE / 2);
+        
+        // 往前伸出雷達 (抓前面一格)
+        let targetX = cx, targetY = cy;
+        let offset = TILE_SIZE * 0.8; 
+        
+        if (cat.dir === 'up') targetY -= offset;
+        if (cat.dir === 'down') targetY += offset;
+        if (cat.dir === 'left') targetX -= offset;
+        if (cat.dir === 'right') targetX += offset;
+        
+        let c = Math.floor(targetX / TILE_SIZE);
+        let r = Math.floor(targetY / TILE_SIZE);
+        
+        if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
+            let tile = mapLayout[r][c];
+            if (tile === 5) handleFortune(); // 抽籤筒
+            if (tile === 6) handleNPC();     // 查廟公
         }
     }
 
-    function showDialog(text) {
+    function handleFortune() {
+        // 過濾出：有促銷售價，且 (楊梅庫存>0 或 大墩庫存>0 或 大墩展示>0)
+        let available = inventoryData.filter(item => {
+            let price = parseInt(item['促銷售價']);
+            let ym = parseInt(item['楊梅庫存']) || 0;
+            let ddw = parseInt(item['HOLA630庫存']) || 0;
+            let dds = parseInt(item['HOLA630展示']) || 0;
+            return !isNaN(price) && price > 0 && (ym + ddw + dds > 0);
+        });
+        
+        if (available.length === 0) {
+            showDialog("佛祖表示：目前沒有任何特價且有貨的商品。你去旁邊罰站吧。");
+            return;
+        }
+        
+        let luckyItem = available[Math.floor(Math.random() * available.length)];
+        showDialog(`
+            <b style="color:#ffcc00;font-size:1.3em;">🎊 上上籤！</b><br>
+            <span style="font-size:0.8em; color:#aaa;">${luckyItem['SKU']}</span><br>
+            <b>${luckyItem['商品名稱']}</b><br>
+            原價：<del>${luckyItem['一般售價']}</del> ➡️ <span style="color:#ff4444;font-size:1.3em;">$${luckyItem['促銷售價']}</span><br>
+            <hr style="border:0;border-top:1px dashed #666;margin:10px 0;">
+            大墩店：${parseInt(luckyItem['HOLA630庫存'])||0} (展示: ${parseInt(luckyItem['HOLA630展示'])||0})<br>
+            楊梅倉：${parseInt(luckyItem['楊梅庫存'])||0}
+        `, 5000);
+    }
+
+    function handleNPC() {
+        isPrompting = true;
+        // 微小延遲讓瀏覽器有喘息空間，避免按鈕卡死
+        setTimeout(() => {
+            let sku = window.prompt("藍貓廟公：\n「說吧，要查哪個 SKU 的底細？」\n(可輸入完整或部分貨號)");
+            isPrompting = false;
+            
+            if (!sku || sku.trim() === '') return;
+            sku = sku.trim().toUpperCase(); // 防止大小寫混亂
+            
+            // 找第一筆符合的資料
+            let item = inventoryData.find(i => i['SKU'].toUpperCase().includes(sku));
+            
+            if (!item) {
+                showDialog(`廟公白了你一眼：<br>「查無此物 (${sku})，你是不是作夢夢到的？」`);
+            } else {
+                let priceStr = item['促銷售價'] ? `<span style="color:#ff4444;font-weight:bold;">$${item['促銷售價']}</span> <del style="color:#888;font-size:0.8em;">$${item['一般售價']}</del>` : `$${item['一般售價']}`;
+                showDialog(`
+                    <span style="font-size:0.8em;color:#aaa;">${item['SKU']} | ${item['商品分類']||'未分類'}</span><br>
+                    <b style="color:#ffcc00;">${item['商品名稱']}</b><br>
+                    售價：${priceStr}<br>
+                    <hr style="border:0;border-top:1px dashed #666;margin:8px 0;">
+                    大墩店庫存：<b>${parseInt(item['HOLA630庫存'])||0}</b> (展示: ${parseInt(item['HOLA630展示'])||0})<br>
+                    楊梅倉庫存：<b>${parseInt(item['楊梅庫存'])||0}</b><br>
+                    <span style="font-size:0.8em;color:#888;">狀態：${item['商品狀態']||'-'} | 官網：${item['官網狀態']||'-'} | POG：${item['POG']||'-'}</span>
+                `, 8000);
+            }
+        }, 50);
+    }
+
+    function showDialog(text, duration = 4000) {
         dialogBox.innerHTML = text;
         dialogBox.style.display = 'block';
-        setTimeout(() => { dialogBox.style.display = 'none'; }, 3000); // 3秒後消失
+        cat.isInteracting = true; // 鎖住移動並變更動作
+        
+        // 確保不會多重倒數計時打架
+        if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+        window.dialogTimeout = setTimeout(() => { 
+            dialogBox.style.display = 'none'; 
+            cat.isInteracting = false;
+        }, duration);
     }
 
-    function triggerCooldown() {
-        interactionCooldown = 60; // 約 1 秒冷卻時間 (60 FPS)
-    }
-
-    // --- 核心更新邏輯 ---
+    // --- 迴圈邏輯 ---
     function update() {
-        if (interactionCooldown > 0) interactionCooldown--;
+        if (cat.isInteracting || isPrompting) return; // 對話中不給走
 
         cat.isMoving = false;
         let dx = 0, dy = 0;
@@ -229,23 +377,21 @@
         else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
         else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
 
-        // 分開驗證 X 軸與 Y 軸，這樣即使貼著牆壁也能滑順移動
         if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
         if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
     }
 
-    // --- 畫面渲染 ---
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 1. 先鋪滿整片石板地板
+        // 1. 地板
         for (let r = 0; r < mapLayout.length; r++) {
             for (let c = 0; c < mapLayout[r].length; c++) {
                 ctx.drawImage(images['floor'], c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
         }
 
-        // 2. 疊加上家具與神明
+        // 2. 物件
         for (let r = 0; r < mapLayout.length; r++) {
             for (let c = 0; c < mapLayout[r].length; c++) {
                 let tile = mapLayout[r][c];
@@ -259,7 +405,6 @@
                 if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
                 if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
                 
-                // 畫佛像群 (稍微把 Y 軸往上提，讓他們看起來在牆壁前面)
                 let godY = posY - (TILE_SIZE * 0.3);
                 if (tile === 10) ctx.drawImage(images['god_main'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE, TILE_SIZE * 1.5);
                 if (tile === 11) ctx.drawImage(images['god1'], posX, godY, TILE_SIZE, TILE_SIZE);
@@ -271,24 +416,21 @@
             }
         }
 
-        // 3. 畫貓咪 (加上坐下的對話待機狀態)
+        // 3. 三花貓 (加入對話時乖乖坐下的判定)
         let catImg = images['cat_down_idle'];
-        if (cat.isMoving) {
+        if (cat.isInteracting || isPrompting) {
+            catImg = images['cat_sit']; 
+        } else if (cat.isMoving) {
             if (cat.dir === 'up') catImg = images['cat_up'];
             if (cat.dir === 'down') catImg = images['cat_down'];
             if (cat.dir === 'left') catImg = images['cat_left'];
             if (cat.dir === 'right') catImg = images['cat_right'];
         } else {
-            // 如果撞到互動按鈕，我們讓他側坐下來裝乖
-            if (interactionCooldown > 0) catImg = images['cat_sit'];
-            else {
-                if (cat.dir === 'down') catImg = images['cat_down_idle'];
-                else if (cat.dir === 'up') catImg = images['cat_up']; 
-                else if (cat.dir === 'left') catImg = images['cat_left'];
-                else if (cat.dir === 'right') catImg = images['cat_right'];
-            }
+            if (cat.dir === 'down') catImg = images['cat_down_idle'];
+            else if (cat.dir === 'up') catImg = images['cat_up']; 
+            else if (cat.dir === 'left') catImg = images['cat_left'];
+            else if (cat.dir === 'right') catImg = images['cat_right'];
         }
-
         ctx.drawImage(catImg, cat.x, cat.y, TILE_SIZE, TILE_SIZE);
     }
 
@@ -301,6 +443,8 @@
     function startGame() {
         gameLoop();
     }
+    
+    init(); // 啟動主程式
 </script>
 </body>
 </html>
