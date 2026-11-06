@@ -12,7 +12,7 @@
             height: 100%;
             background-color: #1a1a1a;
             overflow: hidden;
-            touch-action: none; /* 物理超渡所有手機預設滑動手勢 */
+            touch-action: none; /* 物理超渡手機預設手勢 */
             font-family: 'Courier New', Courier, monospace;
         }
         #gameCanvas {
@@ -21,7 +21,7 @@
             image-rendering: pixelated;
             width: 100vw;
             height: 100vh;
-            object-fit: contain;
+            object-fit: contain; /* 確保各種手機螢幕比例都不會變形 */
         }
         #loading {
             color: #fff;
@@ -36,25 +36,51 @@
             display: block;
             margin-top: 10px;
         }
+        /* 自訂對話框/互動彈窗 */
+        #dialogBox {
+            display: none;
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 400px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            padding: 20px;
+            font-size: 1.1rem;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
 
 <div id="loading">
     請神降駕中 (載入圖片)...<br>
-    <span style="font-size: 0.9rem; color: #888;">正在點名，誰沒到我等一下就公審誰</span>
+    <span style="font-size: 0.9rem; color: #888;">正在盤點供品與建材...</span>
 </div>
-<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<!-- 遊戲主畫布 -->
+<canvas id="gameCanvas" width="640" height="640"></canvas>
+
+<!-- 對話框介面 (下一步串聯 Google Sheets 用的) -->
+<div id="dialogBox"></div>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const loadingDiv = document.getElementById('loading');
+    const dialogBox = document.getElementById('dialogBox');
     
-    // 基礎網格尺寸，稍微放大點不然手機上看會像視力測驗
+    // 設定網格大小
     const TILE_SIZE = 64; 
 
-    // 終極完美無瑕確認版素材清單
+    // 所有素材清單 (必須與你的檔案名稱完全一致)
     const assetNames = [
         'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
         'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
@@ -78,43 +104,48 @@
             }
         };
 
-        // 🚨 抓漏系統：如果有檔案遺失或大小寫打錯，直接在螢幕噴紅字
         images[name].onerror = () => {
             loadingDiv.innerHTML += `<span class="error-msg">⚠️ 業障警告：找不到 ${name}.png</span>`;
         };
     });
 
-    // 簡易地圖陣列 (0:空地, 1:灰磚, 2:蓮花牆, 3:大佛, 4:神桌, 5:廟公, 6:籤筒)
+    // --- 完整宮廟格局 (10 x 10) ---
+    // 0:地板(可走) | 1,2:牆壁 | 3:大門 | 4:神桌 | 5:籤筒 | 6:廟公
+    // 10:主佛 | 11~15:眾神明 
     const mapLayout = [
-        [1, 1, 2, 2, 2, 2, 2, 1, 1, 1],
-        [1, 0, 0, 0, 3, 0, 0, 0, 5, 1],
+        [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
+        [1, 14, 11, 12, 10, 13, 15, 16, 1], 
         [1, 0, 0, 0, 4, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 6, 0, 0, 1],
+        [1, 0, 5, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 3, 3, 1, 1, 1, 1] // 大牌樓佔兩個位子
     ];
 
-    // 貓咪狀態
+    // --- 貓咪物理狀態 ---
     const cat = {
-        x: 4 * TILE_SIZE,
-        y: 4 * TILE_SIZE,
+        x: 5 * TILE_SIZE, // 初始位置 (X)
+        y: 7 * TILE_SIZE, // 初始位置 (Y)
+        width: 32,        // 碰撞箱寬度 (比圖塊小，走起來比較順)
+        height: 32,       // 碰撞箱高度
         speed: 4,
-        dir: 'down',
+        dir: 'up',
         isMoving: false
     };
 
-    // --- 控制系統 ---
+    // --- 控制與互動系統 ---
     const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+    let touchDir = null;
+    let isInteracting = false;
+    let interactionCooldown = 0;
 
     window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
     window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isTouching = false;
-    let touchDir = null;
-
-    // 手機全螢幕隱形拖曳 (Virtual Joystick)
+    let touchStartX = 0, touchStartY = 0, isTouching = false;
     window.addEventListener('touchstart', e => {
         isTouching = true;
         touchStartX = e.touches[0].clientX;
@@ -123,13 +154,11 @@
     }, { passive: false });
 
     window.addEventListener('touchmove', e => {
-        e.preventDefault(); // 擋掉手機亂捲
+        e.preventDefault(); 
         if (!isTouching) return;
-        
         let diffX = e.touches[0].clientX - touchStartX;
         let diffY = e.touches[0].clientY - touchStartY;
         
-        // 滑動超過 15 像素才算移動，避免手抖
         if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
             if (Math.abs(diffX) > Math.abs(diffY)) {
                 touchDir = diffX > 0 ? 'right' : 'left';
@@ -144,8 +173,54 @@
         touchDir = null;
     });
 
-    // --- 核心邏輯 ---
+    // --- 碰撞檢測系統 (Collision Detection) ---
+    function isWalkable(newX, newY) {
+        // 設定貓咪腳底的實體碰撞範圍 (Hitbox)
+        let left = newX + 16;
+        let right = newX + TILE_SIZE - 16;
+        let top = newY + 32; 
+        let bottom = newY + TILE_SIZE - 4;
+
+        // 算出四個角落踩在陣列的哪一格
+        let c1 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
+        let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
+        let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
+        let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
+
+        // 檢查是否撞到互動性物件 (5:籤筒, 6:廟公)
+        checkInteraction(c1, c2, c3, c4);
+
+        // 只有遇到 0 (地板) 才可以通行
+        return (c1 === 0 && c2 === 0 && c3 === 0 && c4 === 0);
+    }
+
+    // --- 事件互動系統 ---
+    function checkInteraction(...corners) {
+        if (interactionCooldown > 0) return; // 冷卻中不重複觸發
+
+        if (corners.includes(5)) {
+            showDialog("🐈 神奇籤筒：<br>你撞到了籤筒！即將串接 Google Sheets 查詢大墩店庫存...");
+            triggerCooldown();
+        } else if (corners.includes(6)) {
+            showDialog("🐱 藍貓廟公：<br>「來問事的嗎？今天楊梅店的業績可不太好啊...」");
+            triggerCooldown();
+        }
+    }
+
+    function showDialog(text) {
+        dialogBox.innerHTML = text;
+        dialogBox.style.display = 'block';
+        setTimeout(() => { dialogBox.style.display = 'none'; }, 3000); // 3秒後消失
+    }
+
+    function triggerCooldown() {
+        interactionCooldown = 60; // 約 1 秒冷卻時間 (60 FPS)
+    }
+
+    // --- 核心更新邏輯 ---
     function update() {
+        if (interactionCooldown > 0) interactionCooldown--;
+
         cat.isMoving = false;
         let dx = 0, dy = 0;
 
@@ -154,20 +229,23 @@
         else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
         else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
 
-        // 最基礎的結界邊緣防護 (先不穿牆)
-        if (cat.x + dx >= 0 && cat.x + dx <= canvas.width - TILE_SIZE) cat.x += dx;
-        if (cat.y + dy >= 0 && cat.y + dy <= canvas.height - TILE_SIZE) cat.y += dy;
+        // 分開驗證 X 軸與 Y 軸，這樣即使貼著牆壁也能滑順移動
+        if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
+        if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
     }
 
+    // --- 畫面渲染 ---
     function draw() {
-        // 鋪地板
-        for (let row = 0; row < canvas.height / TILE_SIZE; row++) {
-            for (let col = 0; col < canvas.width / TILE_SIZE; col++) {
-                ctx.drawImage(images['floor'], col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. 先鋪滿整片石板地板
+        for (let r = 0; r < mapLayout.length; r++) {
+            for (let c = 0; c < mapLayout[r].length; c++) {
+                ctx.drawImage(images['floor'], c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
         }
 
-        // 擺放家具跟神明
+        // 2. 疊加上家具與神明
         for (let r = 0; r < mapLayout.length; r++) {
             for (let c = 0; c < mapLayout[r].length; c++) {
                 let tile = mapLayout[r][c];
@@ -176,14 +254,24 @@
                 
                 if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
                 if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 3) ctx.drawImage(images['god_main'], posX, posY - (TILE_SIZE*0.5), TILE_SIZE, TILE_SIZE * 1.5);
+                if (tile === 3) ctx.drawImage(images['gate'], posX, posY, TILE_SIZE, TILE_SIZE);
                 if (tile === 4) ctx.drawImage(images['altar'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 5) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 6) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
+                if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
+                if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
+                
+                // 畫佛像群 (稍微把 Y 軸往上提，讓他們看起來在牆壁前面)
+                let godY = posY - (TILE_SIZE * 0.3);
+                if (tile === 10) ctx.drawImage(images['god_main'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE, TILE_SIZE * 1.5);
+                if (tile === 11) ctx.drawImage(images['god1'], posX, godY, TILE_SIZE, TILE_SIZE);
+                if (tile === 12) ctx.drawImage(images['god2'], posX, godY, TILE_SIZE, TILE_SIZE);
+                if (tile === 13) ctx.drawImage(images['god3'], posX, godY, TILE_SIZE, TILE_SIZE);
+                if (tile === 14) ctx.drawImage(images['god4'], posX, godY, TILE_SIZE, TILE_SIZE);
+                if (tile === 15) ctx.drawImage(images['god5'], posX, godY, TILE_SIZE, TILE_SIZE);
+                if (tile === 16) ctx.drawImage(images['god_small'], posX, godY, TILE_SIZE, TILE_SIZE);
             }
         }
 
-        // 畫三花貓
+        // 3. 畫貓咪 (加上坐下的對話待機狀態)
         let catImg = images['cat_down_idle'];
         if (cat.isMoving) {
             if (cat.dir === 'up') catImg = images['cat_up'];
@@ -191,10 +279,14 @@
             if (cat.dir === 'left') catImg = images['cat_left'];
             if (cat.dir === 'right') catImg = images['cat_right'];
         } else {
-            if (cat.dir === 'down') catImg = images['cat_down_idle'];
-            else if (cat.dir === 'up') catImg = images['cat_up']; 
-            else if (cat.dir === 'left') catImg = images['cat_left'];
-            else if (cat.dir === 'right') catImg = images['cat_right'];
+            // 如果撞到互動按鈕，我們讓他側坐下來裝乖
+            if (interactionCooldown > 0) catImg = images['cat_sit'];
+            else {
+                if (cat.dir === 'down') catImg = images['cat_down_idle'];
+                else if (cat.dir === 'up') catImg = images['cat_up']; 
+                else if (cat.dir === 'left') catImg = images['cat_left'];
+                else if (cat.dir === 'right') catImg = images['cat_right'];
+            }
         }
 
         ctx.drawImage(catImg, cat.x, cat.y, TILE_SIZE, TILE_SIZE);
