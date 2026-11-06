@@ -2,9 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- 鎖死畫面，防止手機版因為手賤亂滑導致螢幕縮放或亂跳 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>河樂宮 - 大墩楊梅庫存通靈系統</title>
+    <title>河樂宮 - 庫存通靈系統</title>
     <style>
         body, html {
             margin: 0;
@@ -14,11 +13,12 @@
             background-color: #1a1a1a;
             overflow: hidden;
             touch-action: none; /* 物理超渡所有手機預設滑動手勢 */
+            font-family: 'Courier New', Courier, monospace;
         }
         #gameCanvas {
-            display: block;
+            display: none;
             margin: 0 auto;
-            image-rendering: pixelated; /* 確保像素圖放大不會糊掉，保持銳利感 */
+            image-rendering: pixelated;
             width: 100vw;
             height: 100vh;
             object-fit: contain;
@@ -26,28 +26,35 @@
         #loading {
             color: #fff;
             text-align: center;
-            margin-top: 45vh;
-            font-family: 'Courier New', Courier, monospace;
+            margin-top: 40vh;
             font-size: 1.2rem;
+            line-height: 1.8;
+        }
+        .error-msg {
+            color: #ff4444;
+            font-size: 1rem;
+            display: block;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-<div id="loading">請神降駕中 (載入圖片)...</div>
-<canvas id="gameCanvas" style="display:none;"></canvas>
+<div id="loading">
+    請神降駕中 (載入圖片)...<br>
+    <span style="font-size: 0.9rem; color: #888;">正在點名，誰沒到我等一下就公審誰</span>
+</div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const loadingDiv = document.getElementById('loading');
     
-    // 定義基礎網格與解析度 (這裡先以 32x32 為基礎，後續可依實機調整比例)
-    const TILE_SIZE = 48; 
-    canvas.width = 800;
-    canvas.height = 600;
+    // 基礎網格尺寸，稍微放大點不然手機上看會像視力測驗
+    const TILE_SIZE = 64; 
 
-    // --- 圖片資源清單 ---
-    // 這裡的命名已經對應我們最後生死核對的那份清單
+    // 終極完美無瑕確認版素材清單
     const assetNames = [
         'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
         'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
@@ -57,24 +64,27 @@
     const images = {};
     let loadedCount = 0;
 
-    // 載入所有圖片
+    // 載入圖片與抓蟲雷達
     assetNames.forEach(name => {
         images[name] = new Image();
-        // 假設圖檔都放在跟 index.html 同一層的根目錄
         images[name].src = name + '.png'; 
+        
         images[name].onload = () => {
             loadedCount++;
             if (loadedCount === assetNames.length) {
-                document.getElementById('loading').style.display = 'none';
+                loadingDiv.style.display = 'none';
                 canvas.style.display = 'block';
                 startGame();
             }
         };
+
+        // 🚨 抓漏系統：如果有檔案遺失或大小寫打錯，直接在螢幕噴紅字
+        images[name].onerror = () => {
+            loadingDiv.innerHTML += `<span class="error-msg">⚠️ 業障警告：找不到 ${name}.png</span>`;
+        };
     });
 
-    // --- 地圖陣列設計 ---
-    // 0:地板, 1:灰磚牆, 2:蓮花牆, 3:大殿主佛, 4:神桌, 5:藍貓廟公, 6:籤筒
-    // 這裡先隨便鋪個超簡陋版，之後我們再來精雕細琢
+    // 簡易地圖陣列 (0:空地, 1:灰磚, 2:蓮花牆, 3:大佛, 4:神桌, 5:廟公, 6:籤筒)
     const mapLayout = [
         [1, 1, 2, 2, 2, 2, 2, 1, 1, 1],
         [1, 0, 0, 0, 3, 0, 0, 0, 5, 1],
@@ -84,27 +94,27 @@
         [1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
     ];
 
-    // --- 貓咪物件狀態 ---
+    // 貓咪狀態
     const cat = {
         x: 4 * TILE_SIZE,
         y: 4 * TILE_SIZE,
-        speed: 3,
-        dir: 'down',      // up, down, left, right
+        speed: 4,
+        dir: 'down',
         isMoving: false
     };
 
-    // --- 控制器邏輯 ---
+    // --- 控制系統 ---
     const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
     window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
     window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
-    // --- 選項 B：手機全螢幕隱形拖曳 (Virtual Joystick) ---
     let touchStartX = 0;
     let touchStartY = 0;
     let isTouching = false;
     let touchDir = null;
 
+    // 手機全螢幕隱形拖曳 (Virtual Joystick)
     window.addEventListener('touchstart', e => {
         isTouching = true;
         touchStartX = e.touches[0].clientX;
@@ -113,14 +123,14 @@
     }, { passive: false });
 
     window.addEventListener('touchmove', e => {
-        e.preventDefault(); // 阻擋畫面亂捲
+        e.preventDefault(); // 擋掉手機亂捲
         if (!isTouching) return;
         
         let diffX = e.touches[0].clientX - touchStartX;
         let diffY = e.touches[0].clientY - touchStartY;
         
-        // 滑動超過 20 像素才判定為移動，避免手抖誤觸
-        if (Math.abs(diffX) > 20 || Math.abs(diffY) > 20) {
+        // 滑動超過 15 像素才算移動，避免手抖
+        if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
             if (Math.abs(diffX) > Math.abs(diffY)) {
                 touchDir = diffX > 0 ? 'right' : 'left';
             } else {
@@ -134,31 +144,30 @@
         touchDir = null;
     });
 
-    // --- 主遊戲迴圈 ---
+    // --- 核心邏輯 ---
     function update() {
         cat.isMoving = false;
         let dx = 0, dy = 0;
 
-        // 電腦鍵盤判定
         if (keys['w'] || keys['ArrowUp'] || touchDir === 'up') { dy = -cat.speed; cat.dir = 'up'; cat.isMoving = true; }
         else if (keys['s'] || keys['ArrowDown'] || touchDir === 'down') { dy = cat.speed; cat.dir = 'down'; cat.isMoving = true; }
         else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
         else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
 
-        // TODO: 這裡之後要補上防止撞牆跟穿透佛祖的判定 (目前先做個畫布邊界限制)
+        // 最基礎的結界邊緣防護 (先不穿牆)
         if (cat.x + dx >= 0 && cat.x + dx <= canvas.width - TILE_SIZE) cat.x += dx;
         if (cat.y + dy >= 0 && cat.y + dy <= canvas.height - TILE_SIZE) cat.y += dy;
     }
 
     function draw() {
-        // 1. 鋪地板
+        // 鋪地板
         for (let row = 0; row < canvas.height / TILE_SIZE; row++) {
             for (let col = 0; col < canvas.width / TILE_SIZE; col++) {
                 ctx.drawImage(images['floor'], col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
         }
 
-        // 2. 畫地圖物件 (極度簡陋版，之後優化)
+        // 擺放家具跟神明
         for (let r = 0; r < mapLayout.length; r++) {
             for (let c = 0; c < mapLayout[r].length; c++) {
                 let tile = mapLayout[r][c];
@@ -167,22 +176,21 @@
                 
                 if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
                 if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 3) ctx.drawImage(images['god_main'], posX, posY - 20, TILE_SIZE, TILE_SIZE * 1.5); // 佛祖大一點
+                if (tile === 3) ctx.drawImage(images['god_main'], posX, posY - (TILE_SIZE*0.5), TILE_SIZE, TILE_SIZE * 1.5);
                 if (tile === 4) ctx.drawImage(images['altar'], posX, posY, TILE_SIZE, TILE_SIZE);
                 if (tile === 5) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
                 if (tile === 6) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
             }
         }
 
-        // 3. 畫主角三花貓
-        let catImg = images['cat_down_idle']; // 預設發呆
+        // 畫三花貓
+        let catImg = images['cat_down_idle'];
         if (cat.isMoving) {
             if (cat.dir === 'up') catImg = images['cat_up'];
             if (cat.dir === 'down') catImg = images['cat_down'];
             if (cat.dir === 'left') catImg = images['cat_left'];
             if (cat.dir === 'right') catImg = images['cat_right'];
         } else {
-            // 如果面對下方但沒在走，就顯示立正發呆圖
             if (cat.dir === 'down') catImg = images['cat_down_idle'];
             else if (cat.dir === 'up') catImg = images['cat_up']; 
             else if (cat.dir === 'left') catImg = images['cat_left'];
