@@ -1,422 +1,439 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 綁定手機桌面 APP 圖示 -->
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="icon" type="image/png" href="icon.png">
-    
-    <title>河樂宮 - 庫存通靈系統</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #1a1a1a;
-            overflow: hidden;
-            touch-action: none; 
-            font-family: 'Courier New', Courier, monospace;
-        }
-        #gameCanvas {
-            display: none;
-            margin: 0 auto;
-            image-rendering: pixelated;
-            width: 100vw;
-            height: 100vh;
-            object-fit: contain;
-        }
-        #loading {
-            color: #fff;
-            text-align: center;
-            margin-top: 40vh;
-            font-size: 1.2rem;
-            line-height: 1.8;
-        }
-        .error-msg {
-            color: #ff4444;
-            font-size: 1rem;
-            display: block;
-            margin-top: 10px;
-        }
-        #dialogBox {
-            display: none;
-            position: absolute;
-            bottom: 15%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 85%;
-            max-width: 450px;
-            background: rgba(0, 0, 0, 0.9);
-            color: #fff;
-            border: 2px solid #d4af37;
-            border-radius: 8px;
-            padding: 20px;
-            font-size: 1.1rem;
-            text-align: center;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-            pointer-events: none;
-            z-index: 10;
-        }
-        /* 實體木魚按鈕 */
-        #actionBtn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 80px;
-            height: 80px;
-            background-image: url('muyu.png');
-            background-size: cover;
-            background-position: center;
-            background-color: transparent;
-            border: none;
-            border-radius: 50%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            user-select: none;
-            z-index: 100;
-            cursor: pointer;
-            display: none;
-        }
-        #actionBtn:active {
-            transform: scale(0.9);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- 綁定手機桌面 APP 圖示 -->
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<title>河樂宮 - 庫存通靈系統</title>
+<style>
+body, html {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100%;
+background-color: #1a1a1a;
+overflow: hidden;
+touch-action: none;
+font-family: 'Courier New', Courier, monospace;
+}
+#gameCanvas {
+display: none;
+margin: 0 auto;
+image-rendering: pixelated;
+width: 100vw;
+height: 100vh;
+object-fit: contain;
+}
+#loading {
+color: #fff;
+text-align: center;
+margin-top: 40vh;
+font-size: 1.2rem;
+line-height: 1.8;
+}
+.error-msg {
+color: #ff4444;
+font-size: 1rem;
+display: block;
+margin-top: 10px;
+}
+#dialogBox {
+display: none;
+position: absolute;
+bottom: 15%;
+left: 50%;
+transform: translateX(-50%);
+width: 85%;
+max-width: 450px;
+background: rgba(0, 0, 0, 0.9);
+color: #fff;
+border: 2px solid #d4af37;
+border-radius: 8px;
+padding: 20px;
+font-size: 1.1rem;
+text-align: center;
+box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+pointer-events: none;
+z-index: 10;
+}
+/* 實體木魚按鈕 */
+#actionBtn {
+position: fixed;
+bottom: 30px;
+right: 30px;
+width: 80px;
+height: 80px;
+background-image: url('muyu.png');
+background-size: cover;
+background-position: center;
+background-color: transparent;
+border: none;
+border-radius: 50%;
+box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+user-select: none;
+z-index: 100;
+cursor: pointer;
+display: none;
+}
+#actionBtn:active {
+transform: scale(0.9);
+}
+/* 新增：左下角防呆指示牌 */
+#instructions {
+position: fixed;
+bottom: 20px;
+left: 20px;
+color: rgba(255, 255, 255, 0.6);
+font-size: 0.9rem;
+line-height: 1.6;
+pointer-events: none;
+z-index: 50;
+display: none;
+text-shadow: 1px 1px 2px #000;
+}
+</style>
 </head>
 <body>
-
 <div id="loading">
-    請神降駕中 (讀取圖片與雲端帳本)...<br>
-    <span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
+請神降駕中 (讀取圖片與雲端帳本)...<br>
+<span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
 </div>
 
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
 <!-- 換成木魚背景的按鈕 -->
 <div id="actionBtn"></div>
+<!-- 左下角指示牌 -->
+<div id="instructions">
+💻 電腦版：WASD移動 / 空白鍵調查<br>
+📱 手機版：滑動螢幕 / 敲木魚調查
+</div>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const loadingDiv = document.getElementById('loading');
-    const dialogBox = document.getElementById('dialogBox');
-    const actionBtn = document.getElementById('actionBtn');
-    
-    const TILE_SIZE = 64; 
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const loadingDiv = document.getElementById('loading');
+const dialogBox = document.getElementById('dialogBox');
+const actionBtn = document.getElementById('actionBtn');
+const instructions = document.getElementById('instructions');
+const TILE_SIZE = 64;
 
-    // 新增木魚與圖示，確保它們也載入
-    const assetNames = [
-        'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
-        'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
-        'cat_up', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
-        'muyu', 'icon' 
-    ];
-    
-    const images = {};
-    let loadedCount = 0;
-    let inventoryData = []; 
+// 新增兩位工讀生：npc_golden, npc_hairless
+const assetNames = [
+'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
+'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
+'cat_up', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
+'muyu', 'icon', 'npc_golden', 'npc_hairless'
+];
+const images = {};
+let loadedCount = 0;
+let inventoryData = [];
+const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'];
+const activeGod = godList[Math.floor(Math.random() * godList.length)];
 
-    const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'];
-    const activeGod = godList[Math.floor(Math.random() * godList.length)];
+async function fetchInventory() {
+try {
+const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
+const res = await fetch(url);
+const text = await res.text();
+let result = [];
+let row = [], col = "", quote = false;
+for (let i = 0; i < text.length; i++) {
+let cc = text[i], nc = text[i+1];
+if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
+if (cc === '"') { quote = !quote; continue; }
+if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
+if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
+if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
+col += cc;
+}
+if (col !== "" || text.endsWith(',')) row.push(col);
+if (row.length > 0) result.push(row);
+const headers = result[0].map(h => h.trim());
+for (let i = 1; i < result.length; i++) {
+let obj = {};
+headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
+inventoryData.push(obj);
+}
+} catch(err) {
+loadingDiv.innerHTML += `<span class="error-msg">⚠️ 無法載入 Google Sheets，請檢查網路。</span>`;
+}
+}
 
-    async function fetchInventory() {
-        try {
-            const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
-            const res = await fetch(url);
-            const text = await res.text();
-            
-            let result = [];
-            let row = [], col = "", quote = false;
-            for (let i = 0; i < text.length; i++) {
-                let cc = text[i], nc = text[i+1];
-                if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
-                if (cc === '"') { quote = !quote; continue; }
-                if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
-                if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
-                if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
-                col += cc;
-            }
-            if (col !== "" || text.endsWith(',')) row.push(col);
-            if (row.length > 0) result.push(row);
+assetNames.forEach(name => {
+images[name] = new Image();
+images[name].src = name + '.png';
+images[name].onload = () => {
+loadedCount++;
+checkStartGame();
+};
+images[name].onerror = () => {
+loadingDiv.innerHTML += `<span class="error-msg">⚠️ 找不到圖片：${name}.png</span>`;
+};
+});
 
-            const headers = result[0].map(h => h.trim());
-            for (let i = 1; i < result.length; i++) {
-                let obj = {};
-                headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
-                inventoryData.push(obj);
-            }
-        } catch(err) {
-            loadingDiv.innerHTML += `<span class="error-msg">⚠️ 無法載入 Google Sheets，請檢查網路。</span>`;
-        }
-    }
+async function init() {
+await fetchInventory();
+checkStartGame();
+}
 
-    assetNames.forEach(name => {
-        images[name] = new Image();
-        images[name].src = name + '.png'; 
-        
-        images[name].onload = () => {
-            loadedCount++;
-            checkStartGame();
-        };
-        images[name].onerror = () => {
-            loadingDiv.innerHTML += `<span class="error-msg">⚠️ 找不到圖片：${name}.png</span>`;
-        };
-    });
+function checkStartGame() {
+if (loadedCount === assetNames.length && inventoryData.length > 0) {
+loadingDiv.style.display = 'none';
+canvas.style.display = 'block';
+actionBtn.style.display = 'block';
+instructions.style.display = 'block'; // 顯示左下角說明
+startGame();
+}
+}
 
-    async function init() {
-        await fetchInventory();
-        checkStartGame();
-    }
+// --- 強迫症治癒版風水格局 (10 x 10) ---
+// 7: 金漸層, 8: 無毛貓
+const mapLayout = [
+[1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
+[1, 7, 0, 0, 0, 99,0, 0, 0, 1], // 左上角安插 7 (金漸層)
+[1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 5, 0, 0, 0, 0, 0, 0, 6, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 8, 1], // 右下角安插 8 (無毛貓)
+[1, 1, 1, 1, 0, 3, 1, 1, 1, 1]  
+];
 
-    function checkStartGame() {
-        if (loadedCount === assetNames.length && inventoryData.length > 0) {
-            loadingDiv.style.display = 'none';
-            canvas.style.display = 'block';
-            actionBtn.style.display = 'block';
-            startGame();
-        }
-    }
+const cat = {
+x: 5.5 * TILE_SIZE,
+y: 7 * TILE_SIZE,
+speed: 4,
+dir: 'up',
+isMoving: false,
+isInteracting: false
+};
 
-     // --- 強迫症治癒版風水格局 (10 x 10) ---
-    const mapLayout = [
-        [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
-        [1, 0, 0, 0, 0, 99,0, 0, 0, 1], 
-        [1, 0, 0, 0, 0, 4, 0, 0, 0, 1], 
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-        [1, 5, 0, 0, 0, 0, 0, 0, 6, 1], 
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 0, 3, 1, 1, 1, 1] // 牌樓底下全部淨空換成地板 (0)
-    ];
+const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+let touchDir = null;
 
-    const cat = {
-        x: 5.5 * TILE_SIZE, 
-        y: 7 * TILE_SIZE, 
-        speed: 4,
-        dir: 'up',
-        isMoving: false,
-        isInteracting: false
-    };
+window.addEventListener('keydown', e => {
+if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tryInteract(); }
+});
+window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
-    const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-    let touchDir = null;
+let touchStartX = 0, touchStartY = 0, isTouching = false;
+window.addEventListener('touchstart', e => {
+if(e.target === actionBtn) return;
+isTouching = true;
+touchStartX = e.touches[0].clientX;
+touchStartY = e.touches[0].clientY;
+touchDir = null;
+}, { passive: false });
 
-    window.addEventListener('keydown', e => { 
-        if (keys.hasOwnProperty(e.key)) keys[e.key] = true; 
-        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tryInteract(); }
-    });
-    window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+window.addEventListener('touchmove', e => {
+if (!isTouching) return;
+e.preventDefault();
+let diffX = e.touches[0].clientX - touchStartX;
+let diffY = e.touches[0].clientY - touchStartY;
+if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
+if (Math.abs(diffX) > Math.abs(diffY)) touchDir = diffX > 0 ? 'right' : 'left';
+else touchDir = diffY > 0 ? 'down' : 'up';
+}
+}, { passive: false });
+window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
 
-    let touchStartX = 0, touchStartY = 0, isTouching = false;
-    window.addEventListener('touchstart', e => {
-        if(e.target === actionBtn) return;
-        isTouching = true;
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        touchDir = null;
-    }, { passive: false });
+actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
+actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
 
-    window.addEventListener('touchmove', e => {
-        if (!isTouching) return;
-        e.preventDefault(); 
-        let diffX = e.touches[0].clientX - touchStartX;
-        let diffY = e.touches[0].clientY - touchStartY;
-        if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
-            if (Math.abs(diffX) > Math.abs(diffY)) touchDir = diffX > 0 ? 'right' : 'left';
-            else touchDir = diffY > 0 ? 'down' : 'up';
-        }
-    }, { passive: false });
-    window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
+// --- 強化版物理防撞 ---
+function isWalkable(newX, newY) {
+let left = newX + 16, right = newX + TILE_SIZE - 16;
+let top = newY + 32, bottom = newY + TILE_SIZE - 4;
 
-    actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
-    actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
+if (top < 0 || bottom >= canvas.height || left < 0 || right >= canvas.width) return false;
 
-    // --- 強化版物理防撞 ---
-    function isWalkable(newX, newY) {
-        let left = newX + 16, right = newX + TILE_SIZE - 16;
-        let top = newY + 32, bottom = newY + TILE_SIZE - 4;
+let c1 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
+let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
+let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
+let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
 
-        // 極限邊界防護：防止越界當機 (解決牌樓下卡死問題)
-        if (top < 0 || bottom >= canvas.height || left < 0 || right >= canvas.width) return false;
+// 加入 7(金漸層) 和 8(無毛貓) 作為實體障礙物
+return ((c1 === 0 || c1 === 3) && (c2 === 0 || c2 === 3) && (c3 === 0 || c3 === 3) && (c4 === 0 || c4 === 3));
+}
 
-        let c1 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
-        let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
-        let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
-        let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
+let isPrompting = false;
+function tryInteract() {
+if (cat.isInteracting || isPrompting) return;
 
-        return ((c1 === 0 || c1 === 3) && (c2 === 0 || c2 === 3) && (c3 === 0 || c3 === 3) && (c4 === 0 || c4 === 3));
-    }
+let cx = cat.x + (TILE_SIZE / 2);
+let cy = cat.y + (TILE_SIZE / 2);
+let targetX = cx, targetY = cy;
+let offset = TILE_SIZE * 0.8;
 
-    let isPrompting = false; 
-    function tryInteract() {
-        if (cat.isInteracting || isPrompting) return; 
+if (cat.dir === 'up') targetY -= offset;
+if (cat.dir === 'down') targetY += offset;
+if (cat.dir === 'left') targetX -= offset;
+if (cat.dir === 'right') targetX += offset;
 
-        let cx = cat.x + (TILE_SIZE / 2);
-        let cy = cat.y + (TILE_SIZE / 2);
-        let targetX = cx, targetY = cy;
-        let offset = TILE_SIZE * 0.8; 
-        
-        if (cat.dir === 'up') targetY -= offset;
-        if (cat.dir === 'down') targetY += offset;
-        if (cat.dir === 'left') targetX -= offset;
-        if (cat.dir === 'right') targetX += offset;
-        
-        let c = Math.floor(targetX / TILE_SIZE);
-        let r = Math.floor(targetY / TILE_SIZE);
-        
-        if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
-            let tile = mapLayout[r][c];
-            if (tile === 5) handleFortune(); 
-            if (tile === 6) handleNPC();     
-        }
-    }
+let c = Math.floor(targetX / TILE_SIZE);
+let r = Math.floor(targetY / TILE_SIZE);
 
-    function handleFortune() {
-        let available = inventoryData.filter(item => {
-            let price = parseInt(item['促銷售價']);
-            let ym = parseInt(item['楊梅庫存']) || 0;
-            let ddw = parseInt(item['HOLA630庫存']) || 0;
-            let dds = parseInt(item['HOLA630展示']) || 0;
-            return !isNaN(price) && price > 0 && (ddw > 0 || dds > 0) && ym > 3;
-        });
-        
-        if (available.length === 0) {
-            showDialog("佛祖眉頭一皺：<br>「今日無上等特價良品，施主請改日再來。」");
-            return;
-        }
-        
-        let luckyItem = available[Math.floor(Math.random() * available.length)];
-        showDialog(`
-            <b style="color:#ffcc00;font-size:1.3em;">🎊 上上籤！</b><br>
-            <span style="font-size:0.8em; color:#aaa;">${luckyItem['SKU']}</span><br>
-            <b>${luckyItem['商品名稱']}</b><br>
-            原價：<del>${luckyItem['一般售價']}</del> ➡️ <span style="color:#ff4444;font-size:1.3em;">$${luckyItem['促銷售價']}</span><br>
-            <hr style="border:0;border-top:1px dashed #666;margin:10px 0;">
-            大墩店：${parseInt(luckyItem['HOLA630庫存'])||0} (展示: ${parseInt(luckyItem['HOLA630展示'])||0})<br>
-            楊梅倉：${parseInt(luckyItem['楊梅庫存'])||0}
-        `, 6000);
-    }
+if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
+let tile = mapLayout[r][c];
+if (tile === 5) handleFortune();
+if (tile === 6) handleNPC();
+if (tile === 7) handleGolden(); // 金漸層業配
+if (tile === 8) handleHairless(); // 無毛貓業配
+}
+}
 
-    function handleNPC() {
-        isPrompting = true;
-        setTimeout(() => {
-            let sku = window.prompt("藍貓廟公：\n「報上名來，你要查哪個 SKU？」");
-            isPrompting = false;
-            
-            if (!sku || sku.trim() === '') return;
-            sku = sku.trim().toUpperCase(); 
-            
-            let item = inventoryData.find(i => i['SKU'].toUpperCase().includes(sku));
-            
-            if (!item) {
-                showDialog(`廟公搖了搖頭：<br>「查無此物 (${sku})，施主可是記錯了？」`);
-            } else {
-                let priceStr = item['促銷售價'] ? `<span style="color:#ff4444;font-weight:bold;">$${item['促銷售價']}</span> <del style="color:#888;font-size:0.8em;">$${item['一般售價']}</del>` : `$${item['一般售價']}`;
-                showDialog(`
-                    <span style="font-size:0.8em;color:#aaa;">${item['SKU']} | ${item['商品分類']||'未分類'}</span><br>
-                    <b style="color:#ffcc00;">${item['商品名稱']}</b><br>
-                    售價：${priceStr}<br>
-                    <hr style="border:0;border-top:1px dashed #666;margin:8px 0;">
-                    大墩庫存：<b>${parseInt(item['HOLA630庫存'])||0}</b> (展示: ${parseInt(item['HOLA630展示'])||0})<br>
-                    楊梅庫存：<b>${parseInt(item['楊梅庫存'])||0}</b>
-                `, 8000);
-            }
-        }, 50);
-    }
+function handleGolden() {
+showDialog("🐱 金漸層：<br>「聽說這裡廟公的LINE ID是：<b>satanhotdog</b>，有家具需求可以私下找他處理喔...」", 5000);
+}
 
-    function showDialog(text, duration = 4000) {
-        dialogBox.innerHTML = text;
-        dialogBox.style.display = 'block';
-        cat.isInteracting = true; 
-        
-        if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
-        window.dialogTimeout = setTimeout(() => { 
-            dialogBox.style.display = 'none'; 
-            cat.isInteracting = false;
-        }, duration);
-    }
+function handleHairless() {
+showDialog("🐈 無毛貓：<br>「偷偷跟你說，聽說這裡的藍貓廟公KOBE，有在兼職HOLA大墩店家具業務耶。」", 5000);
+}
 
-    function update() {
-        if (cat.isInteracting || isPrompting) return; 
+function handleFortune() {
+let available = inventoryData.filter(item => {
+let price = parseInt(item['促銷售價']);
+let ym = parseInt(item['楊梅庫存']) || 0;
+let ddw = parseInt(item['HOLA630庫存']) || 0;
+let dds = parseInt(item['HOLA630展示']) || 0;
+return !isNaN(price) && price > 0 && (ddw > 0 || dds > 0) && ym > 3;
+});
 
-        cat.isMoving = false;
-        let dx = 0, dy = 0;
+if (available.length === 0) {
+showDialog("佛祖眉頭一皺：<br>「今日無上等特價良品，施主請改日再來。」");
+return;
+}
 
-        if (keys['w'] || keys['ArrowUp'] || touchDir === 'up') { dy = -cat.speed; cat.dir = 'up'; cat.isMoving = true; }
-        else if (keys['s'] || keys['ArrowDown'] || touchDir === 'down') { dy = cat.speed; cat.dir = 'down'; cat.isMoving = true; }
-        else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
-        else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
+let luckyItem = available[Math.floor(Math.random() * available.length)];
+showDialog(`
+<b style="color:#ffcc00;font-size:1.3em;">🎊 上上籤！</b><br>
+<span style="font-size:0.8em; color:#aaa;">${luckyItem['SKU']}</span><br>
+<b>${luckyItem['商品名稱']}</b><br>
+原價：<del>${luckyItem['一般售價']}</del> ➡️ <span style="color:#ff4444;font-size:1.3em;">$${luckyItem['促銷售價']}</span><br>
+<hr style="border:0;border-top:1px dashed #666;margin:10px 0;">
+大墩店：${parseInt(luckyItem['HOLA630庫存'])||0} (展示: ${parseInt(luckyItem['HOLA630展示'])||0})<br>
+楊梅倉：${parseInt(luckyItem['楊梅庫存'])||0}
+`, 6000);
+}
 
-        if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
-        if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
-    }
+function handleNPC() {
+isPrompting = true;
+setTimeout(() => {
+let sku = window.prompt("藍貓廟公：\n「報上名來，你要查哪個 SKU？」");
+isPrompting = false;
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+if (!sku || sku.trim() === '') return;
+sku = sku.trim().toUpperCase();
+let item = inventoryData.find(i => i['SKU'].toUpperCase().includes(sku));
 
-        // 1. 地板
-        for (let r = 0; r < mapLayout.length; r++) {
-            for (let c = 0; c < mapLayout[r].length; c++) {
-                ctx.drawImage(images['floor'], c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-            }
-        }
+if (!item) {
+showDialog(`廟公搖了搖頭：<br>「查無此物 (${sku})，施主可是記錯了？」`);
+} else {
+let priceStr = item['促銷售價'] ? `<span style="color:#ff4444;font-weight:bold;">$${item['促銷售價']}</span> <del style="color:#888;font-size:0.8em;">$${item['一般售價']}</del>` : `$${item['一般售價']}`;
+showDialog(`
+<span style="font-size:0.8em;color:#aaa;">${item['SKU']} | ${item['商品分類']||'未分類'}</span><br>
+<b style="color:#ffcc00;">${item['商品名稱']}</b><br>
+售價：${priceStr}<br>
+<hr style="border:0;border-top:1px dashed #666;margin:8px 0;">
+大墩庫存：<b>${parseInt(item['HOLA630庫存'])||0}</b> (展示: ${parseInt(item['HOLA630展示'])||0})<br>
+楊梅庫存：<b>${parseInt(item['楊梅庫存'])||0}</b>
+`, 8000);
+}
+}, 50);
+}
 
-        // 2. 物件與神明
-        for (let r = 0; r < mapLayout.length; r++) {
-            for (let c = 0; c < mapLayout[r].length; c++) {
-                let tile = mapLayout[r][c];
-                let posX = c * TILE_SIZE;
-                let posY = r * TILE_SIZE;
-                
-                if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 4) ctx.drawImage(images['altar'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
-                if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
-                
-                // 置中放大版：盲盒大佛
-                if (tile === 99) {
-                    ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
-                }
-                
-                // 置中放大版：大牌樓
-                if (tile === 3 && c === 5) { // 改在第5格繪製以達成完美置中
-                    ctx.drawImage(images['gate'], posX - (TILE_SIZE * 1.25), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
-                }
-            }
-        }
+function showDialog(text, duration = 4000) {
+dialogBox.innerHTML = text;
+dialogBox.style.display = 'block';
+cat.isInteracting = true;
 
-        // 3. 畫貓咪
-        let catImg = images['cat_down_idle'];
-        if (cat.isInteracting || isPrompting) {
-            catImg = images['cat_sit']; 
-        } else if (cat.isMoving) {
-            if (cat.dir === 'up') catImg = images['cat_up'];
-            if (cat.dir === 'down') catImg = images['cat_down'];
-            if (cat.dir === 'left') catImg = images['cat_left'];
-            if (cat.dir === 'right') catImg = images['cat_right'];
-        } else {
-            if (cat.dir === 'down') catImg = images['cat_down_idle'];
-            else if (cat.dir === 'up') catImg = images['cat_up']; 
-            else if (cat.dir === 'left') catImg = images['cat_left'];
-            else if (cat.dir === 'right') catImg = images['cat_right'];
-        }
-        ctx.drawImage(catImg, cat.x, cat.y, TILE_SIZE, TILE_SIZE);
-    }
+if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+window.dialogTimeout = setTimeout(() => {
+dialogBox.style.display = 'none';
+cat.isInteracting = false;
+}, duration);
+}
 
-    function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
+function update() {
+if (cat.isInteracting || isPrompting) return;
+cat.isMoving = false;
+let dx = 0, dy = 0;
 
-    function startGame() {
-        gameLoop();
-    }
-    
-    init(); // 啟動主程式
+if (keys['w'] || keys['ArrowUp'] || touchDir === 'up') { dy = -cat.speed; cat.dir = 'up'; cat.isMoving = true; }
+else if (keys['s'] || keys['ArrowDown'] || touchDir === 'down') { dy = cat.speed; cat.dir = 'down'; cat.isMoving = true; }
+else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
+else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
+
+if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
+if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
+}
+
+function draw() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+for (let r = 0; r < mapLayout.length; r++) {
+for (let c = 0; c < mapLayout[r].length; c++) {
+ctx.drawImage(images['floor'], c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+}
+}
+
+for (let r = 0; r < mapLayout.length; r++) {
+for (let c = 0; c < mapLayout[r].length; c++) {
+let tile = mapLayout[r][c];
+let posX = c * TILE_SIZE;
+let posY = r * TILE_SIZE;
+
+if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
+if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
+if (tile === 4) ctx.drawImage(images['altar'], posX, posY, TILE_SIZE, TILE_SIZE);
+if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
+if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
+if (tile === 7) ctx.drawImage(images['npc_golden'], posX, posY, TILE_SIZE, TILE_SIZE); // 畫金漸層
+if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, posY, TILE_SIZE, TILE_SIZE); // 畫無毛貓
+
+if (tile === 99) {
+ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
+}
+if (tile === 3 && c === 5) { 
+ctx.drawImage(images['gate'], posX - (TILE_SIZE * 1.25), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
+}
+}
+}
+
+let catImg = images['cat_down_idle'];
+if (cat.isInteracting || isPrompting) {
+catImg = images['cat_sit'];
+} else if (cat.isMoving) {
+if (cat.dir === 'up') catImg = images['cat_up'];
+if (cat.dir === 'down') catImg = images['cat_down'];
+if (cat.dir === 'left') catImg = images['cat_left'];
+if (cat.dir === 'right') catImg = images['cat_right'];
+} else {
+if (cat.dir === 'down') catImg = images['cat_down_idle'];
+else if (cat.dir === 'up') catImg = images['cat_up'];
+else if (cat.dir === 'left') catImg = images['cat_left'];
+else if (cat.dir === 'right') catImg = images['cat_right'];
+}
+ctx.drawImage(catImg, cat.x, cat.y, TILE_SIZE, TILE_SIZE);
+}
+
+function gameLoop() {
+update();
+draw();
+requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+gameLoop();
+}
+
+init(); 
 </script>
 </body>
 </html>
