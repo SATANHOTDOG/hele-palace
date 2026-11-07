@@ -80,7 +80,7 @@ display: none;
 #actionBtn:active {
 transform: scale(0.9);
 }
-/* 新增：左下角防呆指示牌 */
+/* 防呆指示牌 */
 #instructions {
 position: fixed;
 bottom: 20px;
@@ -120,7 +120,7 @@ const actionBtn = document.getElementById('actionBtn');
 const instructions = document.getElementById('instructions');
 const TILE_SIZE = 64;
 
-// 新增兩位工讀生：npc_golden, npc_hairless
+// 素材清單全數到位
 const assetNames = [
 'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
 'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
@@ -184,24 +184,24 @@ if (loadedCount === assetNames.length && inventoryData.length > 0) {
 loadingDiv.style.display = 'none';
 canvas.style.display = 'block';
 actionBtn.style.display = 'block';
-instructions.style.display = 'block'; // 顯示左下角說明
+instructions.style.display = 'block'; 
 startGame();
 }
 }
 
 // --- 強迫症治癒版風水格局 (10 x 10) ---
-// 7: 金漸層, 8: 無毛貓
+// 7: 金漸層 (左上), 8: 無毛貓 (右下)
 const mapLayout = [
 [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
-[1, 7, 0, 0, 0, 99,0, 0, 0, 1], // 左上角安插 7 (金漸層)
+[1, 7, 0, 0, 0, 99,0, 0, 0, 1], 
 [1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [1, 5, 0, 0, 0, 0, 0, 0, 6, 1],
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 0, 8, 1], // 右下角安插 8 (無毛貓)
-[1, 1, 1, 1, 0, 3, 1, 1, 1, 1]  
+[1, 0, 0, 0, 0, 0, 0, 0, 8, 1], 
+[1, 1, 1, 1, 0, 3, 1, 1, 1, 1]  // 牌樓基地已完美修復
 ];
 
 const cat = {
@@ -258,7 +258,6 @@ let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
 let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
 let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
 
-// 加入 7(金漸層) 和 8(無毛貓) 作為實體障礙物
 return ((c1 === 0 || c1 === 3) && (c2 === 0 || c2 === 3) && (c3 === 0 || c3 === 3) && (c4 === 0 || c4 === 3));
 }
 
@@ -391,11 +390,16 @@ let posY = r * TILE_SIZE;
 
 if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
 if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
-if (tile === 4) ctx.drawImage(images['altar'], posX, posY, TILE_SIZE, TILE_SIZE);
-if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY, TILE_SIZE, TILE_SIZE);
-if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, posY, TILE_SIZE, TILE_SIZE);
-if (tile === 7) ctx.drawImage(images['npc_golden'], posX, posY, TILE_SIZE, TILE_SIZE); // 畫金漸層
-if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, posY, TILE_SIZE, TILE_SIZE); // 畫無毛貓
+
+// 🚀 物理整骨拉皮區：解放二維詛咒
+let tallY = posY - (TILE_SIZE * 0.5);
+let tallH = TILE_SIZE * 1.5;
+
+if (tile === 4) ctx.drawImage(images['altar'], posX, tallY, TILE_SIZE, tallH);
+if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY - (TILE_SIZE * 0.3), TILE_SIZE, TILE_SIZE * 1.3); // 籤筒稍微矮一點
+if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, tallY, TILE_SIZE, tallH);
+if (tile === 7) ctx.drawImage(images['npc_golden'], posX, tallY, TILE_SIZE, tallH);
+if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, tallY, TILE_SIZE, tallH);
 
 if (tile === 99) {
 ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
@@ -420,7 +424,8 @@ else if (cat.dir === 'up') catImg = images['cat_up'];
 else if (cat.dir === 'left') catImg = images['cat_left'];
 else if (cat.dir === 'right') catImg = images['cat_right'];
 }
-ctx.drawImage(catImg, cat.x, cat.y, TILE_SIZE, TILE_SIZE);
+// 主角三花貓微調放大
+ctx.drawImage(catImg, cat.x, cat.y - 10, TILE_SIZE, TILE_SIZE + 10);
 }
 
 function gameLoop() {
