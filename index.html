@@ -57,7 +57,7 @@ box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
 pointer-events: none;
 z-index: 10;
 }
-/* 現代化點擊按鈕 (取代木魚) */
+/* 現代化點擊按鈕 */
 #actionBtn {
 position: fixed;
 bottom: 30px;
@@ -85,7 +85,7 @@ content: '👆';
 transform: scale(0.9);
 background-color: rgba(255, 255, 255, 0.3);
 }
-/* 智慧運鏡放大按鈕 (已遷移至左上角虛空) */
+/* 智慧運鏡放大按鈕 (左上角虛空) */
 #zoomBtn {
 position: fixed;
 top: 20px;
@@ -121,9 +121,29 @@ z-index: 50;
 display: none;
 text-shadow: 1px 1px 2px #000;
 }
+/* 機車變形金剛震動特效 */
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(1deg); }
+  50% { transform: translate(-1px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-1deg); }
+  80% { transform: translate(-1px, -1px) rotate(1deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+.shake-active {
+  animation: shake 0.5s;
+}
 </style>
 </head>
 <body>
+<!-- 隱藏的 BGM 播放器 -->
+<audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
+
 <div id="loading">
 請神降駕中 (讀取圖片與雲端帳本)...<br>
 <span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
@@ -146,9 +166,12 @@ const dialogBox = document.getElementById('dialogBox');
 const actionBtn = document.getElementById('actionBtn');
 const zoomBtn = document.getElementById('zoomBtn');
 const instructions = document.getElementById('instructions');
+const bgm = document.getElementById('bgm');
 const TILE_SIZE = 64;
 
-// 將舊的 floor 替換為 floor2
+let bgmPlayed = false; // BGM 啟動鎖
+
+// 新增 robot 進讀取清單
 const assetNames = [
 'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
 'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
@@ -157,7 +180,7 @@ const assetNames = [
 'floor_night', 'scooter', 'fence', 'tree',
 'stall_1', 'stall_2', 'stall_3', 'stall_4',
 'npc_boss1', 'npc_boss2', 'npc_boss3', 'npc_boss4',
-'npc_cus1', 'npc_cus2'
+'npc_cus1', 'npc_cus2', 'robot'
 ];
 const images = {};
 let loadedCount = 0;
@@ -166,9 +189,8 @@ const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'
 const activeGod = godList[Math.floor(Math.random() * godList.length)];
 
 let currentMap = 'temple'; 
-let isZoomed = false; // 鏡頭縮放狀態
+let isZoomed = false; 
 
-// 輪迴幹話矩陣
 const dialogues = {
     boss1: [
         "「聽說 KOBE 那傢伙一天只能吃兩餐，那我這香腸算正餐還是點心？」",
@@ -256,6 +278,17 @@ function checkStartGame() {
     }
 }
 
+function tryPlayBGM() {
+    if (!bgmPlayed) {
+        bgm.volume = 0.5; // 控制音量，避免在 HOLA 開會時點開被嚇死
+        let playPromise = bgm.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(e => { console.log("BGM 自動播放被擋下了"); });
+        }
+        bgmPlayed = true;
+    }
+}
+
 const templeMap = [
     [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
     [1, 7, 0, 0, 0, 0, 0, 0, 0, 1], 
@@ -294,9 +327,8 @@ const cat = {
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 let touchDir = null;
 
-// 鏡頭縮放事件切換
-zoomBtn.addEventListener('click', toggleZoom);
-zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleZoom(); });
+zoomBtn.addEventListener('click', () => { tryPlayBGM(); toggleZoom(); });
+zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryPlayBGM(); toggleZoom(); });
 
 function toggleZoom() {
     isZoomed = !isZoomed;
@@ -304,6 +336,7 @@ function toggleZoom() {
 }
 
 window.addEventListener('keydown', e => {
+    tryPlayBGM();
     if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tryInteract(); }
 });
@@ -311,6 +344,7 @@ window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.k
 
 let touchStartX = 0, touchStartY = 0, isTouching = false;
 window.addEventListener('touchstart', e => {
+    tryPlayBGM();
     if(e.target === actionBtn || e.target === zoomBtn) return;
     isTouching = true;
     touchStartX = e.touches[0].clientX;
@@ -329,22 +363,18 @@ window.addEventListener('touchmove', e => {
     }
 }, { passive: false });
 window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
-actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
-actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
+actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); tryInteract(); });
+actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); tryInteract(); });
 
 function getBestPromoPrice(item) {
     let priceStr = item['促銷售價'] || "";
     let dateStr = item['促銷期間'] || "";
-    
     if (!priceStr) return null;
     if (!priceStr.includes('|')) return parseInt(priceStr) || null; 
-    
     let prices = priceStr.split('|').map(p => parseInt(p.trim()));
     let dates = dateStr.split('|').map(d => d.trim());
-    
     let today = new Date();
     today.setHours(0,0,0,0);
-    
     let validPromos = [];
     for(let i = 0; i < prices.length; i++) {
         if(!dates[i] || !dates[i].includes('~')) continue;
@@ -352,12 +382,10 @@ function getBestPromoPrice(item) {
         let start = new Date(startStr.trim());
         let end = new Date(endStr.trim());
         end.setHours(23, 59, 59, 999); 
-        
         if(today >= start && today <= end) {
             validPromos.push({ price: prices[i], days: end - start }); 
         }
     }
-    
     if (validPromos.length === 0) return null;
     validPromos.sort((a, b) => a.days - b.days); 
     return validPromos[0].price;
@@ -409,6 +437,28 @@ function tryInteract() {
         if (tile === 44) handleNightCat('boss4', '🐱 賓士貓老闆 (撈金魚)');
         if (tile === 51) handleNightCat('cus1', '🐈 顧客 (喝珍奶)');
         if (tile === 52) handleNightCat('cus2', '🐈 顧客 (吃香腸)');
+
+        // --- 機車互動系統 ---
+        if (tile === 31) {
+            if (c === 1) { // 左邊機車
+                showDialog("🛵 機車：<br>「叭～叭～！找死啊！」", 3000);
+            } else if (c === 8) { // 右邊機車 (變形觸發)
+                isPrompting = true; // 凍結玩家
+                canvas.classList.add('shake-active'); // 觸發 CSS 震動
+                setTimeout(() => canvas.classList.remove('shake-active'), 500); // 停止震動
+
+                showDialog("⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」", 1500);
+                setTimeout(() => {
+                    nightMarketMap[r][c] = 33; // 陣列代碼 33 降臨
+                    showDialog("🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」", 4000);
+                    isPrompting = false; // 解除凍結
+                }, 1500);
+            }
+        }
+        
+        if (tile === 33) { // 已經變形的機器人
+            showDialog("🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」", 3000);
+        }
     }
 }
 
@@ -517,18 +567,16 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    ctx.save(); // 儲存畫布狀態，準備運鏡
+    ctx.save(); 
     
-    // --- 智慧追蹤運鏡邏輯 ---
     if (isZoomed) {
-        const scale = 2.0; // 放大兩倍
+        const scale = 2.0; 
         let camX = cat.x + TILE_SIZE / 2;
         let camY = cat.y + TILE_SIZE / 2;
         
         let offsetX = canvas.width / 2 - camX * scale;
         let offsetY = canvas.height / 2 - camY * scale;
         
-        // 限制鏡頭不要看到地圖外的黑邊
         const maxOffsetX = 0;
         const minOffsetX = canvas.width - (canvas.width * scale);
         const maxOffsetY = 0;
@@ -542,7 +590,6 @@ function draw() {
     }
 
     let mapLayout = currentMap === 'temple' ? templeMap : nightMarketMap;
-    // 這裡的地板渲染邏輯也已經替換為 floor2
     let floorImg = currentMap === 'temple' ? images['floor2'] : images['floor_night'];
 
     for (let r = 0; r < mapLayout.length; r++) {
@@ -581,6 +628,11 @@ function draw() {
             if (tile >= 21 && tile <= 24) {
                 ctx.drawImage(images['stall_' + (tile-20)], posX, posY, TILE_SIZE * 2, TILE_SIZE * 2);
             }
+
+            // 渲染變形後的機器人 (賦予 2x2 超大氣勢)
+            if (tile === 33) {
+                ctx.drawImage(images['robot'], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.0), TILE_SIZE * 2, TILE_SIZE * 2);
+            }
         }
     }
 
@@ -600,7 +652,7 @@ function draw() {
     }
     ctx.drawImage(catImg, cat.x, cat.y - 10, TILE_SIZE, TILE_SIZE + 10);
     
-    ctx.restore(); // 恢復畫布狀態
+    ctx.restore(); 
 }
 
 function gameLoop() {
