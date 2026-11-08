@@ -148,9 +148,9 @@ const zoomBtn = document.getElementById('zoomBtn');
 const instructions = document.getElementById('instructions');
 const TILE_SIZE = 64;
 
-// 剔除木魚，保留所有法器與員工
+// 將舊的 floor 替換為 floor2
 const assetNames = [
-'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
+'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
 'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
 'cat_up', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
 'icon', 'npc_golden', 'npc_hairless',
@@ -542,7 +542,8 @@ function draw() {
     }
 
     let mapLayout = currentMap === 'temple' ? templeMap : nightMarketMap;
-    let floorImg = currentMap === 'temple' ? images['floor'] : images['floor_night'];
+    // 這裡的地板渲染邏輯也已經替換為 floor2
+    let floorImg = currentMap === 'temple' ? images['floor2'] : images['floor_night'];
 
     for (let r = 0; r < mapLayout.length; r++) {
         for (let c = 0; c < mapLayout[r].length; c++) {
