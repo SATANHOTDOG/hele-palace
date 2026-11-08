@@ -6,7 +6,7 @@
 <!-- 綁定手機桌面 APP 圖示 -->
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<title>河樂宮 - 庫存通靈系統</title>
+<title>河樂宮 - 庫存通靈系統 (夜市擴充版)</title>
 <style>
 body, html {
 margin: 0;
@@ -103,9 +103,7 @@ text-shadow: 1px 1px 2px #000;
 
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
-<!-- 換成木魚背景的按鈕 -->
 <div id="actionBtn"></div>
-<!-- 左下角指示牌 -->
 <div id="instructions">
 💻 電腦版：WASD移動 / 空白鍵調查<br>
 📱 手機版：滑動螢幕 / 敲木魚調查
@@ -120,12 +118,16 @@ const actionBtn = document.getElementById('actionBtn');
 const instructions = document.getElementById('instructions');
 const TILE_SIZE = 64;
 
-// 素材清單全數到位
+// 素材大擴充
 const assetNames = [
 'floor', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
 'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
 'cat_up', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
-'muyu', 'icon', 'npc_golden', 'npc_hairless'
+'muyu', 'icon', 'npc_golden', 'npc_hairless',
+'floor_night', 'scooter', 'fence', 'tree',
+'stall_1', 'stall_2', 'stall_3', 'stall_4',
+'npc_boss1', 'npc_boss2', 'npc_boss3', 'npc_boss4',
+'npc_cus1', 'npc_cus2'
 ];
 const images = {};
 let loadedCount = 0;
@@ -133,309 +135,432 @@ let inventoryData = [];
 const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'];
 const activeGod = godList[Math.floor(Math.random() * godList.length)];
 
+// 新增：目前所在的地圖變數
+let currentMap = 'temple'; 
+
+// 新增：NPC輪迴對話庫與狀態
+const dialogues = {
+    boss1: [
+        "「聽說 KOBE 那傢伙一天只能吃兩餐，那我這香腸算正餐還是點心？」",
+        "「蒜頭自己剝，不要逼一隻貓做這種破壞指甲的粗活。」",
+        "「這香腸烤得比我的人生還要通透，來一根？」"
+    ],
+    boss2: [
+        "「裡面包的是章魚還是魷魚？這是一個連 KOBE 都參不透的哲學問題。」",
+        "「柴魚片在跳舞，不是因為熱，是因為它們也有業績壓力。」",
+        "「買一盒吧，綁這頭巾讓我的耳朵有點悶，需要用錢來通風。」"
+    ],
+    boss3: [
+        "「KOBE 上次點了無糖微冰，然後偷偷加了兩包砂糖，我都看到了。」",
+        "「搖飲料的手速，完全取決於今天的罐罐等級。」",
+        "「珍珠是用我的黑眼圈搓出來的，保證純天然。」"
+    ],
+    boss4: [
+        "「撈不到金魚不要哭，KOBE 當年連水球都撈破。」",
+        "「網子是用紙做的，我的良心也是。」",
+        "「別問我魚從哪裡來，有些事情知道了對你沒好處。」"
+    ],
+    cus1: [
+        "「我只是想在夜市找個角落安靜地喝珍奶，為什麼 KOBE 一直在看我？」",
+        "「半糖去冰是成人的妥協，但我只是隻貓。」",
+        "「排隊排了半小時，結果我根本乳糖不耐症。」"
+    ],
+    cus2: [
+        "「大腸包小腸的精髓在於，你永遠不知道哪個是大腸，哪個是小腸。」",
+        "「聽說 KOBE 推薦這攤，但我懷疑他有抽成。」",
+        "「吃太飽了，需要找張 La-Z-Boy 躺一下...啊，走錯棚了。」"
+    ]
+};
+const dialogStates = { boss1: 0, boss2: 0, boss3: 0, boss4: 0, cus1: 0, cus2: 0 };
+
 async function fetchInventory() {
-try {
-const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
-const res = await fetch(url);
-const text = await res.text();
-let result = [];
-let row = [], col = "", quote = false;
-for (let i = 0; i < text.length; i++) {
-let cc = text[i], nc = text[i+1];
-if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
-if (cc === '"') { quote = !quote; continue; }
-if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
-if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
-if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
-col += cc;
-}
-if (col !== "" || text.endsWith(',')) row.push(col);
-if (row.length > 0) result.push(row);
-const headers = result[0].map(h => h.trim());
-for (let i = 1; i < result.length; i++) {
-let obj = {};
-headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
-inventoryData.push(obj);
-}
-} catch(err) {
-loadingDiv.innerHTML += `<span class="error-msg">⚠️ 無法載入 Google Sheets，請檢查網路。</span>`;
-}
+    try {
+        const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
+        const res = await fetch(url);
+        const text = await res.text();
+        let result = [];
+        let row = [], col = "", quote = false;
+        for (let i = 0; i < text.length; i++) {
+            let cc = text[i], nc = text[i+1];
+            if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
+            if (cc === '"') { quote = !quote; continue; }
+            if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
+            if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
+            if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
+            col += cc;
+        }
+        if (col !== "" || text.endsWith(',')) row.push(col);
+        if (row.length > 0) result.push(row);
+        
+        const headers = result[0].map(h => h.trim());
+        for (let i = 1; i < result.length; i++) {
+            let obj = {};
+            headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
+            inventoryData.push(obj);
+        }
+    } catch(err) {
+        loadingDiv.innerHTML += `<span class="error-msg">⚠️ 無法載入 Google Sheets，請檢查網路。</span>`;
+    }
 }
 
 assetNames.forEach(name => {
-images[name] = new Image();
-images[name].src = name + '.png';
-images[name].onload = () => {
-loadedCount++;
-checkStartGame();
-};
-images[name].onerror = () => {
-loadingDiv.innerHTML += `<span class="error-msg">⚠️ 找不到圖片：${name}.png</span>`;
-};
+    images[name] = new Image();
+    images[name].src = name + '.png';
+    images[name].onload = () => { loadedCount++; checkStartGame(); };
+    images[name].onerror = () => { loadingDiv.innerHTML += `<span class="error-msg">⚠️ 找不到圖片：${name}.png</span>`; };
 });
 
 async function init() {
-await fetchInventory();
-checkStartGame();
+    await fetchInventory();
+    checkStartGame();
 }
 
 function checkStartGame() {
-if (loadedCount === assetNames.length && inventoryData.length > 0) {
-loadingDiv.style.display = 'none';
-canvas.style.display = 'block';
-actionBtn.style.display = 'block';
-instructions.style.display = 'block'; 
-startGame();
-}
+    if (loadedCount === assetNames.length && inventoryData.length > 0) {
+        loadingDiv.style.display = 'none';
+        canvas.style.display = 'block';
+        actionBtn.style.display = 'block';
+        instructions.style.display = 'block'; 
+        startGame();
+    }
 }
 
-// --- 強迫症治癒版風水格局 (10 x 10) ---
-// 7: 金漸層 (左上), 8: 無毛貓 (右下)
-const mapLayout = [
-[1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
-[1, 7, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 99, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
-[1, 5, 0, 0, 0, 0, 0, 0, 6, 1],
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-[1, 0, 0, 0, 0, 0, 0, 0, 8, 1], 
-[1, 1, 1, 1, 0, 3, 1, 1, 1, 1]  // 牌樓基地已完美修復
+// ================= 地圖陣列設定 =================
+const templeMap = [
+    [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
+    [1, 7, 0, 0, 0, 0, 0, 0, 0, 1], 
+    [1, 0, 0, 0, 0, 99, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
+    [1, 5, 0, 0, 0, 0, 0, 0, 6, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 8, 1], 
+    [1, 1, 1, 1, 0, 3, 1, 1, 1, 1]  
+];
+
+// 夜市陣列：21~24為攤位頂部左上角，999為隱形實體防撞塊 (攤位為 2x2)
+const nightMarketMap = [
+    [30, 30, 30, 30, 0, 0, 30, 30, 30, 30], // 上方出口回廟裡
+    [32, 0, 21, 999, 0, 0, 22, 999, 0, 32], // Stall 1(香腸), Stall 2(章魚燒)
+    [30, 41, 999, 999, 0, 0, 999, 999, 42, 30], // Boss1, Boss2
+    [30, 0, 52, 0, 0, 0, 0, 0, 0, 30], // Cus 2 (吃香腸)
+    [30, 0, 0, 0, 0, 0, 0, 51, 0, 30], // Cus 1 (喝珍奶)
+    [30, 0, 23, 999, 0, 0, 24, 999, 0, 30], // Stall 3(珍奶), Stall 4(撈魚)
+    [30, 43, 999, 999, 0, 0, 999, 999, 44, 30], // Boss3, Boss4
+    [30, 0, 0, 0, 0, 0, 0, 0, 0, 30],
+    [30, 31, 0, 0, 0, 0, 0, 0, 31, 30], // 機車
+    [30, 30, 30, 30, 30, 30, 30, 30, 30, 30] // 底部封死
 ];
 
 const cat = {
-x: 5.5 * TILE_SIZE,
-y: 7 * TILE_SIZE,
-speed: 4,
-dir: 'up',
-isMoving: false,
-isInteracting: false
+    x: 5.5 * TILE_SIZE,
+    y: 7 * TILE_SIZE,
+    speed: 4,
+    dir: 'up',
+    isMoving: false,
+    isInteracting: false
 };
 
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 let touchDir = null;
 
 window.addEventListener('keydown', e => {
-if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
-if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tryInteract(); }
+    if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tryInteract(); }
 });
 window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
 let touchStartX = 0, touchStartY = 0, isTouching = false;
 window.addEventListener('touchstart', e => {
-if(e.target === actionBtn) return;
-isTouching = true;
-touchStartX = e.touches[0].clientX;
-touchStartY = e.touches[0].clientY;
-touchDir = null;
+    if(e.target === actionBtn) return;
+    isTouching = true;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchDir = null;
 }, { passive: false });
 
 window.addEventListener('touchmove', e => {
-if (!isTouching) return;
-e.preventDefault();
-let diffX = e.touches[0].clientX - touchStartX;
-let diffY = e.touches[0].clientY - touchStartY;
-if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
-if (Math.abs(diffX) > Math.abs(diffY)) touchDir = diffX > 0 ? 'right' : 'left';
-else touchDir = diffY > 0 ? 'down' : 'up';
-}
+    if (!isTouching) return;
+    e.preventDefault();
+    let diffX = e.touches[0].clientX - touchStartX;
+    let diffY = e.touches[0].clientY - touchStartY;
+    if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
+        if (Math.abs(diffX) > Math.abs(diffY)) touchDir = diffX > 0 ? 'right' : 'left';
+        else touchDir = diffY > 0 ? 'down' : 'up';
+    }
 }, { passive: false });
 window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
-
 actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
 actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryInteract(); });
 
+// --- 雙重特價智慧解碼器 ---
+function getBestPromoPrice(item) {
+    let priceStr = item['促銷售價'] || "";
+    let dateStr = item['促銷期間'] || "";
+    
+    if (!priceStr) return null;
+    if (!priceStr.includes('|')) return parseInt(priceStr) || null; // 單一價格
+    
+    let prices = priceStr.split('|').map(p => parseInt(p.trim()));
+    let dates = dateStr.split('|').map(d => d.trim());
+    
+    let today = new Date(); // 取今日
+    today.setHours(0,0,0,0);
+    
+    let validPromos = [];
+    for(let i = 0; i < prices.length; i++) {
+        if(!dates[i] || !dates[i].includes('~')) continue;
+        let [startStr, endStr] = dates[i].split('~');
+        let start = new Date(startStr.trim());
+        let end = new Date(endStr.trim());
+        end.setHours(23, 59, 59, 999); // 到當天最後一秒
+        
+        if(today >= start && today <= end) {
+            // 計算相差天數，找出最短急迫檔期
+            validPromos.push({ price: prices[i], days: end - start }); 
+        }
+    }
+    
+    if (validPromos.length === 0) return null;
+    validPromos.sort((a, b) => a.days - b.days); // 天數少的優先
+    return validPromos[0].price;
+}
+
 // --- 強化版物理防撞 ---
 function isWalkable(newX, newY) {
-let left = newX + 16, right = newX + TILE_SIZE - 16;
-let top = newY + 32, bottom = newY + TILE_SIZE - 4;
+    let left = newX + 16, right = newX + TILE_SIZE - 16;
+    let top = newY + 32, bottom = newY + TILE_SIZE - 4;
+    let mapLayout = currentMap === 'temple' ? templeMap : nightMarketMap;
 
-if (top < 0 || bottom >= canvas.height || left < 0 || right >= canvas.width) return false;
+    if (top < 0 || bottom >= canvas.height || left < 0 || right >= canvas.width) return false;
 
-let c1 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
-let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
-let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
-let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
+    let c1 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
+    let c2 = mapLayout[Math.floor(top/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
+    let c3 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(left/TILE_SIZE)];
+    let c4 = mapLayout[Math.floor(bottom/TILE_SIZE)][Math.floor(right/TILE_SIZE)];
 
-return ((c1 === 0 || c1 === 3) && (c2 === 0 || c2 === 3) && (c3 === 0 || c3 === 3) && (c4 === 0 || c4 === 3));
+    return ((c1 === 0 || c1 === 3) && (c2 === 0 || c2 === 3) && (c3 === 0 || c3 === 3) && (c4 === 0 || c4 === 3));
 }
 
 let isPrompting = false;
 function tryInteract() {
-if (cat.isInteracting || isPrompting) return;
+    if (cat.isInteracting || isPrompting) return;
 
-let cx = cat.x + (TILE_SIZE / 2);
-let cy = cat.y + (TILE_SIZE / 2);
-let targetX = cx, targetY = cy;
-let offset = TILE_SIZE * 0.8;
+    let cx = cat.x + (TILE_SIZE / 2);
+    let cy = cat.y + (TILE_SIZE / 2);
+    let targetX = cx, targetY = cy;
+    let offset = TILE_SIZE * 0.8;
 
-if (cat.dir === 'up') targetY -= offset;
-if (cat.dir === 'down') targetY += offset;
-if (cat.dir === 'left') targetX -= offset;
-if (cat.dir === 'right') targetX += offset;
+    if (cat.dir === 'up') targetY -= offset;
+    if (cat.dir === 'down') targetY += offset;
+    if (cat.dir === 'left') targetX -= offset;
+    if (cat.dir === 'right') targetX += offset;
 
-let c = Math.floor(targetX / TILE_SIZE);
-let r = Math.floor(targetY / TILE_SIZE);
+    let c = Math.floor(targetX / TILE_SIZE);
+    let r = Math.floor(targetY / TILE_SIZE);
+    let mapLayout = currentMap === 'temple' ? templeMap : nightMarketMap;
 
-if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
-let tile = mapLayout[r][c];
-if (tile === 5) handleFortune();
-if (tile === 6) handleNPC();
-if (tile === 7) handleGolden(); // 金漸層業配
-if (tile === 8) handleHairless(); // 無毛貓業配
+    if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
+        let tile = mapLayout[r][c];
+        
+        // 廟宇 NPC
+        if (tile === 5) handleFortune();
+        if (tile === 6) handleNPC();
+        if (tile === 7) handleGolden(); 
+        if (tile === 8) handleHairless(); 
+        
+        // 夜市老闆與客人 (1:1 降維組)
+        if (tile === 41) handleNightCat('boss1', '🐱 橘貓老闆 (烤香腸)');
+        if (tile === 42) handleNightCat('boss2', '🐱 黑貓老闆 (章魚燒)');
+        if (tile === 43) handleNightCat('boss3', '🐱 白貓老闆 (波霸奶茶)');
+        if (tile === 44) handleNightCat('boss4', '🐱 賓士貓老闆 (撈金魚)');
+        if (tile === 51) handleNightCat('cus1', '🐈 顧客 (喝珍奶)');
+        if (tile === 52) handleNightCat('cus2', '🐈 顧客 (吃香腸)');
+    }
 }
+
+function handleNightCat(catId, catName) {
+    let text = dialogues[catId][dialogStates[catId]];
+    showDialog(`${catName}：<br>${text}`, 5000);
+    dialogStates[catId] = (dialogStates[catId] + 1) % 3; // 三段對話輪迴
 }
 
-function handleGolden() {
-showDialog("🐱 金漸層：<br>「聽說這裡廟公的LINE ID是：<b>satanhotdog</b>，有家具需求可以私下找他處理喔...」", 5000);
-}
-
-function handleHairless() {
-showDialog("🐈 無毛貓：<br>「偷偷跟你說，聽說這裡的藍貓廟公KOBE，有在兼職HOLA大墩店家具業務耶。」", 5000);
-}
+function handleGolden() { showDialog("🐱 金漸層：<br>「聽說這裡廟公的LINE ID是：<b>satanhotdog</b>，有家具需求可以私下找他處理喔...」", 5000); }
+function handleHairless() { showDialog("🐈 無毛貓：<br>「偷偷跟你說，聽說這裡的藍貓廟公KOBE，有在兼職HOLA大墩店家具業務耶。」", 5000); }
 
 function handleFortune() {
-let available = inventoryData.filter(item => {
-let price = parseInt(item['促銷售價']);
-let ym = parseInt(item['楊梅庫存']) || 0;
-let ddw = parseInt(item['HOLA630庫存']) || 0;
-let dds = parseInt(item['HOLA630展示']) || 0;
-return !isNaN(price) && price > 0 && (ddw > 0 || dds > 0) && ym > 3;
-});
+    let available = inventoryData.filter(item => {
+        let promoPrice = getBestPromoPrice(item);
+        let ym = parseInt(item['楊梅庫存']) || 0;
+        let ddw = parseInt(item['HOLA630庫存']) || 0;
+        let dds = parseInt(item['HOLA630展示']) || 0;
+        return promoPrice && promoPrice > 0 && (ddw > 0 || dds > 0) && ym > 3;
+    });
 
-if (available.length === 0) {
-showDialog("佛祖眉頭一皺：<br>「今日無上等特價良品，施主請改日再來。」");
-return;
-}
+    if (available.length === 0) {
+        showDialog("佛祖眉頭一皺：<br>「今日無上等特價良品，施主請改日再來。」");
+        return;
+    }
 
-let luckyItem = available[Math.floor(Math.random() * available.length)];
-showDialog(`
-<b style="color:#ffcc00;font-size:1.3em;">🎊 上上籤！</b><br>
-<span style="font-size:0.8em; color:#aaa;">${luckyItem['SKU']}</span><br>
-<b>${luckyItem['商品名稱']}</b><br>
-原價：<del>${luckyItem['一般售價']}</del> ➡️ <span style="color:#ff4444;font-size:1.3em;">$${luckyItem['促銷售價']}</span><br>
-<hr style="border:0;border-top:1px dashed #666;margin:10px 0;">
-大墩店：${parseInt(luckyItem['HOLA630庫存'])||0} (展示: ${parseInt(luckyItem['HOLA630展示'])||0})<br>
-楊梅倉：${parseInt(luckyItem['楊梅庫存'])||0}
-`, 6000);
+    let luckyItem = available[Math.floor(Math.random() * available.length)];
+    let finalPrice = getBestPromoPrice(luckyItem);
+    
+    showDialog(`
+    <b style="color:#ffcc00;font-size:1.3em;">🎊 上上籤！</b><br>
+    <span style="font-size:0.8em; color:#aaa;">${luckyItem['SKU']}</span><br>
+    <b>${luckyItem['商品名稱']}</b><br>
+    原價：<del>${luckyItem['一般售價']}</del> ➡️ <span style="color:#ff4444;font-size:1.3em;">$${finalPrice}</span><br>
+    <hr style="border:0;border-top:1px dashed #666;margin:10px 0;">
+    大墩店：${parseInt(luckyItem['HOLA630庫存'])||0} (展示: ${parseInt(luckyItem['HOLA630展示'])||0})<br>
+    楊梅倉：${parseInt(luckyItem['楊梅庫存'])||0}
+    `, 6000);
 }
 
 function handleNPC() {
-isPrompting = true;
-setTimeout(() => {
-let sku = window.prompt("藍貓廟公：\n「報上名來，你要查哪個 SKU？」");
-isPrompting = false;
+    isPrompting = true;
+    setTimeout(() => {
+        let sku = window.prompt("藍貓廟公：\n「報上名來，你要查哪個 SKU？」");
+        isPrompting = false;
 
-if (!sku || sku.trim() === '') return;
-sku = sku.trim().toUpperCase();
-let item = inventoryData.find(i => i['SKU'].toUpperCase().includes(sku));
+        if (!sku || sku.trim() === '') return;
+        sku = sku.trim().toUpperCase();
+        let item = inventoryData.find(i => i['SKU'].toUpperCase().includes(sku));
 
-if (!item) {
-showDialog(`廟公搖了搖頭：<br>「查無此物 (${sku})，施主可是記錯了？」`);
-} else {
-let priceStr = item['促銷售價'] ? `<span style="color:#ff4444;font-weight:bold;">$${item['促銷售價']}</span> <del style="color:#888;font-size:0.8em;">$${item['一般售價']}</del>` : `$${item['一般售價']}`;
-showDialog(`
-<span style="font-size:0.8em;color:#aaa;">${item['SKU']} | ${item['商品分類']||'未分類'}</span><br>
-<b style="color:#ffcc00;">${item['商品名稱']}</b><br>
-售價：${priceStr}<br>
-<hr style="border:0;border-top:1px dashed #666;margin:8px 0;">
-大墩庫存：<b>${parseInt(item['HOLA630庫存'])||0}</b> (展示: ${parseInt(item['HOLA630展示'])||0})<br>
-楊梅庫存：<b>${parseInt(item['楊梅庫存'])||0}</b>
-`, 8000);
-}
-}, 50);
+        if (!item) {
+            showDialog(`廟公搖了搖頭：<br>「查無此物 (${sku})，施主可是記錯了？」`);
+        } else {
+            let promoPrice = getBestPromoPrice(item);
+            let priceStr = promoPrice ? `<span style="color:#ff4444;font-weight:bold;">$${promoPrice}</span> <del style="color:#888;font-size:0.8em;">$${item['一般售價']}</del>` : `$${item['一般售價']}`;
+            showDialog(`
+            <span style="font-size:0.8em;color:#aaa;">${item['SKU']} | ${item['商品分類']||'未分類'}</span><br>
+            <b style="color:#ffcc00;">${item['商品名稱']}</b><br>
+            售價：${priceStr}<br>
+            <hr style="border:0;border-top:1px dashed #666;margin:8px 0;">
+            大墩庫存：<b>${parseInt(item['HOLA630庫存'])||0}</b> (展示: ${parseInt(item['HOLA630展示'])||0})<br>
+            楊梅庫存：<b>${parseInt(item['楊梅庫存'])||0}</b>
+            `, 8000);
+        }
+    }, 50);
 }
 
 function showDialog(text, duration = 4000) {
-dialogBox.innerHTML = text;
-dialogBox.style.display = 'block';
-cat.isInteracting = true;
-
-if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
-window.dialogTimeout = setTimeout(() => {
-dialogBox.style.display = 'none';
-cat.isInteracting = false;
-}, duration);
+    dialogBox.innerHTML = text;
+    dialogBox.style.display = 'block';
+    cat.isInteracting = true;
+    if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+    window.dialogTimeout = setTimeout(() => {
+        dialogBox.style.display = 'none';
+        cat.isInteracting = false;
+    }, duration);
 }
 
 function update() {
-if (cat.isInteracting || isPrompting) return;
-cat.isMoving = false;
-let dx = 0, dy = 0;
+    if (cat.isInteracting || isPrompting) return;
+    cat.isMoving = false;
+    let dx = 0, dy = 0;
 
-if (keys['w'] || keys['ArrowUp'] || touchDir === 'up') { dy = -cat.speed; cat.dir = 'up'; cat.isMoving = true; }
-else if (keys['s'] || keys['ArrowDown'] || touchDir === 'down') { dy = cat.speed; cat.dir = 'down'; cat.isMoving = true; }
-else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
-else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
+    if (keys['w'] || keys['ArrowUp'] || touchDir === 'up') { dy = -cat.speed; cat.dir = 'up'; cat.isMoving = true; }
+    else if (keys['s'] || keys['ArrowDown'] || touchDir === 'down') { dy = cat.speed; cat.dir = 'down'; cat.isMoving = true; }
+    else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
+    else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
 
-if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
-if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
+    // --- 地圖跳躍引擎 (跨區域門檻偵測) ---
+    if (currentMap === 'temple' && cat.y >= 8.5 * TILE_SIZE && dy > 0 && cat.x >= 3.5 * TILE_SIZE && cat.x <= 5.8 * TILE_SIZE) {
+        currentMap = 'nightMarket';
+        cat.y = 0.5 * TILE_SIZE; // 瞬間移動至夜市上方
+        cat.isMoving = false;
+        return;
+    }
+    if (currentMap === 'nightMarket' && cat.y <= 0.5 * TILE_SIZE && dy < 0 && cat.x >= 3.5 * TILE_SIZE && cat.x <= 5.8 * TILE_SIZE) {
+        currentMap = 'temple';
+        cat.y = 8.5 * TILE_SIZE; // 瞬間移動回廟宇下方
+        cat.isMoving = false;
+        return;
+    }
+
+    if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
+    if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
 }
 
 function draw() {
-ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let mapLayout = currentMap === 'temple' ? templeMap : nightMarketMap;
+    let floorImg = currentMap === 'temple' ? images['floor'] : images['floor_night'];
 
-for (let r = 0; r < mapLayout.length; r++) {
-for (let c = 0; c < mapLayout[r].length; c++) {
-ctx.drawImage(images['floor'], c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-}
-}
+    // 1. 鋪地板
+    for (let r = 0; r < mapLayout.length; r++) {
+        for (let c = 0; c < mapLayout[r].length; c++) {
+            ctx.drawImage(floorImg, c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+    }
 
-for (let r = 0; r < mapLayout.length; r++) {
-for (let c = 0; c < mapLayout[r].length; c++) {
-let tile = mapLayout[r][c];
-let posX = c * TILE_SIZE;
-let posY = r * TILE_SIZE;
+    // 2. 渲染物件與 NPC
+    for (let r = 0; r < mapLayout.length; r++) {
+        for (let c = 0; c < mapLayout[r].length; c++) {
+            let tile = mapLayout[r][c];
+            let posX = c * TILE_SIZE;
+            let posY = r * TILE_SIZE;
+            
+            // --- 河樂宮元素 ---
+            if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
+            if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
+            if (tile === 3 && c === 5) ctx.drawImage(images['gate'], posX - (TILE_SIZE * 1.25), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
 
-if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
-if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
+            let tallY = posY - (TILE_SIZE * 0.5);
+            let tallH = TILE_SIZE * 1.5;
+            
+            if (tile === 4) ctx.drawImage(images['altar'], posX, tallY, TILE_SIZE, tallH);
+            if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY - (TILE_SIZE * 0.3), TILE_SIZE, TILE_SIZE * 1.3);
+            if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, tallY, TILE_SIZE, tallH);
+            if (tile === 7) ctx.drawImage(images['npc_golden'], posX, tallY, TILE_SIZE, tallH);
+            if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, tallY, TILE_SIZE, tallH);
+            if (tile === 99) ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
 
-// 🚀 物理整骨拉皮區：解放二維詛咒
-let tallY = posY - (TILE_SIZE * 0.5);
-let tallH = TILE_SIZE * 1.5;
+            // --- 夜市元素 ---
+            // 1:1 降維組 (柵欄、所有新來的貓老闆與客人)
+            if (tile === 30) ctx.drawImage(images['fence'], posX, posY, TILE_SIZE, TILE_SIZE);
+            if (tile >= 41 && tile <= 44) ctx.drawImage(images['npc_boss' + (tile-40)], posX, posY, TILE_SIZE, TILE_SIZE);
+            if (tile >= 51 && tile <= 52) ctx.drawImage(images['npc_cus' + (tile-50)], posX, posY, TILE_SIZE, TILE_SIZE);
+            
+            // 2:3 立體組 (機車、樹木)
+            if (tile === 31) ctx.drawImage(images['scooter'], posX, tallY, TILE_SIZE, tallH);
+            if (tile === 32) ctx.drawImage(images['tree'], posX, tallY, TILE_SIZE, tallH);
 
-if (tile === 4) ctx.drawImage(images['altar'], posX, tallY, TILE_SIZE, tallH);
-if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY - (TILE_SIZE * 0.3), TILE_SIZE, TILE_SIZE * 1.3); // 籤筒稍微矮一點
-if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, tallY, TILE_SIZE, tallH);
-if (tile === 7) ctx.drawImage(images['npc_golden'], posX, tallY, TILE_SIZE, tallH);
-if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, tallY, TILE_SIZE, tallH);
+            // 2x2 巨無霸攤位組 (21~24)
+            if (tile >= 21 && tile <= 24) {
+                // 因為圖片切成1:1，強迫它延展為2x2，橫跨隔壁隱形防撞磚
+                ctx.drawImage(images['stall_' + (tile-20)], posX, posY, TILE_SIZE * 2, TILE_SIZE * 2);
+            }
+        }
+    }
 
-if (tile === 99) {
-ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
-}
-if (tile === 3 && c === 5) { 
-ctx.drawImage(images['gate'], posX - (TILE_SIZE * 1.25), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
-}
-}
-}
-
-let catImg = images['cat_down_idle'];
-if (cat.isInteracting || isPrompting) {
-catImg = images['cat_sit'];
-} else if (cat.isMoving) {
-if (cat.dir === 'up') catImg = images['cat_up'];
-if (cat.dir === 'down') catImg = images['cat_down'];
-if (cat.dir === 'left') catImg = images['cat_left'];
-if (cat.dir === 'right') catImg = images['cat_right'];
-} else {
-if (cat.dir === 'down') catImg = images['cat_down_idle'];
-else if (cat.dir === 'up') catImg = images['cat_up'];
-else if (cat.dir === 'left') catImg = images['cat_left'];
-else if (cat.dir === 'right') catImg = images['cat_right'];
-}
-// 主角三花貓微調放大
-ctx.drawImage(catImg, cat.x, cat.y - 10, TILE_SIZE, TILE_SIZE + 10);
+    // 3. 渲染主角貓
+    let catImg = images['cat_down_idle'];
+    if (cat.isInteracting || isPrompting) {
+        catImg = images['cat_sit'];
+    } else if (cat.isMoving) {
+        if (cat.dir === 'up') catImg = images['cat_up'];
+        if (cat.dir === 'down') catImg = images['cat_down'];
+        if (cat.dir === 'left') catImg = images['cat_left'];
+        if (cat.dir === 'right') catImg = images['cat_right'];
+    } else {
+        if (cat.dir === 'down') catImg = images['cat_down_idle'];
+        else if (cat.dir === 'up') catImg = images['cat_up'];
+        else if (cat.dir === 'left') catImg = images['cat_left'];
+        else if (cat.dir === 'right') catImg = images['cat_right'];
+    }
+    ctx.drawImage(catImg, cat.x, cat.y - 10, TILE_SIZE, TILE_SIZE + 10);
 }
 
 function gameLoop() {
-update();
-draw();
-requestAnimationFrame(gameLoop);
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
 }
 
 function startGame() {
-gameLoop();
+    gameLoop();
 }
 
 init(); 
