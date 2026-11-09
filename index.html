@@ -171,11 +171,11 @@ const TILE_SIZE = 64;
 
 let bgmPlayed = false; // BGM 啟動鎖
 
-// 新增 robot 進讀取清單
+// 將舊的 cat_up 替換為 cat_up2
 const assetNames = [
 'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
 'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
-'cat_up', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
+'cat_up2', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
 'icon', 'npc_golden', 'npc_hairless',
 'floor_night', 'scooter', 'fence', 'tree',
 'stall_1', 'stall_2', 'stall_3', 'stall_4',
@@ -629,24 +629,24 @@ function draw() {
                 ctx.drawImage(images['stall_' + (tile-20)], posX, posY, TILE_SIZE * 2, TILE_SIZE * 2);
             }
 
-            // 渲染變形後的機器人 (賦予 2x2 超大氣勢)
             if (tile === 33) {
                 ctx.drawImage(images['robot'], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.0), TILE_SIZE * 2, TILE_SIZE * 2);
             }
         }
     }
 
+    // 將原本的 cat_up 替換成 cat_up2 的渲染邏輯
     let catImg = images['cat_down_idle'];
     if (cat.isInteracting || isPrompting) {
         catImg = images['cat_sit'];
     } else if (cat.isMoving) {
-        if (cat.dir === 'up') catImg = images['cat_up'];
+        if (cat.dir === 'up') catImg = images['cat_up2']; // 修正月球漫步
         if (cat.dir === 'down') catImg = images['cat_down'];
         if (cat.dir === 'left') catImg = images['cat_left'];
         if (cat.dir === 'right') catImg = images['cat_right'];
     } else {
         if (cat.dir === 'down') catImg = images['cat_down_idle'];
-        else if (cat.dir === 'up') catImg = images['cat_up'];
+        else if (cat.dir === 'up') catImg = images['cat_up2']; // 修正月球漫步
         else if (cat.dir === 'left') catImg = images['cat_left'];
         else if (cat.dir === 'right') catImg = images['cat_right'];
     }
