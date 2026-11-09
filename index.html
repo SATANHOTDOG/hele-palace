@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<title>河樂宮 - 庫存通靈系統 (大墩店擴充版)</title>
+<title>河樂宮 - 庫存通靈系統 (大墩店旗艦改裝版)</title>
 <style>
 body, html {
 margin: 0;
@@ -140,7 +140,7 @@ text-shadow: 1px 1px 2px #000;
 <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
 
 <div id="loading">
-請神降駕與部署大墩店建材中...<br>
+請神降駕與部署大墩店改裝建材中...<br>
 <span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
 </div>
 
@@ -166,6 +166,7 @@ const TILE_SIZE = 64;
 
 let bgmPlayed = false;
 
+// 11件旗艦家具完整名單
 const assetNames = [
 'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
 'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
@@ -175,7 +176,13 @@ const assetNames = [
 'stall_1', 'stall_2', 'stall_3', 'stall_4',
 'npc_boss1', 'npc_boss2', 'npc_boss3', 'npc_boss4',
 'npc_cus1', 'npc_cus2', 'robot',
-'hola_bed', 'lazboy_chair', 'wooden_cabinet', 'matchy_sofa', 'blue_chair', 'floor_hola', 'wall_hola'
+'floor_hola', 'wall_hola',
+'lazboy_chair', 'blue_chair', 
+'lazboy_chair2', 'lazboy_chair3', 
+'wooden_cabinet2', 'wooden_cabinet3', 
+'matchy_sofa2', 'matchy_sofa3', 
+'hola_bed2', 'hola_bed3', 
+'dining_table'
 ];
 const images = {};
 let loadedCount = 0;
@@ -287,7 +294,7 @@ const nightMarketMap = [
     [30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
 ];
 
-// 20x20 大墩店賣場擴充包
+// 大墩店 20x20 全新 VMD 旗艦動線
 const holaStoreMap = Array(20).fill(0).map(() => Array(20).fill(0));
 for(let r=0; r<20; r++) {
     for(let c=0; c<20; c++) {
@@ -297,15 +304,29 @@ for(let r=0; r<20; r++) {
 holaStoreMap[19][9] = 201; 
 holaStoreMap[19][10] = 201; 
 
-holaStoreMap[4][3] = 102; holaStoreMap[4][4] = 999; holaStoreMap[5][3] = 999; holaStoreMap[5][4] = 999;
-holaStoreMap[10][3] = 102; holaStoreMap[10][4] = 999; holaStoreMap[11][3] = 999; holaStoreMap[11][4] = 999;
-holaStoreMap[4][14] = 105; holaStoreMap[4][15] = 999; holaStoreMap[4][16] = 999;
-holaStoreMap[5][14] = 999; holaStoreMap[5][15] = 999; holaStoreMap[5][16] = 999;
-holaStoreMap[10][14] = 105; holaStoreMap[10][15] = 999; holaStoreMap[10][16] = 999;
-holaStoreMap[11][14] = 999; holaStoreMap[11][15] = 999; holaStoreMap[11][16] = 999;
-holaStoreMap[8][9] = 104; holaStoreMap[8][10] = 999; 
-holaStoreMap[15][5] = 103; holaStoreMap[15][6] = 999; 
-holaStoreMap[15][13] = 106; holaStoreMap[15][14] = 999; 
+// 左側：睡眠體驗區 (靠牆放兩張床，留走道)
+holaStoreMap[4][3] = 110; holaStoreMap[4][4] = 999; holaStoreMap[5][3] = 999; holaStoreMap[5][4] = 999; // hola_bed2
+holaStoreMap[12][3] = 111; holaStoreMap[12][4] = 999; holaStoreMap[13][3] = 999; holaStoreMap[13][4] = 999; // hola_bed3
+
+// 中央：沙發與休閒椅展示中島
+holaStoreMap[6][8] = 112; holaStoreMap[6][9] = 999; holaStoreMap[6][10] = 999; 
+holaStoreMap[7][8] = 999; holaStoreMap[7][9] = 999; holaStoreMap[7][10] = 999; // matchy_sofa2 (L型，佔3x2)
+
+holaStoreMap[12][9] = 113; holaStoreMap[12][10] = 999; 
+holaStoreMap[13][9] = 999; holaStoreMap[13][10] = 999; // matchy_sofa3 (雙人，佔2x2)
+
+// 散落的四張休閒單椅 (碰撞只給1格以利穿梭)
+holaStoreMap[8][6] = 117; // lazboy_chair (原色)
+holaStoreMap[16][7] = 118; // lazboy_chair2 (白色)
+holaStoreMap[16][11] = 119; // lazboy_chair3 (灰藍)
+holaStoreMap[10][11] = 120; // blue_chair (皮椅加腳凳)
+
+// 右側：餐廳與木製收納區
+holaStoreMap[3][14] = 116; holaStoreMap[3][15] = 999; // wooden_cabinet3 (高櫃，佔2x1空氣牆)
+holaStoreMap[9][15] = 115; holaStoreMap[9][16] = 999; // wooden_cabinet2 (矮櫃，佔2x1空氣牆)
+holaStoreMap[14][14] = 114; holaStoreMap[14][15] = 999; 
+holaStoreMap[15][14] = 999; holaStoreMap[15][15] = 999; // dining_table (餐桌，佔2x2空氣牆)
+
 
 const cat = {
     x: 5.5 * TILE_SIZE,
@@ -494,11 +515,12 @@ function tryInteract() {
                     cat.dir = 'left';
                     isPrompting = false;
                 }, 1500);
-            } else if (tile >= 102 && tile <= 106 || tile === 999) {
+            } else if (tile >= 110 && tile <= 120 || tile === 999) {
                 let msgs = [
                     "🛒 HOLA 語音廣播：<br>「本檔期最熱銷的高級傢俱，歡迎盡情試躺。」",
-                    "🛒 總部督導視察報告：<br>「沙發區陳列完整，但旁邊似乎有貓毛...扣兩分。」",
-                    "🛒 業務員的心聲：<br>「這張椅子賣出去，我這個月就可以買兩個主子的高級罐罐了。」"
+                    "🛒 總部督導視察報告：<br>「展區動線陳列完美，但旁邊似乎有貓毛...扣兩分。」",
+                    "🛒 業務員的心聲：<br>「這單敲定，我這個月就可以買兩個主子的高級罐罐了。」",
+                    "🛋️ 商品標籤：<br>「北歐質感實木系列，嚴選材質，坐上去就不想起來。」"
                 ];
                 showDialog(msgs[Math.floor(Math.random()*msgs.length)], 3500);
             }
@@ -688,12 +710,27 @@ function draw() {
             if (tile >= 21 && tile <= 24) ctx.drawImage(images['stall_' + (tile-20)], posX, posY, TILE_SIZE * 2, TILE_SIZE * 2);
             if (tile === 33) ctx.drawImage(images['robot'], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.0), TILE_SIZE * 2, TILE_SIZE * 2);
 
+            // HOLA 旗艦店傢俱渲染 (對應陣列代碼)
             if (tile === 101) ctx.drawImage(images['wall_hola'], posX, posY, TILE_SIZE, TILE_SIZE);
-            if (tile === 102) ctx.drawImage(images['hola_bed'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
-            if (tile === 103) ctx.drawImage(images['lazboy_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
-            if (tile === 104) ctx.drawImage(images['wooden_cabinet'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 1.5);
-            if (tile === 105) ctx.drawImage(images['matchy_sofa'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 3, TILE_SIZE * 2);
-            if (tile === 106) ctx.drawImage(images['blue_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
+            
+            // 床墊區 (2x2)
+            if (tile === 110) ctx.drawImage(images['hola_bed2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
+            if (tile === 111) ctx.drawImage(images['hola_bed3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
+            
+            // 沙發區
+            if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 3, TILE_SIZE * 2); // 3格寬
+            if (tile === 113) ctx.drawImage(images['matchy_sofa3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2); // 2格寬
+            
+            // 餐廳與收納區
+            if (tile === 114) ctx.drawImage(images['dining_table'], posX - 10, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2.2, TILE_SIZE * 2.2);
+            if (tile === 115) ctx.drawImage(images['wooden_cabinet2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 1.5);
+            if (tile === 116) ctx.drawImage(images['wooden_cabinet3'], posX, posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 3.5); // 高櫃拉高
+            
+            // 休閒單椅區 (碰撞雖為1格，但視覺畫大一點才有氣勢)
+            if (tile === 117) ctx.drawImage(images['lazboy_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
+            if (tile === 118) ctx.drawImage(images['lazboy_chair2'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
+            if (tile === 119) ctx.drawImage(images['lazboy_chair3'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
+            if (tile === 120) ctx.drawImage(images['blue_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
         }
     }
 
