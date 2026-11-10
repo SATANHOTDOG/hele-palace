@@ -52,9 +52,9 @@ border: 2px solid #d4af37;
 border-radius: 8px;
 padding: 20px;
 font-size: 1.1rem;
-text-align: center;
+text-align: left;
 box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-pointer-events: none;
+pointer-events: auto; /* 解除封印！現在裡面的超連結可以點了 */
 z-index: 10;
 }
 #actionBtn {
@@ -205,6 +205,20 @@ const dialogues = {
 };
 const dialogStates = { boss1: 0, boss2: 0, boss3: 0, boss4: 0, cus1: 0, cus2: 0 };
 
+const furnitureDialogues = {
+    110: "「比佛利石墨烯恆溫乳膠獨立筒。表面石墨烯加天然乳膠，軟硬適中，聽起來像什麼拯救失眠的高科技黑魔法。躺上去體溫跟智商都會跟著恆定。強烈建議買回去要設十個鬧鐘，上個月有個客人早上賣場剛開門就來試躺，他醒來已經是我們要打烊的時候了。」",
+    111: "「LADY 銅離子抗菌乳膠獨立筒。裡面加了蠶絲冬暖夏涼，表層還抗菌。這年頭連床都比人的抵抗力還強。就算你三天沒洗澡躺上去，細菌都會嫌你髒自己搬家。真的是單身狗的終極救贖，反正也沒人會幫你暖床。」",
+    112: "「奧丁雙電動零重力三人沙發。零重力聽起來像要去外太空，其實就是可以直接躺平到 180 度。這設計根本在鼓勵大家跟老婆吵架時，直接睡客廳還比睡床舒服。缺點大概就是躺久了會毫無求生慾吧。」",
+    113: "「伊登麻吉模組沙發兩人座。主打『模組化』，聽起來很自由，可以像積木拼出你夢想中的客廳，但殘酷的事實是你家客廳根本不夠大。坐感滿Q彈的，像坐在一個巨大的發福史萊姆上。顏色很搭那些剛辦完40年房貸、對生活還有不切實際幻想的年輕人。」",
+    114: "「克萊歐岩紋餐桌。岩紋表面有一種冷酷的專業感，就算你在上面打翻排骨酥湯，抹布一嚕就乾淨了，完全看不出昨晚經歷過什麼摧殘。吃泡麵都能吃出米其林的錯覺。對了，這桌子夠硬，吵架翻桌的時候記得三思，桌子沒事，你會先骨折。」",
+    115: "「艾禮思木藝邊櫃。這玩意兒就是家具界的萬金油。當電視櫃、展示櫃，或者拿來塞你買了卻從來不用的智商稅家電。只要拉門一關，裡面就算藏了一堆沒繳的信用卡帳單，外面看起來依然是個品味高雅的中產階級。假掰必備。」",
+    116: "「艾禮思木藝二抽高櫃。這造型...X的，根本就是我阿嬤家拿來放拜拜剩菜的那個菜櫥啊！現在套上『復古木藝』四個字價格直接翻倍，這就是資本主義的魔法。買回去半夜打開，如果裡面沒擺一盤冷掉的白斬雞，我可是會客訴的。」",
+    117: "「La-Z-Boy 512 手動經典搖椅。這張的腰部支撐力，比你那脆弱的自尊心還要堅強。手動的好處就是，當你窮到繳不出電費的時候，它依然能陪你在黑暗中搖曳生姿，快買一張回去吧。」",
+    118: "「La-Z-Boy 765 雙電動牛皮椅。這坐感軟爛到什麼程度？就是你剛按下遙控器，電視都還沒亮，你人已經在夢裡跟周公打麻將了。服貼度極高，簡直像被一個巨型皮製怪獸吞噬。強烈建議不要在這張椅子上思考人生，你會直接變成一團只會呼吸的廢肉。」",
+    119: "「La-Z-Boy 521 雙電動按摩牛皮椅。多段震動加溫熱功能，這哪是椅子，這根本是合法的老人復健中心。冷天開加熱再開震動，舒服到你會懷疑自己是不是已經升天了。唯一缺點就是震到後來括約肌會有點失守，麻煩試坐前先去尿尿。」",
+    120: "「La-Z-Boy 紐約北歐式休閒椅。北歐風就是有一種『我很有錢但我不想讓你看出來』的裝逼感。這皮面、這線條，坐上去彷彿自帶精品手沖咖啡的濾鏡。老實說，你就算穿著泛黃吊嘎在上面摳腳，別人也會以為你在進行什麼北歐行為藝術，滿超值的。」"
+};
+
 async function fetchInventory() {
     try {
         const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
@@ -293,37 +307,27 @@ const nightMarketMap = [
     [30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
 ];
 
-// 大墩店 20x20 全新 VMD 旗艦動線 (依照手稿結界陣法)
 const holaStoreMap = Array(20).fill(0).map(() => Array(20).fill(0));
 for(let r=0; r<20; r++) {
     for(let c=0; c<20; c++) {
-        if(r===0 || r===19 || c===0 || c===19) holaStoreMap[r][c] = 101; // 牆壁
+        if(r===0 || r===19 || c===0 || c===19) holaStoreMap[r][c] = 101;
     }
 }
-holaStoreMap[19][9] = 201; // 出口
+holaStoreMap[19][9] = 201;
 holaStoreMap[19][10] = 201;
 
-// 左上：睡眠體驗區 (兩張床並排)
-holaStoreMap[3][2] = 110; holaStoreMap[3][3] = 999; holaStoreMap[4][2] = 999; holaStoreMap[4][3] = 999; // hola_bed2
-holaStoreMap[3][5] = 111; holaStoreMap[3][6] = 999; holaStoreMap[4][5] = 999; holaStoreMap[4][6] = 999; // hola_bed3
-
-// 右上：沙發與高櫃 (從左到右：sofa3 -> cab3 -> sofa2)
-holaStoreMap[3][9] = 113; holaStoreMap[3][10] = 999; holaStoreMap[4][9] = 999; holaStoreMap[4][10] = 999; // matchy_sofa3 (2x2)
-holaStoreMap[3][12] = 116; holaStoreMap[3][13] = 999; holaStoreMap[4][12] = 999; holaStoreMap[4][13] = 999; // wooden_cabinet3 (高櫃 2x2碰撞)
+holaStoreMap[3][2] = 110; holaStoreMap[3][3] = 999; holaStoreMap[4][2] = 999; holaStoreMap[4][3] = 999;
+holaStoreMap[3][5] = 111; holaStoreMap[3][6] = 999; holaStoreMap[4][5] = 999; holaStoreMap[4][6] = 999;
+holaStoreMap[3][9] = 113; holaStoreMap[3][10] = 999; holaStoreMap[4][9] = 999; holaStoreMap[4][10] = 999;
+holaStoreMap[3][12] = 116; holaStoreMap[3][13] = 999; holaStoreMap[4][12] = 999; holaStoreMap[4][13] = 999;
 holaStoreMap[3][15] = 112; holaStoreMap[3][16] = 999; holaStoreMap[3][17] = 999; 
-holaStoreMap[4][15] = 999; holaStoreMap[4][16] = 999; holaStoreMap[4][17] = 999; // matchy_sofa2 (3x2)
-
-// 中央：矮櫃
-holaStoreMap[8][9] = 115; holaStoreMap[8][10] = 999; // wooden_cabinet2 (2x1)
-
-// 中央偏下：餐桌
-holaStoreMap[12][9] = 114; holaStoreMap[12][10] = 999; holaStoreMap[13][9] = 999; holaStoreMap[13][10] = 999; // dining_table (2x2)
-
-// 左下：休閒單椅直列陣法 (碰撞 1x1)
-holaStoreMap[8][2] = 119; // lazboy_chair3
-holaStoreMap[11][2] = 118; // lazboy_chair2
-holaStoreMap[14][2] = 117; // lazboy_chair
-holaStoreMap[17][2] = 120; // blue_chair
+holaStoreMap[4][15] = 999; holaStoreMap[4][16] = 999; holaStoreMap[4][17] = 999;
+holaStoreMap[8][9] = 115; holaStoreMap[8][10] = 999;
+holaStoreMap[12][9] = 114; holaStoreMap[12][10] = 999; holaStoreMap[13][9] = 999; holaStoreMap[13][10] = 999;
+holaStoreMap[8][2] = 119;
+holaStoreMap[11][2] = 118;
+holaStoreMap[14][2] = 117;
+holaStoreMap[17][2] = 120;
 
 
 const cat = {
@@ -356,7 +360,7 @@ window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.k
 let touchStartX = 0, touchStartY = 0, isTouching = false;
 window.addEventListener('touchstart', e => {
     tryPlayBGM();
-    if(e.target === actionBtn || e.target === zoomBtn) return;
+    if(e.target === actionBtn || e.target === zoomBtn || e.target.closest('#dialogBox')) return;
     isTouching = true;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
@@ -451,13 +455,13 @@ function tryInteract() {
         if (currentMap === 'temple' && r === 7 && c === 9 && tile === 1) {
             wallKnockCount++;
             if (wallKnockCount < 5) {
-                showDialog(`🚪 叩、叩... 牆壁發出空洞的聲音。<br><span style="color:#aaa;font-size:0.8em;">(已敲擊 ${wallKnockCount}/5 下)</span>`, 2000);
+                showDialog(`<div style='text-align:center;'>🚪 叩、叩... 牆壁發出空洞的聲音。<br><span style='color:#aaa;font-size:0.8em;'>(已敲擊 ${wallKnockCount}/5 下)</span></div>`, 2000);
             } else {
                 wallKnockCount = 0;
                 isPrompting = true;
                 canvas.classList.add('shake-active');
                 setTimeout(() => canvas.classList.remove('shake-active'), 500);
-                showDialog("✨ 轟隆隆... 牆壁竟然緩緩打開，露出一個充滿北歐質感的神秘空間！", 3500);
+                showDialog("<div style='text-align:center;'>✨ 轟隆隆... 牆壁竟然緩緩打開，露出一個充滿北歐質感的神秘空間！</div>", 3500);
                 setTimeout(() => {
                     currentMap = 'holaStore';
                     cat.x = 9.5 * TILE_SIZE;
@@ -486,25 +490,25 @@ function tryInteract() {
         if (tile === 52) handleNightCat('cus2', '🐈 顧客 (吃香腸)');
 
         if (tile === 31) {
-            if (c === 1) showDialog("🛵 機車：<br>「叭～叭～！找死啊！」", 3000);
+            if (c === 1) showDialog("<div style='text-align:center;'>🛵 機車：<br>「叭～叭～！找死啊！」</div>", 3000);
             else if (c === 8) {
                 isPrompting = true;
                 canvas.classList.add('shake-active');
                 setTimeout(() => canvas.classList.remove('shake-active'), 500);
-                showDialog("⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」", 1500);
+                showDialog("<div style='text-align:center;'>⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」</div>", 1500);
                 setTimeout(() => {
                     nightMarketMap[r][c] = 33; 
-                    showDialog("🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」", 4000);
+                    showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 4000);
                     isPrompting = false;
                 }, 1500);
             }
         }
-        if (tile === 33) showDialog("🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」", 3000);
+        if (tile === 33) showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 3000);
 
         if (currentMap === 'holaStore') {
             if (tile === 201) {
                 isPrompting = true;
-                showDialog("🚪 離開大墩店，回到人間...", 1500);
+                showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
                 setTimeout(() => {
                     currentMap = 'temple';
                     cat.x = 8 * TILE_SIZE; 
@@ -512,12 +516,13 @@ function tryInteract() {
                     cat.dir = 'left';
                     isPrompting = false;
                 }, 1500);
-            } else if (tile >= 110 && tile <= 120 || tile === 999) {
+            } else if (tile >= 110 && tile <= 120) {
+                // 專屬家具嘲諷對話，停留 8 秒讓人慢慢看
+                showDialog(`🪑 <b>商品簡介</b><br><br>${furnitureDialogues[tile]}`, 8000);
+            } else if (tile === 999) {
                 let msgs = [
-                    "🛒 HOLA 語音廣播：<br>「本檔期最熱銷的高級傢俱，歡迎盡情試躺。」",
-                    "🛒 總部督導視察報告：<br>「展區動線陳列完美，但旁邊似乎有貓毛...扣兩分。」",
-                    "🛒 業務員的心聲：<br>「這單敲定，我這個月就可以買兩個主子的高級罐罐了。」",
-                    "🛋️ 商品標籤：<br>「北歐質感實木系列，嚴選材質，坐上去就不想起來。」"
+                    "<div style='text-align:center;'>🛒 HOLA 語音廣播：<br>「本檔期最熱銷的高級傢俱，歡迎盡情試躺。」</div>",
+                    "<div style='text-align:center;'>🛒 總部督導視察報告：<br>「展區動線陳列完美，但旁邊似乎有貓毛...扣兩分。」</div>"
                 ];
                 showDialog(msgs[Math.floor(Math.random()*msgs.length)], 3500);
             }
@@ -527,25 +532,25 @@ function tryInteract() {
 
 function handleNightCat(catId, catName) {
     let text = dialogues[catId][dialogStates[catId]];
-    showDialog(`${catName}：<br>${text}`, 5000);
+    showDialog(`<div style='text-align:center;'>${catName}：<br>${text}</div>`, 5000);
     dialogStates[catId] = (dialogStates[catId] + 1) % 3; 
 }
 
 function handleGolden() { 
     if (!npcTalked.golden) {
-        showDialog("🐱 金漸層：<br>「聽說這裡廟公的LINE ID是：<b>satanhotdog</b>，有家具需求可以私下找他處理喔...」", 5000); 
+        showDialog("<div style='text-align:center;'>🐱 金漸層：<br>「如果你有看中什麼家具，不如直接找這位藍貓廟公處理...<br><br><a href='https://line.me/ti/p/v-9_IDIeyw' target='_blank' style='display:inline-block; margin-top:10px; padding:10px 15px; background:#00c300; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size:1.1em;'>👉 點擊加 KOBE 的 LINE</a>」</div>", 10000); 
         npcTalked.golden = true;
     } else {
-        showDialog("🐱 金漸層：<br>「偷偷告訴你，無毛貓『正上方』的那面牆壁，好像有點玄機，總覺得裡面藏了一整個賣場...」", 5500); 
+        showDialog("<div style='text-align:center;'>🐱 金漸層：<br>「偷偷告訴你，無毛貓『正上方』的那面牆壁，好像有點玄機，總覺得裡面藏了一整個賣場...」</div>", 5500); 
     }
 }
 
 function handleHairless() { 
     if (!npcTalked.hairless) {
-        showDialog("🐈 無毛貓：<br>「偷偷跟你說，聽說這裡的藍貓廟公KOBE，有在兼職HOLA大墩店家具業務耶。」", 5000); 
+        showDialog("<div style='text-align:center;'>🐈 無毛貓：<br>「偷偷跟你說，聽說這裡的藍貓廟公KOBE，有在兼職HOLA大墩店家具業務耶。」</div>", 5000); 
         npcTalked.hairless = true;
     } else {
-        showDialog("🐈 無毛貓：<br>「如果你走到我頭頂上那面牆，面向它敲『五下』！對，連點調查鍵，不多不少就是五下！」", 5500); 
+        showDialog("<div style='text-align:center;'>🐈 無毛貓：<br>「如果你走到我頭頂上那面牆，面向它敲『五下』！對，連點調查鍵，不多不少就是五下！」</div>", 5500); 
     }
 }
 
@@ -559,7 +564,7 @@ function handleFortune() {
     });
 
     if (available.length === 0) {
-        showDialog("佛祖眉頭一皺：<br>「今日無上等特價良品，施主請改日再來。」");
+        showDialog("<div style='text-align:center;'>佛祖眉頭一皺：<br>「今日無上等特價良品，施主請改日再來。」</div>");
         return;
     }
 
@@ -567,6 +572,7 @@ function handleFortune() {
     let finalPrice = getBestPromoPrice(luckyItem);
     
     showDialog(`
+    <div style='text-align:center;'>
     <b style="color:#ffcc00;font-size:1.3em;">🎊 上上籤！</b><br>
     <span style="font-size:0.8em; color:#aaa;">${luckyItem['SKU']}</span><br>
     <b>${luckyItem['商品名稱']}</b><br>
@@ -574,6 +580,7 @@ function handleFortune() {
     <hr style="border:0;border-top:1px dashed #666;margin:10px 0;">
     大墩店：${parseInt(luckyItem['HOLA630庫存'])||0} (展示: ${parseInt(luckyItem['HOLA630展示'])||0})<br>
     楊梅倉：${parseInt(luckyItem['楊梅庫存'])||0}
+    </div>
     `, 6000);
 }
 
@@ -588,17 +595,19 @@ function handleNPC() {
         let item = inventoryData.find(i => i['SKU'].toUpperCase().includes(sku));
 
         if (!item) {
-            showDialog(`廟公搖了搖頭：<br>「查無此物 (${sku})，施主可是記錯了？」`);
+            showDialog(`<div style='text-align:center;'>廟公搖了搖頭：<br>「查無此物 (${sku})，施主可是記錯了？」</div>`);
         } else {
             let promoPrice = getBestPromoPrice(item);
             let priceStr = promoPrice ? `<span style="color:#ff4444;font-weight:bold;">$${promoPrice}</span> <del style="color:#888;font-size:0.8em;">$${item['一般售價']}</del>` : `$${item['一般售價']}`;
             showDialog(`
+            <div style='text-align:center;'>
             <span style="font-size:0.8em;color:#aaa;">${item['SKU']} | ${item['商品分類']||'未分類'}</span><br>
             <b style="color:#ffcc00;">${item['商品名稱']}</b><br>
             售價：${priceStr}<br>
             <hr style="border:0;border-top:1px dashed #666;margin:8px 0;">
             大墩庫存：<b>${parseInt(item['HOLA630庫存'])||0}</b> (展示: ${parseInt(item['HOLA630展示'])||0})<br>
             楊梅庫存：<b>${parseInt(item['楊梅庫存'])||0}</b>
+            </div>
             `, 8000);
         }
     }, 50);
@@ -707,23 +716,14 @@ function draw() {
             if (tile >= 21 && tile <= 24) ctx.drawImage(images['stall_' + (tile-20)], posX, posY, TILE_SIZE * 2, TILE_SIZE * 2);
             if (tile === 33) ctx.drawImage(images['robot'], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.0), TILE_SIZE * 2, TILE_SIZE * 2);
 
-            // HOLA 旗艦店傢俱渲染 (對應最新陣列代碼與座標)
             if (tile === 101) ctx.drawImage(images['wall_hola'], posX, posY, TILE_SIZE, TILE_SIZE);
-            
-            // 床墊區 (2x2)
             if (tile === 110) ctx.drawImage(images['hola_bed2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
             if (tile === 111) ctx.drawImage(images['hola_bed3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
-            
-            // 沙發區
-            if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 3, TILE_SIZE * 2); // 3格寬
-            if (tile === 113) ctx.drawImage(images['matchy_sofa3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2); // 2格寬
-            
-            // 餐廳與收納區
+            if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 3, TILE_SIZE * 2); 
+            if (tile === 113) ctx.drawImage(images['matchy_sofa3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2); 
             if (tile === 114) ctx.drawImage(images['dining_table'], posX - 10, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2.2, TILE_SIZE * 2.2);
             if (tile === 115) ctx.drawImage(images['wooden_cabinet2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 1.5);
-            if (tile === 116) ctx.drawImage(images['wooden_cabinet3'], posX, posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 3.5); // 高櫃拉高
-            
-            // 休閒單椅區
+            if (tile === 116) ctx.drawImage(images['wooden_cabinet3'], posX, posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 3.5); 
             if (tile === 117) ctx.drawImage(images['lazboy_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
             if (tile === 118) ctx.drawImage(images['lazboy_chair2'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
             if (tile === 119) ctx.drawImage(images['lazboy_chair3'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
