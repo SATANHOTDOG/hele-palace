@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<title>河樂宮 - 庫存通靈系統 (全地圖自由改裝版)</title>
+<title>河樂宮 - 庫存通靈系統 (上帝視野旗艦版)</title>
 <style>
 body, html {
 margin: 0;
@@ -14,7 +14,7 @@ width: 100%;
 height: 100%;
 background-color: #1a1a1a;
 overflow: hidden;
-touch-action: none;
+touch-action: none; 
 font-family: 'Courier New', Courier, monospace;
 }
 #gameCanvas {
@@ -179,13 +179,13 @@ text-shadow: 1px 1px 2px #000;
 <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
 
 <div id="loading">
-啟動全地圖改裝系統中...<br>
+啟動大墩店三段變焦模組...<br>
 <span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
 </div>
 
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
-<div id="zoomBtn">🔍</div>
+<div id="zoomBtn">🔎</div>
 <div id="editBtn">🛠️</div>
 <div id="editModeUI">🛠️ 裝潢模式：點物件抓起 ➡️ 點空地放下</div>
 <div id="actionBtn"></div>
@@ -233,7 +233,7 @@ const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'
 const activeGod = godList[Math.floor(Math.random() * godList.length)];
 
 let currentMap = 'temple'; 
-let isZoomed = false; 
+let viewMode = 0; // 0: 預設, 1: 變焦1, 2: 變焦2
 let wallKnockCount = 0;
 let npcTalked = { golden: false, hairless: false };
 
@@ -245,14 +245,11 @@ let cursorC = 0;
 
 // 全地圖可移動物件與 NPC 的佔地尺寸 (寬x高格數)
 const itemDims = {
-    // 神廟物件與 NPC
     4: {w:1, h:1}, 5: {w:1, h:1}, 6: {w:1, h:1}, 7: {w:1, h:1}, 8: {w:1, h:1}, 99: {w:1, h:1},
-    // 夜市攤位、NPC 與道具
     21: {w:2, h:2}, 22: {w:2, h:2}, 23: {w:2, h:2}, 24: {w:2, h:2},
     31: {w:1, h:1}, 32: {w:1, h:1}, 33: {w:1, h:1},
     41: {w:1, h:1}, 42: {w:1, h:1}, 43: {w:1, h:1}, 44: {w:1, h:1},
     51: {w:1, h:1}, 52: {w:1, h:1},
-    // 大墩店家具
     110: {w:2, h:2}, 111: {w:2, h:2}, 112: {w:3, h:2}, 113: {w:2, h:2},
     114: {w:2, h:2}, 115: {w:2, h:1}, 116: {w:2, h:2},
     117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1}
@@ -342,13 +339,47 @@ function saveMaps() {
     localStorage.setItem('nightMarketMap_v2', JSON.stringify(nightMarketMap));
     localStorage.setItem('holaStoreMap_v2', JSON.stringify(holaStoreMap));
 }
-
 loadMaps();
 
 const cat = { x: 5.5 * TILE_SIZE, y: 7 * TILE_SIZE, speed: 4, dir: 'up', isMoving: false, isInteracting: false };
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 let touchDir = null;
 
+// --- 三段縮放核心邏輯 ---
+function getScale() {
+    if (currentMap === 'temple' || currentMap === 'nightMarket') {
+        // 宮廟/夜市：0=10x10(1.0), 1=5x5(2.0)
+        return viewMode === 0 ? 1.0 : 2.0;
+    } else {
+        // HOLA店：0=20x20(0.5), 1=10x10(1.0), 2=5x5(2.0)
+        if (viewMode === 0) return 0.5;
+        if (viewMode === 1) return 1.0;
+        return 2.0;
+    }
+}
+
+function updateZoomIcon() {
+    let s = getScale();
+    if (s === 0.5) zoomBtn.innerHTML = '🔍';      // 下一步: 放大10x10
+    else if (s === 1.0) zoomBtn.innerHTML = '🔎'; // 下一步: 放大5x5
+    else zoomBtn.innerHTML = '🗺️';               // 下一步: 縮回全景
+}
+
+function toggleZoom() {
+    if (currentMap === 'temple' || currentMap === 'nightMarket') {
+        viewMode = (viewMode + 1) % 2;
+    } else {
+        viewMode = (viewMode + 1) % 3;
+    }
+    updateZoomIcon();
+}
+
+function resetZoomForMap() {
+    viewMode = 0; // 自動回歸該地圖預設視角
+    updateZoomIcon();
+}
+
+// 裝潢模式切換
 function toggleEditMode() {
     if (isDecorating && heldItem) {
         showDialog("<div style='text-align:center;'>請先將手上的物件找個空地放下！</div>", 2000);
@@ -369,11 +400,6 @@ editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropag
 zoomBtn.addEventListener('click', (e) => { e.stopPropagation(); tryPlayBGM(); toggleZoom(); });
 zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); tryPlayBGM(); toggleZoom(); }, { passive: false });
 
-function toggleZoom() {
-    isZoomed = !isZoomed;
-    zoomBtn.innerHTML = isZoomed ? '🗺️' : '🔍';
-}
-
 window.addEventListener('keydown', e => {
     tryPlayBGM();
     if (isDecorating) return;
@@ -384,7 +410,7 @@ window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.k
 
 function getGridPos(clientX, clientY) {
     let rect = canvas.getBoundingClientRect();
-    let scale = isZoomed ? 2.0 : 1.0;
+    let scale = getScale();
     let camX = (cat.x + TILE_SIZE/2) * scale - canvas.width / 2;
     let camY = (cat.y + TILE_SIZE/2) * scale - canvas.height / 2;
     let mapCols = getActiveMapLayout()[0].length;
@@ -394,7 +420,6 @@ function getGridPos(clientX, clientY) {
     camX = Math.max(0, Math.min(maxCamX, camX));
     camY = Math.max(0, Math.min(maxCamY, camY));
 
-    // 修正 object-fit: contain 造成的左右或上下黑邊偏移，讓點擊座標 100% 精準對齊格子
     let canvasAspect = canvas.width / canvas.height;
     let rectAspect = rect.width / rect.height;
     let renderW = rect.width, renderH = rect.height, offsetX = 0, offsetY = 0;
@@ -425,7 +450,6 @@ function handleEditInteraction(clientX, clientY) {
     if (heldItem === null) {
         let tile = mapLayout[pos.r][pos.c];
         let rootR = pos.r, rootC = pos.c, rootTile = tile;
-        
         if (tile === 999) {
             for (let dr = 0; dr >= -2; dr--) {
                 for (let dc = 0; dc >= -2; dc--) {
@@ -436,7 +460,6 @@ function handleEditInteraction(clientX, clientY) {
                 }
             }
         }
-        
         if (itemDims[rootTile]) {
             heldItem = rootTile;
             let dim = itemDims[rootTile];
@@ -478,20 +501,17 @@ canvas.addEventListener('mousedown', e => {
     if (!isDecorating) return;
     handleEditInteraction(e.clientX, e.clientY);
 });
-
 canvas.addEventListener('touchstart', e => {
     if (!isDecorating) return;
     e.preventDefault();
     handleEditInteraction(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
-
 canvas.addEventListener('mousemove', e => {
     if (isDecorating) {
         let pos = getGridPos(e.clientX, e.clientY);
         cursorR = pos.r; cursorC = pos.c;
     }
 });
-
 canvas.addEventListener('touchmove', e => {
     if (isDecorating) {
         e.preventDefault();
@@ -511,8 +531,7 @@ window.addEventListener('touchstart', e => {
     touchDir = null;
 }, { passive: false });
 window.addEventListener('touchmove', e => {
-    if (isDecorating) return;
-    if (!isTouching) return;
+    if (isDecorating || !isTouching) return;
     e.preventDefault();
     let diffX = e.touches[0].clientX - touchStartX;
     let diffY = e.touches[0].clientY - touchStartY;
@@ -574,6 +593,7 @@ assetNames.forEach(name => {
 
 async function init() {
     await fetchInventory();
+    updateZoomIcon();
     checkStartGame();
 }
 
@@ -640,35 +660,24 @@ function isWalkable(newX, newY) {
 
 let isPrompting = false;
 function tryInteract() {
-    if (cat.isInteracting || isPrompting) return;
-
-    let cx = cat.x + (TILE_SIZE / 2);
-    let cy = cat.y + (TILE_SIZE / 2);
+    if (cat.isInteracting || isPrompting || isDecorating) return;
+    let cx = cat.x + (TILE_SIZE / 2), cy = cat.y + (TILE_SIZE / 2);
     let mapLayout = getActiveMapLayout();
-
-    let checkOffsets = [
-        { x: 0, y: -TILE_SIZE }, { x: 0, y: TILE_SIZE }, { x: -TILE_SIZE, y: 0 }, { x: TILE_SIZE, y: 0 }
-    ];
+    let checkOffsets = [{ x: 0, y: -TILE_SIZE }, { x: 0, y: TILE_SIZE }, { x: -TILE_SIZE, y: 0 }, { x: TILE_SIZE, y: 0 }];
 
     let foundCoord = null;
     for (let offset of checkOffsets) {
-        let targetX = cx + offset.x;
-        let targetY = cy + offset.y;
-        let c = Math.floor(targetX / TILE_SIZE);
-        let r = Math.floor(targetY / TILE_SIZE);
-
+        let targetX = cx + offset.x, targetY = cy + offset.y;
+        let c = Math.floor(targetX / TILE_SIZE), r = Math.floor(targetY / TILE_SIZE);
         if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
             let tile = mapLayout[r][c];
-            if ((tile >= 110 && tile <= 120) || tile === 999) {
-                foundCoord = { r: r, c: c, tile: tile }; break;
-            }
+            if ((tile >= 110 && tile <= 120) || tile === 999) { foundCoord = { r: r, c: c, tile: tile }; break; }
             if ([1, 4, 5, 6, 7, 8, 31, 33, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
                 if (tile === 1 && !(currentMap === 'temple' && r === 7 && c === 9)) continue;
                 foundCoord = { r: r, c: c, tile: tile }; break;
             }
         }
     }
-
     if (!foundCoord) return;
     let tile = foundCoord.tile;
 
@@ -696,8 +705,8 @@ function tryInteract() {
             setTimeout(() => canvas.classList.remove('shake-active'), 500);
             showDialog("<div style='text-align:center;'>✨ 轟隆隆... 牆壁竟然緩緩打開，露出一個充滿北歐質感的神秘空間！</div>", 3500);
             setTimeout(() => {
-                currentMap = 'holaStore';
-                cat.x = 9.5 * TILE_SIZE; cat.y = 18 * TILE_SIZE; cat.dir = 'up'; isPrompting = false;
+                currentMap = 'holaStore'; cat.x = 9.5 * TILE_SIZE; cat.y = 18 * TILE_SIZE; cat.dir = 'up'; isPrompting = false;
+                resetZoomForMap(); // 切換地圖時自動重置視角
             }, 3500);
         }
         return;
@@ -733,6 +742,7 @@ function tryInteract() {
             showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
             setTimeout(() => {
                 currentMap = 'temple'; cat.x = 8 * TILE_SIZE; cat.y = 8 * TILE_SIZE; cat.dir = 'left'; isPrompting = false;
+                resetZoomForMap(); // 回人間自動重置視角
             }, 1500);
         } else if (tile >= 110 && tile <= 120) {
             showDialog(`🪑 <b>商品簡介</b><br><br>${furnitureDialogues[tile]}`, 8000);
@@ -845,22 +855,20 @@ function update() {
     else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
 
     if (currentMap === 'temple' && cat.y >= 8.5 * TILE_SIZE && dy > 0 && cat.x >= 3.5 * TILE_SIZE && cat.x <= 5.8 * TILE_SIZE) {
-        currentMap = 'nightMarket'; cat.y = 0.5 * TILE_SIZE; cat.isMoving = false; return;
+        currentMap = 'nightMarket'; cat.y = 0.5 * TILE_SIZE; cat.isMoving = false; resetZoomForMap(); return;
     }
     if (currentMap === 'nightMarket' && cat.y <= 0.5 * TILE_SIZE && dy < 0 && cat.x >= 3.5 * TILE_SIZE && cat.x <= 5.8 * TILE_SIZE) {
-        currentMap = 'temple'; cat.y = 8.5 * TILE_SIZE; cat.isMoving = false; return;
+        currentMap = 'temple'; cat.y = 8.5 * TILE_SIZE; cat.isMoving = false; resetZoomForMap(); return;
     }
 
     if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
     if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
 }
 
-// 統一渲染所有可移動物件
 function drawItemTile(tile, posX, posY, ctx) {
     let tallY = posY - (TILE_SIZE * 0.5);
     let tallH = TILE_SIZE * 1.5;
     
-    // 神廟物件
     if (tile === 4) ctx.drawImage(images['altar'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY - (TILE_SIZE * 0.3), TILE_SIZE, TILE_SIZE * 1.3);
     if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, tallY, TILE_SIZE, tallH);
@@ -868,7 +876,6 @@ function drawItemTile(tile, posX, posY, ctx) {
     if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 99) ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
 
-    // 夜市物件
     if (tile >= 21 && tile <= 24) ctx.drawImage(images['stall_' + (tile-20)], posX, posY, TILE_SIZE * 2, TILE_SIZE * 2);
     if (tile === 31) ctx.drawImage(images['scooter'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 32) ctx.drawImage(images['tree'], posX, tallY, TILE_SIZE, tallH);
@@ -876,7 +883,6 @@ function drawItemTile(tile, posX, posY, ctx) {
     if (tile >= 41 && tile <= 44) ctx.drawImage(images['npc_boss' + (tile-40)], posX, posY, TILE_SIZE, TILE_SIZE);
     if (tile >= 51 && tile <= 52) ctx.drawImage(images['npc_cus' + (tile-50)], posX, posY, TILE_SIZE, TILE_SIZE);
 
-    // 大墩店家具
     if (tile === 110) ctx.drawImage(images['hola_bed2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
     if (tile === 111) ctx.drawImage(images['hola_bed3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
     if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 3, TILE_SIZE * 2); 
@@ -897,7 +903,7 @@ function draw() {
     let mapLayout = getActiveMapLayout();
     let mapCols = mapLayout[0].length;
     let mapRows = mapLayout.length;
-    let scale = isZoomed ? 2.0 : 1.0;
+    let scale = getScale(); 
     
     let focusX = cat.x + TILE_SIZE / 2;
     let focusY = cat.y + TILE_SIZE / 2;
@@ -932,14 +938,12 @@ function draw() {
             let posX = c * TILE_SIZE;
             let posY = r * TILE_SIZE;
             
-            // 固定牆壁與大門
             if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 3 && c === 5) ctx.drawImage(images['gate'], posX - (TILE_SIZE * 1.25), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
             if (tile === 30) ctx.drawImage(images['fence'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 101) ctx.drawImage(images['wall_hola'], posX, posY, TILE_SIZE, TILE_SIZE);
 
-            // 可移動物件
             if (itemDims[tile]) drawItemTile(tile, posX, posY, ctx);
         }
     }
