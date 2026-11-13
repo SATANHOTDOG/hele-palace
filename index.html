@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<title>河樂宮 - 庫存通靈系統 (上帝視野旗艦版)</title>
+<title>河樂宮 - 庫存通靈系統 (多重宇宙影分身版)</title>
 <style>
 body, html {
 margin: 0;
@@ -179,7 +179,7 @@ text-shadow: 1px 1px 2px #000;
 <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
 
 <div id="loading">
-啟動大墩店三段變焦模組...<br>
+宇宙融合與生命注入中...<br>
 <span style="font-size: 0.9rem; color: #888;">正在用靈力抓取 Google Sheets...</span>
 </div>
 
@@ -233,17 +233,15 @@ const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'
 const activeGod = godList[Math.floor(Math.random() * godList.length)];
 
 let currentMap = 'temple'; 
-let viewMode = 0; // 0: 預設, 1: 變焦1, 2: 變焦2
+let viewMode = 0; 
 let wallKnockCount = 0;
 let npcTalked = { golden: false, hairless: false };
 
-// --- 裝潢模式變數 ---
 let isDecorating = false;
 let heldItem = null;
 let cursorR = 0;
 let cursorC = 0;
 
-// 全地圖可移動物件與 NPC 的佔地尺寸 (寬x高格數)
 const itemDims = {
     4: {w:1, h:1}, 5: {w:1, h:1}, 6: {w:1, h:1}, 7: {w:1, h:1}, 8: {w:1, h:1}, 99: {w:1, h:1},
     21: {w:2, h:2}, 22: {w:2, h:2}, 23: {w:2, h:2}, 24: {w:2, h:2},
@@ -255,6 +253,7 @@ const itemDims = {
     117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1}
 };
 
+// 夜市專用對話
 const dialogues = {
     boss1: ["「聽說 KOBE 那傢伙一天只能吃兩餐，那我這香腸算正餐還是點心？」", "「蒜頭自己剝，不要逼一隻貓做這種破壞指甲的粗活。」", "「這香腸烤得比我的人生還要通透，來一根？」"],
     boss2: ["「裡面包的是章魚還是魷魚？這是一個連 KOBE 都參不透的哲學問題。」", "「柴魚片在跳舞，不是因為熱，是因為它們也有業績壓力。」", "「買一盒吧，綁這頭巾讓我的耳朵有點悶，需要用錢來通風。」"],
@@ -263,6 +262,17 @@ const dialogues = {
     cus1: ["「我只是想在夜市找個角落安靜地喝珍奶，為什麼 KOBE 一直在看我？」", "「半糖去冰是成人的妥協，但我只是隻貓。」", "「排隊排了半小時，結果我根本乳糖不耐症。」"],
     cus2: ["「大腸包小腸的精髓在於，你永遠不知道哪個是大腸，哪個是小腸。」", "「聽說 KOBE 推薦這攤，但我懷疑他有抽成。」", "「吃太飽了，需要找張 La-Z-Boy 躺一下...啊，走錯棚了。」"]
 };
+
+// HOLA 賣場專用對話 (影分身切換)
+const holaNpcDialogues = {
+    boss1: ["「KOBE 說賣場禁止生火，但我看那張克萊歐岩紋餐桌挺耐熱的，要不我們等下拿來烤香腸試試？」", "「這冷氣真舒服，比在夜市流汗好多了。」", "「聽說這裡買家具能分期，那我買香腸可以分期嗎？」"],
+    boss2: ["「我只是來蹭免費冷氣的。那張電動沙發躺起來比我的章魚燒還要軟爛，真是不簡單。」", "「這裡的氣氛太高級了，我都不敢大聲叫賣。」", "「KOBE 那傢伙在這裡看起來居然有點專業，真是見鬼了。」"],
+    boss3: ["「別看了，這裡沒賣手搖飲。不過我看那個艾禮思木藝邊櫃，剛好可以拿來當我的結帳吧台。」", "「不能喝飲料？那我的珍珠怎麼辦，拿來當彈珠玩嗎？」", "「好想把珍奶打翻在那張高級床墊上...開玩笑的，我怕被 KOBE 滅口。」"],
+    boss4: ["「大墩店沒有金魚可以撈，但我剛剛看 KOBE 敲定了一筆大單，原來這裡的客人比金魚還好撈。」", "「這裡的地板比我的水缸還要乾淨。」", "「如果我在那張床上擺滿金魚，會不會變成網美打卡點？」"],
+    cus1: ["「我本來只是想找個角落安靜喝珍奶，結果被 KOBE 推銷了一張十萬塊的床墊...我下半輩子只能吃土了。」", "「為什麼我在哪裡都會遇到這隻橘貓老闆...」", "「這裡的床墊看起來好欠躺，但我不敢脫鞋。」"],
+    cus2: ["「大腸包小腸吃太撐了，借這張 La-Z-Boy 消化一下。老實說，這椅子的震動頻率，跟我腸胃蠕動的節奏完美同步。」", "「吃飽就想睡，這電動沙發根本是為了我設計的。」", "「我剛剛偷捏了一下那張牛皮椅，觸感比香腸還Q彈。」"]
+};
+
 const dialogStates = { boss1: 0, boss2: 0, boss3: 0, boss4: 0, cus1: 0, cus2: 0 };
 
 const furnitureDialogues = {
@@ -325,7 +335,6 @@ holaStoreMap[11][2] = 118;
 holaStoreMap[14][2] = 117;
 holaStoreMap[17][2] = 120;
 
-// --- 讀取與儲存三張地圖 ---
 function loadMaps() {
     let savedTemple = localStorage.getItem('templeMap_v2');
     if (savedTemple) { let p = JSON.parse(savedTemple); if(p.length === 10) templeMap = p; }
@@ -333,6 +342,33 @@ function loadMaps() {
     if (savedNight) { let p = JSON.parse(savedNight); if(p.length === 10) nightMarketMap = p; }
     let savedHola = localStorage.getItem('holaStoreMap_v2');
     if (savedHola) { let p = JSON.parse(savedHola); if(p.length === 20) holaStoreMap = p; }
+
+    // --- 空投影分身防護網：自動將缺少的貓咪注入 HOLA 賣場 ---
+    let foundNpcs = new Set();
+    for(let r=0; r<20; r++) {
+        for(let c=0; c<20; c++) {
+            let t = holaStoreMap[r][c];
+            if ((t >= 41 && t <= 44) || t === 51 || t === 52) foundNpcs.add(t);
+        }
+    }
+    const defaultPositions = { 41: [7,5], 42: [8,15], 43: [13,5], 44: [14,15], 51: [16,10], 52: [10,10] };
+    for(let id of [41, 42, 43, 44, 51, 52]) {
+        if(!foundNpcs.has(id)) {
+            let [r, c] = defaultPositions[id];
+            if(holaStoreMap[r][c] === 0) {
+                holaStoreMap[r][c] = id;
+            } else {
+                outer: for(let rr=1; rr<19; rr++) {
+                    for(let cc=1; cc<19; cc++) {
+                        if(holaStoreMap[rr][cc] === 0) {
+                            holaStoreMap[rr][cc] = id;
+                            break outer;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 function saveMaps() {
     localStorage.setItem('templeMap_v2', JSON.stringify(templeMap));
@@ -345,13 +381,10 @@ const cat = { x: 5.5 * TILE_SIZE, y: 7 * TILE_SIZE, speed: 4, dir: 'up', isMovin
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 let touchDir = null;
 
-// --- 三段縮放核心邏輯 ---
 function getScale() {
     if (currentMap === 'temple' || currentMap === 'nightMarket') {
-        // 宮廟/夜市：0=10x10(1.0), 1=5x5(2.0)
         return viewMode === 0 ? 1.0 : 2.0;
     } else {
-        // HOLA店：0=20x20(0.5), 1=10x10(1.0), 2=5x5(2.0)
         if (viewMode === 0) return 0.5;
         if (viewMode === 1) return 1.0;
         return 2.0;
@@ -360,9 +393,9 @@ function getScale() {
 
 function updateZoomIcon() {
     let s = getScale();
-    if (s === 0.5) zoomBtn.innerHTML = '🔍';      // 下一步: 放大10x10
-    else if (s === 1.0) zoomBtn.innerHTML = '🔎'; // 下一步: 放大5x5
-    else zoomBtn.innerHTML = '🗺️';               // 下一步: 縮回全景
+    if (s === 0.5) zoomBtn.innerHTML = '🔍';      
+    else if (s === 1.0) zoomBtn.innerHTML = '🔎'; 
+    else zoomBtn.innerHTML = '🗺️';               
 }
 
 function toggleZoom() {
@@ -375,11 +408,10 @@ function toggleZoom() {
 }
 
 function resetZoomForMap() {
-    viewMode = 0; // 自動回歸該地圖預設視角
+    viewMode = 0; 
     updateZoomIcon();
 }
 
-// 裝潢模式切換
 function toggleEditMode() {
     if (isDecorating && heldItem) {
         showDialog("<div style='text-align:center;'>請先將手上的物件找個空地放下！</div>", 2000);
@@ -497,28 +529,10 @@ function handleEditInteraction(clientX, clientY) {
     }
 }
 
-canvas.addEventListener('mousedown', e => {
-    if (!isDecorating) return;
-    handleEditInteraction(e.clientX, e.clientY);
-});
-canvas.addEventListener('touchstart', e => {
-    if (!isDecorating) return;
-    e.preventDefault();
-    handleEditInteraction(e.touches[0].clientX, e.touches[0].clientY);
-}, { passive: false });
-canvas.addEventListener('mousemove', e => {
-    if (isDecorating) {
-        let pos = getGridPos(e.clientX, e.clientY);
-        cursorR = pos.r; cursorC = pos.c;
-    }
-});
-canvas.addEventListener('touchmove', e => {
-    if (isDecorating) {
-        e.preventDefault();
-        let pos = getGridPos(e.touches[0].clientX, e.touches[0].clientY);
-        cursorR = pos.r; cursorC = pos.c;
-    }
-}, { passive: false });
+canvas.addEventListener('mousedown', e => { if (!isDecorating) return; handleEditInteraction(e.clientX, e.clientY); });
+canvas.addEventListener('touchstart', e => { if (!isDecorating) return; e.preventDefault(); handleEditInteraction(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+canvas.addEventListener('mousemove', e => { if (isDecorating) { let pos = getGridPos(e.clientX, e.clientY); cursorR = pos.r; cursorC = pos.c; } });
+canvas.addEventListener('touchmove', e => { if (isDecorating) { e.preventDefault(); let pos = getGridPos(e.touches[0].clientX, e.touches[0].clientY); cursorR = pos.r; cursorC = pos.c; } }, { passive: false });
 
 let isTouching = false;
 let touchStartX = 0, touchStartY = 0;
@@ -706,7 +720,7 @@ function tryInteract() {
             showDialog("<div style='text-align:center;'>✨ 轟隆隆... 牆壁竟然緩緩打開，露出一個充滿北歐質感的神秘空間！</div>", 3500);
             setTimeout(() => {
                 currentMap = 'holaStore'; cat.x = 9.5 * TILE_SIZE; cat.y = 18 * TILE_SIZE; cat.dir = 'up'; isPrompting = false;
-                resetZoomForMap(); // 切換地圖時自動重置視角
+                resetZoomForMap(); 
             }, 3500);
         }
         return;
@@ -716,8 +730,10 @@ function tryInteract() {
     if (tile === 6) handleNPC();
     if (tile === 7) handleGolden(); 
     if (tile === 8) handleHairless(); 
-    if (tile >= 41 && tile <= 44) handleNightCat('boss' + (tile-40), ['🐱 橘貓老闆 (烤香腸)', '🐱 黑貓老闆 (章魚燒)', '🐱 白貓老闆 (波霸奶茶)', '🐱 賓士貓老闆 (撈金魚)'][tile-41]);
-    if (tile >= 51 && tile <= 52) handleNightCat('cus' + (tile-50), ['🐈 顧客 (喝珍奶)', '🐈 顧客 (吃香腸)'][tile-51]);
+    
+    // --- 判斷是在哪個宇宙，呼叫對應的台詞 ---
+    if (tile >= 41 && tile <= 44) handleNightCat('boss' + (tile-40), ['🐱 橘貓老闆 (烤香腸)', '🐱 黑貓老闆 (章魚燒)', '🐱 白貓老闆 (波霸奶茶)', '🐱 賓士貓老闆 (撈金魚)'][tile-41], currentMap);
+    if (tile >= 51 && tile <= 52) handleNightCat('cus' + (tile-50), ['🐈 顧客 (喝珍奶)', '🐈 顧客 (吃香腸)'][tile-51], currentMap);
 
     if (tile === 31) {
         if (foundCoord.c === 1) showDialog("<div style='text-align:center;'>🛵 機車：<br>「叭～叭～！找死啊！」</div>", 3000);
@@ -742,7 +758,7 @@ function tryInteract() {
             showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
             setTimeout(() => {
                 currentMap = 'temple'; cat.x = 8 * TILE_SIZE; cat.y = 8 * TILE_SIZE; cat.dir = 'left'; isPrompting = false;
-                resetZoomForMap(); // 回人間自動重置視角
+                resetZoomForMap(); 
             }, 1500);
         } else if (tile >= 110 && tile <= 120) {
             showDialog(`🪑 <b>商品簡介</b><br><br>${furnitureDialogues[tile]}`, 8000);
@@ -750,8 +766,9 @@ function tryInteract() {
     }
 }
 
-function handleNightCat(catId, catName) {
-    let text = dialogues[catId][dialogStates[catId]];
+function handleNightCat(catId, catName, map) {
+    let textArray = (map === 'holaStore') ? holaNpcDialogues[catId] : dialogues[catId];
+    let text = textArray[dialogStates[catId]];
     showDialog(`<div style='text-align:center;'>${catName}：<br>${text}</div>`, 5000);
     dialogStates[catId] = (dialogStates[catId] + 1) % 3; 
 }
@@ -865,6 +882,39 @@ function update() {
     if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
 }
 
+// --- 掃地機器人 AI：每隔 2 秒隨機漫步 ---
+setInterval(() => {
+    // 只有在大墩店，且沒有開啟裝潢模式、沒在講話時，影分身才會亂晃
+    if (currentMap !== 'holaStore' || isDecorating || cat.isInteracting || isPrompting) return;
+
+    let npcsToMove = [];
+    for (let r = 0; r < holaStoreMap.length; r++) {
+        for (let c = 0; c < holaStoreMap[0].length; c++) {
+            let tile = holaStoreMap[r][c];
+            if ((tile >= 41 && tile <= 44) || tile === 51 || tile === 52) {
+                npcsToMove.push({ r, c, tile });
+            }
+        }
+    }
+
+    npcsToMove.forEach(npc => {
+        let moves = [];
+        if (npc.r > 0 && holaStoreMap[npc.r - 1][npc.c] === 0) moves.push({ dr: -1, dc: 0 });
+        if (npc.r < holaStoreMap.length - 1 && holaStoreMap[npc.r + 1][npc.c] === 0) moves.push({ dr: 1, dc: 0 });
+        if (npc.c > 0 && holaStoreMap[npc.r][npc.c - 1] === 0) moves.push({ dr: 0, dc: -1 });
+        if (npc.c < holaStoreMap[0].length - 1 && holaStoreMap[npc.r][npc.c + 1] === 0) moves.push({ dr: 0, dc: 1 });
+
+        if (moves.length > 0) {
+            let move = moves[Math.floor(Math.random() * moves.length)];
+            // 雙重確認目標格子還是空的才移動
+            if(holaStoreMap[npc.r + move.dr][npc.c + move.dc] === 0) {
+                holaStoreMap[npc.r][npc.c] = 0;
+                holaStoreMap[npc.r + move.dr][npc.c + move.dc] = npc.tile;
+            }
+        }
+    });
+}, 2000);
+
 function drawItemTile(tile, posX, posY, ctx) {
     let tallY = posY - (TILE_SIZE * 0.5);
     let tallH = TILE_SIZE * 1.5;
@@ -880,6 +930,8 @@ function drawItemTile(tile, posX, posY, ctx) {
     if (tile === 31) ctx.drawImage(images['scooter'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 32) ctx.drawImage(images['tree'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 33) ctx.drawImage(images['robot'], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.0), TILE_SIZE * 2, TILE_SIZE * 2);
+    
+    // 渲染夜市與大墩店裡的影分身們
     if (tile >= 41 && tile <= 44) ctx.drawImage(images['npc_boss' + (tile-40)], posX, posY, TILE_SIZE, TILE_SIZE);
     if (tile >= 51 && tile <= 52) ctx.drawImage(images['npc_cus' + (tile-50)], posX, posY, TILE_SIZE, TILE_SIZE);
 
