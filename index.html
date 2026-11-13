@@ -340,7 +340,7 @@ const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown
 let touchDir = null;
 
 // --- 裝潢模式切換邏輯 ---
-editBtn.addEventListener('click', () => {
+function toggleEditMode() {
     if (isDecorating && heldItem) {
         showDialog("<div style='text-align:center;'>請先將手上的家具找個空地放下！</div>", 2000);
         return;
@@ -349,8 +349,13 @@ editBtn.addEventListener('click', () => {
     editModeUI.style.display = isDecorating ? 'block' : 'none';
     editBtn.style.backgroundColor = isDecorating ? 'rgba(0, 230, 118, 0.8)' : 'rgba(0,0,0,0.6)';
     if(isDecorating) { cat.isMoving = false; touchDir = null; }
-});
+}
+// 修正手機無法切換裝潢按鈕的問題，綁定 touchstart 與 click
+editBtn.addEventListener('click', (e) => { e.preventDefault(); toggleEditMode(); });
+editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleEditMode(); });
+
 zoomBtn.addEventListener('click', () => { tryPlayBGM(); toggleZoom(); });
+zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryPlayBGM(); toggleZoom(); });
 
 function toggleZoom() {
     isZoomed = !isZoomed;
@@ -383,18 +388,10 @@ function getGridPos(clientX, clientY) {
     return { c: Math.floor(worldX / TILE_SIZE), r: Math.floor(worldY / TILE_SIZE) };
 }
 
-// --- 通用指標事件 (支援滑鼠與觸控) ---
-canvas.addEventListener('pointermove', e => {
-    if (isDecorating) {
-        let pos = getGridPos(e.clientX, e.clientY);
-        cursorR = pos.r; cursorC = pos.c;
-    }
-});
-
-canvas.addEventListener('pointerdown', e => {
+// 統一把裝潢抓取/放置邏輯寫成函數
+function handleEditInteraction(clientX, clientY) {
     tryPlayBGM();
-    if (!isDecorating) return; // 只在裝潢模式生效
-    let pos = getGridPos(e.clientX, e.clientY);
+    let pos = getGridPos(clientX, clientY);
     let mapLayout = getActiveMapLayout();
     if (pos.r < 0 || pos.r >= mapLayout.length || pos.c < 0 || pos.c >= mapLayout[0].length) return;
 
@@ -452,21 +449,47 @@ canvas.addEventListener('pointerdown', e => {
             showDialog("<div style='text-align:center;'>❌ 空間不足或卡到其他東西了！</div>", 1500);
         }
     }
+}
+
+// 修正手機點擊沒反應的問題：明確綁定觸控與滑鼠點擊事件
+canvas.addEventListener('mousedown', e => {
+    if (!isDecorating) return;
+    handleEditInteraction(e.clientX, e.clientY);
 });
 
-// 走路專用的觸控邏輯 (裝潢時封印)
+canvas.addEventListener('touchstart', e => {
+    if (!isDecorating) return;
+    e.preventDefault(); // 阻止瀏覽器預設的滑動，專心處理裝潢點擊
+    handleEditInteraction(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+
+canvas.addEventListener('mousemove', e => {
+    if (isDecorating) {
+        let pos = getGridPos(e.clientX, e.clientY);
+        cursorR = pos.r; cursorC = pos.c;
+    }
+});
+
+canvas.addEventListener('touchmove', e => {
+    if (isDecorating) {
+        let pos = getGridPos(e.touches[0].clientX, e.touches[0].clientY);
+        cursorR = pos.r; cursorC = pos.c;
+    }
+}, { passive: false });
+
+// 走路專用的觸控邏輯 (裝潢時封印，避免誤走)
 let isTouching = false;
 let touchStartX = 0, touchStartY = 0;
 window.addEventListener('touchstart', e => {
     if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target.closest('#dialogBox')) return;
-    if (isDecorating) return;
+    if (isDecorating) return; // 裝潢時不能走路
     isTouching = true;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     touchDir = null;
 }, { passive: false });
 window.addEventListener('touchmove', e => {
-    if (isDecorating) { e.preventDefault(); return; }
+    if (isDecorating) return;
     if (!isTouching) return;
     e.preventDefault();
     let diffX = e.touches[0].clientX - touchStartX;
@@ -477,6 +500,7 @@ window.addEventListener('touchmove', e => {
     }
 }, { passive: false });
 window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
+
 actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); });
 actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); });
 
