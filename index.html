@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<title>河樂宮 - 庫存通靈系統 (大墩旗艦完整版)</title>
+<title>河樂宮 - 庫存通靈系統 (麥塊創造版)</title>
 <style>
 body, html {
 margin: 0;
@@ -66,31 +66,45 @@ left: 50%;
 transform: translateX(-50%);
 width: 85%;
 max-width: 450px;
-background: rgba(0, 0, 0, 0.92);
+background: rgba(0, 0, 0, 0.94);
 color: #fff;
 border: 2px solid #d4af37;
 border-radius: 8px;
-padding: 20px;
-font-size: 1.1rem;
+padding: 18px;
+font-size: 1.05rem;
 text-align: left;
 box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
 pointer-events: auto; 
-z-index: 150;
+z-index: 250;
 }
 .menu-btn {
 display: block;
 width: 100%;
-margin: 10px 0;
-padding: 12px;
+margin: 8px 0;
+padding: 11px;
 border: none;
 border-radius: 8px;
-font-size: 1rem;
+font-size: 0.95rem;
 font-weight: bold;
 cursor: pointer;
 text-align: center;
 }
 .menu-btn:active {
 transform: scale(0.97);
+}
+.code-box {
+width: 100%;
+height: 82px;
+box-sizing: border-box;
+margin-top: 10px;
+background: #111;
+color: #00e676;
+border: 1px solid #555;
+border-radius: 6px;
+padding: 8px;
+font-family: monospace;
+font-size: 0.8rem;
+resize: none;
 }
 #actionBtn {
 position: fixed;
@@ -192,15 +206,173 @@ left: 50%;
 transform: translateX(-50%);
 background: rgba(0, 230, 118, 0.92);
 color: #000;
-padding: 8px 16px;
+padding: 7px 14px;
 border-radius: 20px;
 font-weight: bold;
-font-size: 0.9rem;
+font-size: 0.85rem;
 white-space: nowrap;
 display: none;
 z-index: 100;
 pointer-events: none;
 box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+/* 麥塊快捷道具欄 */
+#hotbar {
+position: fixed;
+bottom: 18px;
+left: 50%;
+transform: translateX(-50%);
+background: rgba(18, 18, 22, 0.94);
+border: 2px solid #00e676;
+border-radius: 14px;
+padding: 6px 8px;
+display: none;
+gap: 5px;
+align-items: center;
+z-index: 140;
+max-width: 96vw;
+box-shadow: 0 6px 20px rgba(0,0,0,0.75);
+backdrop-filter: blur(8px);
+-webkit-backdrop-filter: blur(8px);
+}
+.hb-slot {
+width: 40px;
+height: 40px;
+border-radius: 8px;
+border: 2px solid #444;
+background: rgba(255,255,255,0.07);
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+position: relative;
+flex-shrink: 0;
+user-select: none;
+color: #fff;
+font-size: 18px;
+}
+.hb-slot:active {
+transform: scale(0.92);
+}
+.hb-slot.active {
+border-color: #ffcc00;
+background: rgba(255, 204, 0, 0.24);
+box-shadow: 0 0 10px rgba(255, 204, 0, 0.55);
+}
+.hb-slot img {
+max-width: 30px;
+max-height: 30px;
+image-rendering: pixelated;
+pointer-events: none;
+}
+.hb-slot img.flipped {
+transform: scaleX(-1);
+}
+.hb-label {
+font-size: 9px;
+line-height: 1;
+margin-top: 2px;
+color: #ddd;
+pointer-events: none;
+}
+.hb-divider {
+width: 1px;
+height: 28px;
+background: #444;
+margin: 0 1px;
+flex-shrink: 0;
+}
+/* 全圖鑑背包彈窗 */
+#catalogModal {
+display: none;
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 90%;
+max-width: 460px;
+max-height: 74vh;
+background: rgba(15, 15, 20, 0.97);
+border: 2px solid #d4af37;
+border-radius: 14px;
+padding: 14px;
+z-index: 220;
+flex-direction: column;
+color: #fff;
+box-shadow: 0 12px 35px rgba(0,0,0,0.9);
+}
+.cat-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+border-bottom: 1px solid #333;
+padding-bottom: 8px;
+}
+.cat-tabs {
+display: flex;
+gap: 6px;
+margin-top: 10px;
+}
+.cat-tab {
+flex: 1;
+padding: 8px 4px;
+background: #2a2a32;
+color: #ccc;
+border: 1px solid #444;
+border-radius: 8px;
+font-size: 0.85rem;
+font-weight: bold;
+cursor: pointer;
+text-align: center;
+}
+.cat-tab.active {
+background: #d4af37;
+color: #000;
+border-color: #d4af37;
+}
+.cat-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 8px;
+overflow-y: auto;
+padding: 8px 2px;
+margin-top: 8px;
+touch-action: pan-y;
+}
+.cat-card {
+background: rgba(255,255,255,0.06);
+border: 1px solid #444;
+border-radius: 10px;
+padding: 8px 4px;
+display: flex;
+flex-direction: column;
+align-items: center;
+cursor: pointer;
+text-align: center;
+}
+.cat-card:active {
+transform: scale(0.95);
+border-color: #ffcc00;
+background: rgba(255,204,0,0.18);
+}
+.cat-card img {
+width: 44px;
+height: 44px;
+object-fit: contain;
+image-rendering: pixelated;
+margin-bottom: 4px;
+}
+.cat-card-name {
+font-size: 0.78rem;
+font-weight: bold;
+color: #fff;
+line-height: 1.2;
+}
+.cat-card-size {
+font-size: 0.68rem;
+color: #aaa;
+margin-top: 2px;
 }
 #instructions {
 position: fixed;
@@ -245,9 +417,11 @@ text-shadow: 1px 1px 2px #000;
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
 <div id="zoomBtn">🔎</div>
-<div id="resetBtn" title="恢復預設 / 強制更新">🔄</div>
-<div id="editBtn" title="裝潢模式">🛠️</div>
-<div id="editModeUI">🛠️ 裝潢模式：點物件抓起 ➡️ 點空地放下</div>
+<div id="resetBtn" title="代碼分享 / 恢復預設">🔄</div>
+<div id="editBtn" title="麥塊創造模式">🛠️</div>
+<div id="editModeUI">🛠️ 創造模式：選下方物件點空地放置</div>
+<div id="hotbar"></div>
+<div id="catalogModal"></div>
 <div id="actionBtn"></div>
 <div id="instructions">
 💻 電腦版：WASD移動 / 空白鍵調查<br>
@@ -267,6 +441,8 @@ const zoomBtn = document.getElementById('zoomBtn');
 const editBtn = document.getElementById('editBtn');
 const resetBtn = document.getElementById('resetBtn');
 const editModeUI = document.getElementById('editModeUI');
+const hotbar = document.getElementById('hotbar');
+const catalogModal = document.getElementById('catalogModal');
 const instructions = document.getElementById('instructions');
 const bgm = document.getElementById('bgm');
 const TILE_SIZE = 64;
@@ -305,10 +481,15 @@ let wallKnockCount = 0;
 let isKnockingWall = false;
 let npcTalked = { golden: false, hairless: false };
 
+// 麥塊創造模式狀態
 let isDecorating = false;
-let heldItem = null;
-let cursorR = 0;
-let cursorC = 0;
+let creativeMode = 'place'; // 'place' | 'remove'
+let hotbarItems = [112, 119, 121, 61, 114]; // 預設 5 格快捷家具/角色
+let activeSlot = 0; // 0..4
+let heldFlipped = false;
+let currentCatalogTab = 'hola';
+let cursorR = 5;
+let cursorC = 5;
 
 const itemDims = {
     4: {w:1, h:1}, 5: {w:1, h:1}, 6: {w:1, h:1}, 7: {w:1, h:1}, 8: {w:1, h:1}, 99: {w:1, h:1},
@@ -316,12 +497,55 @@ const itemDims = {
     31: {w:1, h:1}, 32: {w:1, h:1}, 33: {w:1, h:1},
     41: {w:1, h:1}, 42: {w:1, h:1}, 43: {w:1, h:1}, 44: {w:1, h:1},
     51: {w:1, h:1}, 52: {w:1, h:1},
-    61: {w:1, h:1}, // 賣場駐點專員 Kobe
+    61: {w:1, h:1},
     110: {w:2, h:2}, 111: {w:2, h:2}, 112: {w:3, h:2}, 113: {w:2, h:2},
     114: {w:2, h:2}, 115: {w:2, h:1}, 116: {w:2, h:2},
     117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1},
-    121: {w:2, h:2} // 賣場聖誕樹
+    121: {w:2, h:2}
 };
+
+// 全圖鑑目錄
+const catalogItems = [
+    // 賣場家具
+    { tile: 112, cat: 'hola', name: '奧丁雙電動沙發', img: 'matchy_sofa2', size: '3×2' },
+    { tile: 113, cat: 'hola', name: '伊登麻吉兩人座', img: 'matchy_sofa3', size: '2×2' },
+    { tile: 110, cat: 'hola', name: '比佛利石墨烯床', img: 'hola_bed2', size: '2×2' },
+    { tile: 111, cat: 'hola', name: 'LADY抗菌床墊', img: 'hola_bed3', size: '2×2' },
+    { tile: 114, cat: 'hola', name: '克萊歐岩紋餐桌', img: 'dining_table', size: '2×2' },
+    { tile: 115, cat: 'hola', name: '艾禮思木藝邊櫃', img: 'wooden_cabinet2', size: '2×1' },
+    { tile: 116, cat: 'hola', name: '艾禮思二抽高櫃', img: 'wooden_cabinet3', size: '2×2' },
+    { tile: 117, cat: 'hola', name: 'La-Z-Boy 512', img: 'lazboy_chair', size: '1×1' },
+    { tile: 118, cat: 'hola', name: 'La-Z-Boy 765', img: 'lazboy_chair2', size: '1×1' },
+    { tile: 119, cat: 'hola', name: 'La-Z-Boy 521', img: 'lazboy_chair3', size: '1×1' },
+    { tile: 120, cat: 'hola', name: '紐約北歐休閒椅', img: 'blue_chair', size: '1×1' },
+    { tile: 121, cat: 'hola', name: '聖誕迎賓展示樹', img: 'xmas_tree', size: '2×2' },
+    // 人物與神明
+    { tile: 61, cat: 'npc', name: 'Kobe 專員', img: 'Kobe', size: '1×1' },
+    { tile: 6, cat: 'npc', name: '藍貓廟公', img: 'npc_bluecat', size: '1×1' },
+    { tile: 7, cat: 'npc', name: '金漸層貓', img: 'npc_golden', size: '1×1' },
+    { tile: 8, cat: 'npc', name: '無毛貓', img: 'npc_hairless', size: '1×1' },
+    { tile: 41, cat: 'npc', name: '橘貓老闆', img: 'npc_boss1', size: '1×1' },
+    { tile: 42, cat: 'npc', name: '黑貓老闆', img: 'npc_boss2', size: '1×1' },
+    { tile: 43, cat: 'npc', name: '白貓老闆', img: 'npc_boss3', size: '1×1' },
+    { tile: 44, cat: 'npc', name: '賓士貓老闆', img: 'npc_boss4', size: '1×1' },
+    { tile: 51, cat: 'npc', name: '珍奶顧客', img: 'npc_cus1', size: '1×1' },
+    { tile: 52, cat: 'npc', name: '香腸顧客', img: 'npc_cus2', size: '1×1' },
+    { tile: 99, cat: 'npc', name: '河樂宮神尊', img: activeGod, size: '1×1' },
+    // 廟宇與夜市造景
+    { tile: 4, cat: 'props', name: '河樂宮香爐', img: 'altar', size: '1×1' },
+    { tile: 5, cat: 'props', name: '靈籤籤筒', img: 'fortune_box', size: '1×1' },
+    { tile: 21, cat: 'props', name: '烤香腸攤車', img: 'stall_1', size: '2×2' },
+    { tile: 22, cat: 'props', name: '章魚燒攤車', img: 'stall_2', size: '2×2' },
+    { tile: 23, cat: 'props', name: '珍奶攤車', img: 'stall_3', size: '2×2' },
+    { tile: 24, cat: 'props', name: '撈金魚攤車', img: 'stall_4', size: '2×2' },
+    { tile: 31, cat: 'props', name: '夜市機車', img: 'scooter', size: '1×1' },
+    { tile: 33, cat: 'props', name: '大墩變形金剛', img: 'robot', size: '1×1' },
+    { tile: 32, cat: 'props', name: '夜市路樹', img: 'tree', size: '1×1' }
+];
+
+function getItemMeta(tile) {
+    return catalogItems.find(i => i.tile === tile) || { tile, name: '物件', img: 'icon', size: '1×1' };
+}
 
 // 夜市專用對話
 const dialogues = {
@@ -415,94 +639,99 @@ holaStoreMap[8][2] = 119;
 holaStoreMap[11][2] = 118;
 holaStoreMap[14][2] = 117;
 holaStoreMap[17][2] = 120;
-// 賣場左側迎賓聖誕樹 (2x2)
 holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
 holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
-// 賣場駐點專員 Kobe
 holaStoreMap[10][8] = 61;
 
+// 水平鏡像翻轉狀態圖層 (0 = 正常, 1 = 水平鏡像)
+let templeFlip = Array(10).fill(0).map(() => Array(10).fill(0));
+let nightMarketFlip = Array(10).fill(0).map(() => Array(10).fill(0));
+let holaStoreFlip = Array(20).fill(0).map(() => Array(20).fill(0));
+
 function loadMaps() {
+    let hadSavedHola = false;
     try {
         let savedTemple = localStorage.getItem('templeMap_v2');
         if (savedTemple) { let p = JSON.parse(savedTemple); if(p.length === 10) templeMap = p; }
         let savedNight = localStorage.getItem('nightMarketMap_v2');
         if (savedNight) { let p = JSON.parse(savedNight); if(p.length === 10) nightMarketMap = p; }
         let savedHola = localStorage.getItem('holaStoreMap_v2');
-        if (savedHola) { let p = JSON.parse(savedHola); if(p.length === 20) holaStoreMap = p; }
+        if (savedHola) { let p = JSON.parse(savedHola); if(p.length === 20) { holaStoreMap = p; hadSavedHola = true; } }
+
+        let sfTemple = localStorage.getItem('templeFlip_v2');
+        if (sfTemple) { let p = JSON.parse(sfTemple); if(p.length === 10) templeFlip = p; }
+        let sfNight = localStorage.getItem('nightMarketFlip_v2');
+        if (sfNight) { let p = JSON.parse(sfNight); if(p.length === 10) nightMarketFlip = p; }
+        let sfHola = localStorage.getItem('holaStoreFlip_v2');
+        if (sfHola) { let p = JSON.parse(sfHola); if(p.length === 20) holaStoreFlip = p; }
     } catch(e) {}
 
-    // 掃描已存在於 HOLA 賣場的角色與新物件
-    let foundTiles = new Set();
-    for(let r=0; r<20; r++) {
-        for(let c=0; c<20; c++) {
-            let t = holaStoreMap[r][c];
-            if ((t >= 41 && t <= 44) || t === 51 || t === 52 || t === 61 || t === 121) foundTiles.add(t);
+    // 僅在初次建立或舊版升級時自動補入預設角色與聖誕樹（之後允許玩家在創造模式自由拆除）
+    let migrated = localStorage.getItem('holaMigrated_v3');
+    if (!hadSavedHola || !migrated) {
+        let foundTiles = new Set();
+        for(let r=0; r<20; r++) {
+            for(let c=0; c<20; c++) {
+                let t = holaStoreMap[r][c];
+                if ((t >= 41 && t <= 44) || t === 51 || t === 52 || t === 61 || t === 121) foundTiles.add(t);
+            }
         }
-    }
-
-    // 自動補入 6 隻夜市影分身貓咪
-    const defaultPositions = { 41: [7,5], 42: [8,15], 43: [13,5], 44: [14,15], 51: [16,10], 52: [10,10] };
-    for(let id of [41, 42, 43, 44, 51, 52]) {
-        if(!foundTiles.has(id)) {
-            let [r, c] = defaultPositions[id];
-            if(holaStoreMap[r][c] === 0) {
-                holaStoreMap[r][c] = id;
-            } else {
-                outer: for(let rr=1; rr<19; rr++) {
-                    for(let cc=1; cc<19; cc++) {
-                        if(holaStoreMap[rr][cc] === 0) {
-                            holaStoreMap[rr][cc] = id;
-                            break outer;
+        const defaultPositions = { 41: [7,5], 42: [8,15], 43: [13,5], 44: [14,15], 51: [16,10], 52: [10,10] };
+        for(let id of [41, 42, 43, 44, 51, 52]) {
+            if(!foundTiles.has(id)) {
+                let [r, c] = defaultPositions[id];
+                if(holaStoreMap[r][c] === 0) holaStoreMap[r][c] = id;
+                else {
+                    outer: for(let rr=1; rr<19; rr++) {
+                        for(let cc=1; cc<19; cc++) {
+                            if(holaStoreMap[rr][cc] === 0) { holaStoreMap[rr][cc] = id; break outer; }
                         }
                     }
                 }
             }
         }
-    }
-
-    // 自動補入賣場駐點專員 Kobe (61)
-    if (!foundTiles.has(61)) {
-        if (holaStoreMap[10][8] === 0) {
-            holaStoreMap[10][8] = 61;
-        } else {
-            outerKobe: for(let rr=2; rr<18; rr++) {
-                for(let cc=2; cc<18; cc++) {
-                    if(holaStoreMap[rr][cc] === 0) {
-                        holaStoreMap[rr][cc] = 61;
-                        break outerKobe;
+        if (!foundTiles.has(61)) {
+            if (holaStoreMap[10][8] === 0) holaStoreMap[10][8] = 61;
+            else {
+                outerKobe: for(let rr=2; rr<18; rr++) {
+                    for(let cc=2; cc<18; cc++) {
+                        if(holaStoreMap[rr][cc] === 0) { holaStoreMap[rr][cc] = 61; break outerKobe; }
                     }
                 }
             }
         }
-    }
-
-    // 自動補入賣場左側迎賓聖誕樹 (121, 佔 2x2)
-    if (!foundTiles.has(121)) {
-        const canPlace2x2 = (r, c) => (
-            r >= 1 && r + 1 < 19 && c >= 1 && c + 1 < 19 &&
-            holaStoreMap[r][c] === 0 && holaStoreMap[r][c+1] === 0 &&
-            holaStoreMap[r+1][c] === 0 && holaStoreMap[r+1][c+1] === 0
-        );
-        if (canPlace2x2(17, 6)) {
-            holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
-            holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
-        } else {
-            outerTree: for(let rr=1; rr<18; rr++) {
-                for(let cc=1; cc<18; cc++) {
-                    if (canPlace2x2(rr, cc)) {
-                        holaStoreMap[rr][cc] = 121; holaStoreMap[rr][cc+1] = 999;
-                        holaStoreMap[rr+1][cc] = 999; holaStoreMap[rr+1][cc+1] = 999;
-                        break outerTree;
+        if (!foundTiles.has(121)) {
+            const canPlace2x2 = (r, c) => (
+                r >= 1 && r + 1 < 19 && c >= 1 && c + 1 < 19 &&
+                holaStoreMap[r][c] === 0 && holaStoreMap[r][c+1] === 0 &&
+                holaStoreMap[r+1][c] === 0 && holaStoreMap[r+1][c+1] === 0
+            );
+            if (canPlace2x2(17, 6)) {
+                holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
+                holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
+            } else {
+                outerTree: for(let rr=1; rr<18; rr++) {
+                    for(let cc=1; cc<18; cc++) {
+                        if (canPlace2x2(rr, cc)) {
+                            holaStoreMap[rr][cc] = 121; holaStoreMap[rr][cc+1] = 999;
+                            holaStoreMap[rr+1][cc] = 999; holaStoreMap[rr+1][cc+1] = 999;
+                            break outerTree;
+                        }
                     }
                 }
             }
         }
+        localStorage.setItem('holaMigrated_v3', '1');
+        saveMaps();
     }
 }
 function saveMaps() {
     localStorage.setItem('templeMap_v2', JSON.stringify(templeMap));
     localStorage.setItem('nightMarketMap_v2', JSON.stringify(nightMarketMap));
     localStorage.setItem('holaStoreMap_v2', JSON.stringify(holaStoreMap));
+    localStorage.setItem('templeFlip_v2', JSON.stringify(templeFlip));
+    localStorage.setItem('nightMarketFlip_v2', JSON.stringify(nightMarketFlip));
+    localStorage.setItem('holaStoreFlip_v2', JSON.stringify(holaStoreFlip));
 }
 loadMaps();
 
@@ -541,35 +770,300 @@ function resetZoomForMap() {
     updateZoomIcon();
 }
 
-function toggleEditMode() {
-    if (isDecorating && heldItem) {
-        showDialog("<div style='text-align:center;'>請先將手上的物件找個空地放下！</div>", 2000);
-        return;
+// --- 麥塊創造模式 UI 渲染與操作 ---
+function renderHotbar() {
+    let html = `
+        <div class="hb-slot ${creativeMode === 'remove' ? 'active' : ''}" onclick="selectRemoveTool()" title="收起／拆除物件">
+            ⛏️<span class="hb-label">收起</span>
+        </div>
+        <div class="hb-divider"></div>
+    `;
+    for (let i = 0; i < 5; i++) {
+        let tile = hotbarItems[i];
+        let meta = getItemMeta(tile);
+        let isActive = (creativeMode === 'place' && activeSlot === i);
+        let flipClass = (isActive && heldFlipped) ? 'flipped' : '';
+        html += `
+            <div class="hb-slot ${isActive ? 'active' : ''}" onclick="selectHotbarSlot(${i})" title="${meta.name}">
+                <img src="${meta.img}.png" class="${flipClass}">
+                <span class="hb-label">${meta.size}</span>
+            </div>
+        `;
     }
+    html += `
+        <div class="hb-divider"></div>
+        <div class="hb-slot ${heldFlipped ? 'active' : ''}" onclick="toggleFlipBrush()" title="左右鏡像翻轉">
+            🔃<span class="hb-label">鏡像</span>
+        </div>
+        <div class="hb-slot" onclick="openCatalogModal()" title="開啟全圖鑑背包">
+            🎒<span class="hb-label">圖鑑</span>
+        </div>
+    `;
+    hotbar.innerHTML = html;
+}
+
+function selectRemoveTool() {
+    creativeMode = 'remove';
+    editModeUI.innerText = "⛏️ 收起模式：點擊場上家具或人物即可移除";
+    renderHotbar();
+}
+
+function selectHotbarSlot(idx) {
+    creativeMode = 'place';
+    activeSlot = idx;
+    let meta = getItemMeta(hotbarItems[idx]);
+    editModeUI.innerText = `🧱 已選取【${meta.name} (${meta.size})】點空地放置`;
+    renderHotbar();
+}
+
+function toggleFlipBrush() {
+    heldFlipped = !heldFlipped;
+    if (creativeMode === 'remove') creativeMode = 'place';
+    let meta = getItemMeta(hotbarItems[activeSlot]);
+    editModeUI.innerText = `🔃 鏡像：${heldFlipped ? '開啟' : '關閉'} ｜ 目前：【${meta.name}】`;
+    renderHotbar();
+}
+
+function openCatalogModal() {
+    let tabsHtml = `
+        <div class="cat-header">
+            <b style="color:#ffcc00; font-size:1.05rem;">🎒 麥塊全圖鑑背包</b>
+            <button onclick="closeCatalogModal()" style="background:#444; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-weight:bold; cursor:pointer;">✖️ 關閉</button>
+        </div>
+        <div class="cat-tabs">
+            <div class="cat-tab ${currentCatalogTab === 'hola' ? 'active' : ''}" onclick="switchCatalogTab('hola')">🛋️ 賣場家具</div>
+            <div class="cat-tab ${currentCatalogTab === 'npc' ? 'active' : ''}" onclick="switchCatalogTab('npc')">🐱 人物神明</div>
+            <div class="cat-tab ${currentCatalogTab === 'props' ? 'active' : ''}" onclick="switchCatalogTab('props')">🏮 廟宇夜市</div>
+        </div>
+        <div class="cat-grid">
+    `;
+    let list = catalogItems.filter(item => item.cat === currentCatalogTab);
+    list.forEach(item => {
+        tabsHtml += `
+            <div class="cat-card" onclick="pickCatalogItem(${item.tile})">
+                <img src="${item.img}.png">
+                <div class="cat-card-name">${item.name}</div>
+                <div class="cat-card-size">${item.size} 格</div>
+            </div>
+        `;
+    });
+    tabsHtml += `</div>`;
+    catalogModal.innerHTML = tabsHtml;
+    catalogModal.style.display = 'flex';
+}
+
+function switchCatalogTab(tab) {
+    currentCatalogTab = tab;
+    openCatalogModal();
+}
+
+function closeCatalogModal() {
+    catalogModal.style.display = 'none';
+}
+
+function pickCatalogItem(tile) {
+    // 若該物品已在快捷欄中則直接切換過去，否則放入目前選取的快捷格
+    let existingIdx = hotbarItems.indexOf(tile);
+    if (existingIdx !== -1) {
+        activeSlot = existingIdx;
+    } else {
+        hotbarItems[activeSlot] = tile;
+    }
+    creativeMode = 'place';
+    closeCatalogModal();
+    let meta = getItemMeta(tile);
+    editModeUI.innerText = `🧱 已裝備【${meta.name} (${meta.size})】點空地放置`;
+    renderHotbar();
+}
+
+hotbar.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+hotbar.addEventListener('mousedown', e => e.stopPropagation());
+catalogModal.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+catalogModal.addEventListener('mousedown', e => e.stopPropagation());
+
+function toggleEditMode() {
     isDecorating = !isDecorating;
     editModeUI.style.display = isDecorating ? 'block' : 'none';
     resetBtn.style.display = isDecorating ? 'block' : 'none';
+    hotbar.style.display = isDecorating ? 'flex' : 'none';
+    actionBtn.style.display = isDecorating ? 'none' : 'block';
+    instructions.style.display = isDecorating ? 'none' : 'block';
     editBtn.style.backgroundColor = isDecorating ? 'rgba(0, 230, 118, 0.85)' : 'rgba(0,0,0,0.6)';
+
     if(isDecorating) {
         cat.isMoving = false;
         touchDir = null;
-        editModeUI.innerText = "🛠️ 裝潢模式：點物件抓起 ➡️ 點空地放下";
+        cursorR = Math.floor((cat.y + TILE_SIZE/2) / TILE_SIZE);
+        cursorC = Math.floor((cat.x + TILE_SIZE/2) / TILE_SIZE);
+        let meta = getItemMeta(hotbarItems[activeSlot]);
+        editModeUI.innerText = creativeMode === 'remove'
+            ? "⛏️ 收起模式：點擊場上家具或人物即可移除"
+            : `🧱 創造模式：【${meta.name}】點空地放置`;
+        renderHotbar();
     } else {
+        closeCatalogModal();
         closeDialog();
     }
 }
 editBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); });
 editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); }, { passive: false });
 
+// --- 裝潢代碼分享與地圖恢復系統 ---
+function encodeGridRLE(grid) {
+    let flat = [];
+    for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) flat.push(grid[r][c]);
+    }
+    let runs = [];
+    let i = 0;
+    while (i < flat.length) {
+        let val = flat[i];
+        let count = 1;
+        while (i + count < flat.length && flat[i + count] === val) count++;
+        runs.push(count > 1 ? `${val}*${count}` : `${val}`);
+        i += count;
+    }
+    return runs.join(',');
+}
+
+function decodeGridRLE(str, rows, cols) {
+    if (!str) return null;
+    let flat = [];
+    let parts = str.split(',');
+    for (let p of parts) {
+        if (p.includes('*')) {
+            let [v, cnt] = p.split('*').map(Number);
+            if (isNaN(v) || isNaN(cnt) || cnt <= 0 || cnt > rows * cols) return null;
+            for (let k = 0; k < cnt; k++) flat.push(v);
+        } else {
+            let v = Number(p);
+            if (isNaN(v)) return null;
+            flat.push(v);
+        }
+    }
+    if (flat.length !== rows * cols) return null;
+    let grid = [];
+    for (let r = 0; r < rows; r++) {
+        grid.push(flat.slice(r * cols, (r + 1) * cols));
+    }
+    return grid;
+}
+
+function generateShareCode() {
+    let payload = {
+        t: encodeGridRLE(templeMap),
+        tf: encodeGridRLE(templeFlip),
+        n: encodeGridRLE(nightMarketMap),
+        nf: encodeGridRLE(nightMarketFlip),
+        h: encodeGridRLE(holaStoreMap),
+        hf: encodeGridRLE(holaStoreFlip)
+    };
+    return 'HELE2:' + btoa(JSON.stringify(payload));
+}
+
+function openExportCodeUI() {
+    let code = generateShareCode();
+    dialogBox.innerHTML = `
+        <div style="text-align:center;">
+            <b style="color:#00e676; font-size:1.1em;">📤 匯出全宇宙裝潢代碼</b><br>
+            <span style="font-size:0.82em; color:#bbb;">複製下方代碼貼給朋友或同事，就能載入你的擺設：</span>
+            <textarea id="exportCodeArea" class="code-box" readonly>${code}</textarea>
+            <button id="copyCodeBtn" class="menu-btn" style="background:#00e676; color:#000; margin-top:10px;" onclick="copyShareCode()">
+                📋 一鍵複製裝潢代碼
+            </button>
+            <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="openResetMenu()">
+                ⬅️ 返回選單
+            </button>
+        </div>
+    `;
+    let area = document.getElementById('exportCodeArea');
+    if (area) { area.focus(); area.select(); }
+}
+
+function copyShareCode() {
+    let area = document.getElementById('exportCodeArea');
+    let btn = document.getElementById('copyCodeBtn');
+    if (!area) return;
+    area.select();
+    area.setSelectionRange(0, 99999);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(area.value).catch(() => document.execCommand('copy'));
+    } else {
+        document.execCommand('copy');
+    }
+    if (btn) {
+        btn.innerText = "✅ 已複製！可直接貼上到 LINE 分享";
+        btn.style.background = "#ffcc00";
+    }
+}
+
+function openImportCodeUI() {
+    dialogBox.innerHTML = `
+        <div style="text-align:center;">
+            <b style="color:#4fc3f7; font-size:1.1em;">📥 匯入裝潢代碼</b><br>
+            <span style="font-size:0.82em; color:#bbb;">請貼上 <code style="color:#00e676;">HELE2:...</code> 開頭的代碼（整段訊息貼上也可）：</span>
+            <textarea id="importCodeArea" class="code-box" placeholder="在此貼上裝潢代碼..."></textarea>
+            <div id="importMsg" style="font-size:0.82rem; color:#ff5252; margin-top:6px;"></div>
+            <button class="menu-btn" style="background:#4fc3f7; color:#000; margin-top:8px;" onclick="applyImportCode()">
+                ✨ 確認套用裝潢
+            </button>
+            <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="openResetMenu()">
+                ⬅️ 返回選單
+            </button>
+        </div>
+    `;
+}
+
+function applyImportCode() {
+    let area = document.getElementById('importCodeArea');
+    let msg = document.getElementById('importMsg');
+    if (!area) return;
+    let raw = area.value.trim();
+    let idx = raw.indexOf('HELE2:');
+    if (idx === -1) {
+        msg.innerText = "❌ 找不到有效的 HELE2: 裝潢代碼格式！";
+        return;
+    }
+    let token = raw.slice(idx + 6).split(/\s+/)[0];
+    try {
+        let obj = JSON.parse(atob(token));
+        let nt = decodeGridRLE(obj.t, 10, 10);
+        let ntf = decodeGridRLE(obj.tf, 10, 10);
+        let nn = decodeGridRLE(obj.n, 10, 10);
+        let nnf = decodeGridRLE(obj.nf, 10, 10);
+        let nh = decodeGridRLE(obj.h, 20, 20);
+        let nhf = decodeGridRLE(obj.hf, 20, 20);
+        if (!nt || !ntf || !nn || !nnf || !nh || !nhf) {
+            msg.innerText = "❌ 代碼內容不完整或已損毀！";
+            return;
+        }
+        templeMap = nt; templeFlip = ntf;
+        nightMarketMap = nn; nightMarketFlip = nnf;
+        holaStoreMap = nh; holaStoreFlip = nhf;
+        localStorage.setItem('holaMigrated_v3', '1');
+        saveMaps();
+        showDialog("<div style='text-align:center;'>🎉 <b>裝潢代碼匯入成功！</b><br>已完整還原對方設計的宇宙陣型！</div>", 3000);
+    } catch (e) {
+        msg.innerText = "❌ 代碼解析失敗，請確認複製時沒有漏字！";
+    }
+}
+
 function openResetMenu() {
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+    closeCatalogModal();
     cat.isInteracting = true;
     isKnockingWall = false;
     dialogBox.innerHTML = `
         <div style="text-align:center;">
-            <b style="color:#ffcc00; font-size:1.15em;">🔄 快取與地圖恢復選項</b><br>
+            <b style="color:#ffcc00; font-size:1.15em;">🔄 裝潢分享與地圖選項</b><br>
             <span style="font-size:0.85em; color:#bbb;">請選擇要執行的動作：</span>
-            <button class="menu-btn" style="background:#d4af37; color:#000; margin-top:14px;" onclick="forceReloadOnly()">
+            <button class="menu-btn" style="background:#00e676; color:#000; margin-top:12px;" onclick="openExportCodeUI()">
+                📤 匯出目前地圖裝潢代碼
+            </button>
+            <button class="menu-btn" style="background:#4fc3f7; color:#000;" onclick="openImportCodeUI()">
+                📥 匯入他人裝潢代碼
+            </button>
+            <button class="menu-btn" style="background:#d4af37; color:#000;" onclick="forceReloadOnly()">
                 🌐 強制抓最新網頁（保留家具擺設）
             </button>
             <button class="menu-btn" style="background:#ff5252; color:#fff;" onclick="resetAllData()">
@@ -592,6 +1086,10 @@ function resetAllData() {
         localStorage.removeItem('templeMap_v2');
         localStorage.removeItem('nightMarketMap_v2');
         localStorage.removeItem('holaStoreMap_v2');
+        localStorage.removeItem('templeFlip_v2');
+        localStorage.removeItem('nightMarketFlip_v2');
+        localStorage.removeItem('holaStoreFlip_v2');
+        localStorage.removeItem('holaMigrated_v3');
     } catch(e) {}
     window.location.href = window.location.pathname + '?v=' + Date.now();
 }
@@ -648,60 +1146,92 @@ function getGridPos(clientX, clientY) {
     return { c: Math.floor(worldX / TILE_SIZE), r: Math.floor(worldY / TILE_SIZE) };
 }
 
+function getActiveFlipLayout() {
+    if (currentMap === 'temple') return templeFlip;
+    if (currentMap === 'nightMarket') return nightMarketFlip;
+    if (currentMap === 'holaStore') return holaStoreFlip;
+}
+
+function isPlacementValid(r0, c0, dim) {
+    let mapLayout = getActiveMapLayout();
+    let mapRows = mapLayout.length;
+    let mapCols = mapLayout[0].length;
+    let catLeft = Math.floor((cat.x + 16) / TILE_SIZE);
+    let catRight = Math.floor((cat.x + TILE_SIZE - 16) / TILE_SIZE);
+    let catTop = Math.floor((cat.y + 32) / TILE_SIZE);
+    let catBottom = Math.floor((cat.y + TILE_SIZE - 4) / TILE_SIZE);
+
+    for (let dr = 0; dr < dim.h; dr++) {
+        for (let dc = 0; dc < dim.w; dc++) {
+            let r = r0 + dr, c = c0 + dc;
+            if (r < 0 || c < 0 || r >= mapRows || c >= mapCols) return false;
+            if (mapLayout[r][c] !== 0) return false;
+            if (r >= catTop && r <= catBottom && c >= catLeft && c <= catRight) return false;
+        }
+    }
+    return true;
+}
+
 function handleEditInteraction(clientX, clientY) {
+    if (catalogModal.style.display === 'flex' || dialogBox.style.display === 'block') return;
     tryPlayBGM();
     let pos = getGridPos(clientX, clientY);
     cursorR = pos.r;
     cursorC = pos.c;
     let mapLayout = getActiveMapLayout();
+    let flipLayout = getActiveFlipLayout();
     if (pos.r < 0 || pos.r >= mapLayout.length || pos.c < 0 || pos.c >= mapLayout[0].length) return;
 
-    if (heldItem === null) {
+    if (creativeMode === 'remove') {
         let tile = mapLayout[pos.r][pos.c];
         let rootR = pos.r, rootC = pos.c, rootTile = tile;
         if (tile === 999) {
-            for (let dr = 0; dr >= -2; dr--) {
+            outerFind: for (let dr = 0; dr >= -2; dr--) {
                 for (let dc = 0; dc >= -2; dc--) {
-                    if (pos.r+dr >= 0 && pos.c+dc >= 0) {
-                        let t = mapLayout[pos.r+dr][pos.c+dc];
-                        if (itemDims[t]) { rootTile = t; rootR = pos.r+dr; rootC = pos.c+dc; }
+                    let rr = pos.r + dr, cc = pos.c + dc;
+                    if (rr >= 0 && cc >= 0) {
+                        let t = mapLayout[rr][cc];
+                        let d = itemDims[t];
+                        if (d && pos.r < rr + d.h && pos.c < cc + d.w) {
+                            rootTile = t; rootR = rr; rootC = cc;
+                            break outerFind;
+                        }
                     }
                 }
             }
         }
         if (itemDims[rootTile]) {
-            heldItem = rootTile;
             let dim = itemDims[rootTile];
+            let meta = getItemMeta(rootTile);
             for (let dr = 0; dr < dim.h; dr++) {
                 for (let dc = 0; dc < dim.w; dc++) {
                     mapLayout[rootR + dr][rootC + dc] = 0;
+                    flipLayout[rootR + dr][rootC + dc] = 0;
                 }
             }
-            editModeUI.innerText = "✨ 已抓起物件！請點擊目標空地放下";
+            saveMaps();
+            editModeUI.innerText = `⛏️ 已收起【${meta.name}】並自動存檔！`;
+        } else if ([1, 2, 30, 101, 3, 201].includes(tile)) {
+            editModeUI.innerText = "🔒 外牆與出入口大門受到結界保護，無法拆除！";
+        } else {
+            editModeUI.innerText = "⛏️ 收起模式：請點擊要移除的家具或角色";
         }
     } else {
-        let dim = itemDims[heldItem];
-        let valid = true;
-        for (let dr = 0; dr < dim.h; dr++) {
-            for (let dc = 0; dc < dim.w; dc++) {
-                let r = pos.r + dr;
-                let c = pos.c + dc;
-                if (r >= mapLayout.length || c >= mapLayout[0].length || mapLayout[r][c] !== 0) {
-                    valid = false;
-                }
-            }
-        }
-        if (valid) {
+        let activeTile = hotbarItems[activeSlot];
+        let dim = itemDims[activeTile];
+        let meta = getItemMeta(activeTile);
+        if (isPlacementValid(pos.r, pos.c, dim)) {
             for (let dr = 0; dr < dim.h; dr++) {
                 for (let dc = 0; dc < dim.w; dc++) {
-                    mapLayout[pos.r + dr][pos.c + dc] = (dr === 0 && dc === 0) ? heldItem : 999;
+                    let isRoot = (dr === 0 && dc === 0);
+                    mapLayout[pos.r + dr][pos.c + dc] = isRoot ? activeTile : 999;
+                    flipLayout[pos.r + dr][pos.c + dc] = (isRoot && heldFlipped) ? 1 : 0;
                 }
             }
-            heldItem = null;
             saveMaps();
-            editModeUI.innerText = "✅ 已放置並自動存檔！可繼續點選其他物件";
+            editModeUI.innerText = `✅ 已放置【${meta.name}】！(可繼續連點放置)`;
         } else {
-            showDialog("<div style='text-align:center;'>❌ 這裡有牆壁或佔滿了，換個空位放吧！</div>", 1500);
+            editModeUI.innerText = "❌ 這裡有牆壁、物件或站著貓咪，換個空位放吧！";
         }
     }
 }
@@ -714,7 +1244,7 @@ canvas.addEventListener('touchmove', e => { if (isDecorating) { e.preventDefault
 let isTouching = false;
 let touchStartX = 0, touchStartY = 0;
 window.addEventListener('touchstart', e => {
-    if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target === resetBtn || e.target.closest('#dialogBox')) return;
+    if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target === resetBtn || e.target.closest('#dialogBox') || e.target.closest('#hotbar') || e.target.closest('#catalogModal')) return;
     if (isDecorating) return;
     isTouching = true;
     touchStartX = e.touches[0].clientX;
@@ -902,7 +1432,7 @@ function tryInteract() {
         if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
             let tile = mapLayout[r][c];
             if ((tile >= 110 && tile <= 121) || tile === 999) { foundCoord = { r: r, c: c, tile: tile }; break; }
-            if ([1, 4, 5, 6, 7, 8, 31, 33, 61, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
+            if ([1, 4, 5, 6, 7, 8, 31, 33, 61, 99, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
                 if (tile === 1 && !(currentMap === 'temple' && (r === 6 || r === 7) && c === 9)) continue;
                 foundCoord = { r: r, c: c, tile: tile }; break;
             }
@@ -916,16 +1446,18 @@ function tryInteract() {
         wallKnockCount = 0;
     }
 
-    if (tile === 999 && currentMap === 'holaStore') {
-        for (let dr = 0; dr >= -2; dr--) {
+    if (tile === 999) {
+        outerResolve: for (let dr = 0; dr >= -2; dr--) {
             for (let dc = 0; dc >= -2; dc--) {
                 let nr = foundCoord.r + dr, nc = foundCoord.c + dc;
                 if (nr >= 0 && nc >= 0) {
                     let nt = mapLayout[nr][nc];
-                    if (nt >= 110 && nt <= 121) { tile = nt; break; }
+                    let d = itemDims[nt];
+                    if (d && foundCoord.r < nr + d.h && foundCoord.c < nc + d.w) {
+                        tile = nt; break outerResolve;
+                    }
                 }
             }
-            if (tile !== 999) break;
         }
     }
 
@@ -948,6 +1480,8 @@ function tryInteract() {
         return;
     }
 
+    if (tile === 4) showDialog("<div style='text-align:center;'>🔥 河樂宮香爐：<br>「香火鼎盛，保佑今天大墩店業績長紅、客人刷卡不手軟！」</div>", 3500);
+    if (tile === 99) showDialog("<div style='text-align:center;'>🙏 河樂宮神尊：<br>「心誠則靈，抽支上上籤看看今天哪款沙發最有緣吧！」</div>", 3500);
     if (tile === 5) handleFortune();
     if (tile === 6) handleNPC();
     if (tile === 7) handleGolden(); 
@@ -965,7 +1499,7 @@ function tryInteract() {
             setTimeout(() => canvas.classList.remove('shake-active'), 500);
             showDialog("<div style='text-align:center;'>⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」</div>", 1500);
             setTimeout(() => {
-                nightMarketMap[foundCoord.r][foundCoord.c] = 33; 
+                mapLayout[foundCoord.r][foundCoord.c] = 33; 
                 saveMaps();
                 showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 4000);
                 isPrompting = false;
@@ -974,18 +1508,16 @@ function tryInteract() {
     }
     if (tile === 33) showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 3000);
 
-    if (currentMap === 'holaStore') {
-        if (tile === 201) {
-            isPrompting = true;
-            showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
-            setTimeout(() => {
-                currentMap = 'temple'; cat.x = 8 * TILE_SIZE; cat.y = 8 * TILE_SIZE; cat.dir = 'left'; isPrompting = false;
-                resetZoomForMap(); 
-            }, 1500);
-        } else if (tile >= 110 && tile <= 121) {
-            let header = (tile === 121) ? "🎄 <b>聖誕檔期限定展示樹</b>" : "🪑 <b>商品簡介</b>";
-            showDialog(`${header}<br><br>${furnitureDialogues[tile]}`, 8000);
-        }
+    if (currentMap === 'holaStore' && tile === 201) {
+        isPrompting = true;
+        showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
+        setTimeout(() => {
+            currentMap = 'temple'; cat.x = 8 * TILE_SIZE; cat.y = 8 * TILE_SIZE; cat.dir = 'left'; isPrompting = false;
+            resetZoomForMap(); 
+        }, 1500);
+    } else if (tile >= 110 && tile <= 121) {
+        let header = (tile === 121) ? "🎄 <b>聖誕檔期限定展示樹</b>" : "🪑 <b>商品簡介</b>";
+        showDialog(`${header}<br><br>${furnitureDialogues[tile]}`, 8000);
     }
 }
 
@@ -1139,12 +1671,9 @@ setInterval(() => {
     }
 
     npcsToMove.forEach(npc => {
-        // 玩家靠近 1.5 格內自動停下等你按對話鍵
         let npcCenterX = npc.c * TILE_SIZE + TILE_SIZE / 2;
         let npcCenterY = npc.r * TILE_SIZE + TILE_SIZE / 2;
         if (Math.hypot(npcCenterX - catCenterX, npcCenterY - catCenterY) <= TILE_SIZE * 1.8) return;
-
-        // 50% 機率停下來看家具，營造悠閒逛街節奏
         if (Math.random() > 0.5) return;
 
         let dirs = [{ dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }];
@@ -1161,18 +1690,28 @@ setInterval(() => {
             if (holaStoreMap[nr][nc] === 0) {
                 holaStoreMap[npc.r][npc.c] = 0;
                 holaStoreMap[nr][nc] = npc.tile;
+                holaStoreFlip[nr][nc] = holaStoreFlip[npc.r][npc.c];
+                holaStoreFlip[npc.r][npc.c] = 0;
             }
         }
     });
 }, 4500);
 
-function drawItemTile(tile, posX, posY, ctx) {
+function drawItemTile(tile, posX, posY, ctx, flipped = false) {
     let tallY = posY - (TILE_SIZE * 0.5);
     let tallH = TILE_SIZE * 1.5;
+
+    if (flipped) {
+        let dim = itemDims[tile] || { w: 1, h: 1 };
+        let pivotX = (tile === 6) ? (posX + TILE_SIZE * 0.405) : (posX + (dim.w * TILE_SIZE) / 2);
+        ctx.save();
+        ctx.translate(pivotX, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-pivotX, 0);
+    }
     
     if (tile === 4) ctx.drawImage(images['altar'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY - (TILE_SIZE * 0.3), TILE_SIZE, TILE_SIZE * 1.3);
-    // 藍貓廟公放大至與無毛貓、金漸層相當
     if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX - (TILE_SIZE * 0.22), posY - (TILE_SIZE * 0.85), TILE_SIZE * 1.25, TILE_SIZE * 1.85);
     if (tile === 7) ctx.drawImage(images['npc_golden'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, tallY, TILE_SIZE, tallH);
@@ -1185,24 +1724,24 @@ function drawItemTile(tile, posX, posY, ctx) {
     
     if (tile >= 41 && tile <= 44) ctx.drawImage(images['npc_boss' + (tile-40)], posX, posY, TILE_SIZE, TILE_SIZE);
     if (tile >= 51 && tile <= 52) ctx.drawImage(images['npc_cus' + (tile-50)], posX, posY, TILE_SIZE, TILE_SIZE);
-    // 賣場駐點專員 Kobe（比一般角色高大一號）
     if (tile === 61) ctx.drawImage(images['Kobe'], posX - (TILE_SIZE * 0.125), posY - (TILE_SIZE * 0.85), TILE_SIZE * 1.25, TILE_SIZE * 1.85);
 
     if (tile === 110) ctx.drawImage(images['hola_bed2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
     if (tile === 111) ctx.drawImage(images['hola_bed3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
-    // 奧丁雙電動沙發還原寬體比例 (3.1 x 1.3 格)
     if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX - (TILE_SIZE * 0.05), posY + (TILE_SIZE * 0.7), TILE_SIZE * 3.1, TILE_SIZE * 1.3); 
     if (tile === 113) ctx.drawImage(images['matchy_sofa3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2); 
     if (tile === 114) ctx.drawImage(images['dining_table'], posX - 10, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2.2, TILE_SIZE * 2.2);
     if (tile === 115) ctx.drawImage(images['wooden_cabinet2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 1.5);
-    // 艾禮思木藝二抽高櫃還原正常比例 (1.8 x 2.5 格)
     if (tile === 116) ctx.drawImage(images['wooden_cabinet3'], posX + (TILE_SIZE * 0.1), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.8, TILE_SIZE * 2.5); 
     if (tile === 117) ctx.drawImage(images['lazboy_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 118) ctx.drawImage(images['lazboy_chair2'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 119) ctx.drawImage(images['lazboy_chair3'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 120) ctx.drawImage(images['blue_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
-    // 賣場聖誕樹 (2 x 3.2 格)
     if (tile === 121) ctx.drawImage(images['xmas_tree'], posX, posY - (TILE_SIZE * 1.2), TILE_SIZE * 2, TILE_SIZE * 3.2);
+
+    if (flipped) {
+        ctx.restore();
+    }
 }
 
 function draw() {
@@ -1210,6 +1749,7 @@ function draw() {
     ctx.save(); 
     
     let mapLayout = getActiveMapLayout();
+    let flipLayout = getActiveFlipLayout();
     let mapCols = mapLayout[0].length;
     let mapRows = mapLayout.length;
     let scale = getScale(); 
@@ -1253,12 +1793,12 @@ function draw() {
             if (tile === 30) ctx.drawImage(images['fence'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 101) ctx.drawImage(images['wall_hola'], posX, posY, TILE_SIZE, TILE_SIZE);
 
-            if (itemDims[tile]) drawItemTile(tile, posX, posY, ctx);
+            if (itemDims[tile]) drawItemTile(tile, posX, posY, ctx, flipLayout[r][c] === 1);
         }
     }
 
     if (isDecorating) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
         ctx.lineWidth = 2;
         for(let r=0; r<mapRows; r++) {
             for(let c=0; c<mapCols; c++) {
@@ -1266,20 +1806,23 @@ function draw() {
             }
         }
         
-        if (heldItem) {
-            let dim = itemDims[heldItem];
-            let valid = true;
-            for(let dr=0; dr<dim.h; dr++) {
-                for(let dc=0; dc<dim.w; dc++) {
-                    let r = cursorR + dr, c = cursorC + dc;
-                    if (r >= mapRows || c >= mapCols || mapLayout[r][c] !== 0) valid = false;
-                }
+        if (creativeMode === 'remove') {
+            if (cursorR >= 0 && cursorR < mapRows && cursorC >= 0 && cursorC < mapCols) {
+                ctx.fillStyle = 'rgba(255, 82, 82, 0.35)';
+                ctx.fillRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#ff5252';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
-            ctx.fillStyle = valid ? 'rgba(0, 255, 0, 0.35)' : 'rgba(255, 0, 0, 0.35)';
+        } else {
+            let activeTile = hotbarItems[activeSlot];
+            let dim = itemDims[activeTile];
+            let valid = isPlacementValid(cursorR, cursorC, dim);
+            ctx.fillStyle = valid ? 'rgba(0, 230, 118, 0.35)' : 'rgba(255, 0, 0, 0.35)';
             ctx.fillRect(cursorC*TILE_SIZE, cursorR*TILE_SIZE, dim.w*TILE_SIZE, dim.h*TILE_SIZE);
             
-            ctx.globalAlpha = 0.75;
-            drawItemTile(heldItem, cursorC*TILE_SIZE, cursorR*TILE_SIZE, ctx);
+            ctx.globalAlpha = 0.72;
+            drawItemTile(activeTile, cursorC*TILE_SIZE, cursorR*TILE_SIZE, ctx, heldFlipped);
             ctx.globalAlpha = 1.0;
         }
     }
