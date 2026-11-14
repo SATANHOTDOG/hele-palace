@@ -216,28 +216,34 @@ z-index: 100;
 pointer-events: none;
 box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
-/* 麥塊快捷道具欄 */
+/* 麥塊快捷道具欄（手機自適應全寬置中，右側不裁切） */
 #hotbar {
 position: fixed;
-bottom: 18px;
+bottom: 16px;
 left: 50%;
 transform: translateX(-50%);
 background: rgba(18, 18, 22, 0.94);
 border: 2px solid #00e676;
 border-radius: 14px;
-padding: 6px 8px;
+padding: 5px 6px;
 display: none;
-gap: 5px;
+gap: 3px;
 align-items: center;
+justify-content: space-between;
 z-index: 140;
-max-width: 96vw;
+width: 96vw;
+max-width: 430px;
+box-sizing: border-box;
 box-shadow: 0 6px 20px rgba(0,0,0,0.75);
 backdrop-filter: blur(8px);
 -webkit-backdrop-filter: blur(8px);
 }
 .hb-slot {
-width: 40px;
-height: 40px;
+flex: 1 1 0;
+min-width: 0;
+max-width: 44px;
+height: 42px;
+box-sizing: border-box;
 border-radius: 8px;
 border: 2px solid #444;
 background: rgba(255,255,255,0.07);
@@ -247,10 +253,10 @@ align-items: center;
 justify-content: center;
 cursor: pointer;
 position: relative;
-flex-shrink: 0;
 user-select: none;
 color: #fff;
-font-size: 18px;
+font-size: 16px;
+padding: 2px 1px;
 }
 .hb-slot:active {
 transform: scale(0.92);
@@ -261,8 +267,9 @@ background: rgba(255, 204, 0, 0.24);
 box-shadow: 0 0 10px rgba(255, 204, 0, 0.55);
 }
 .hb-slot img {
-max-width: 30px;
-max-height: 30px;
+max-width: 24px;
+max-height: 24px;
+object-fit: contain;
 image-rendering: pixelated;
 pointer-events: none;
 }
@@ -270,15 +277,16 @@ pointer-events: none;
 transform: scaleX(-1);
 }
 .hb-label {
-font-size: 9px;
+font-size: 8.5px;
 line-height: 1;
 margin-top: 2px;
 color: #ddd;
+white-space: nowrap;
 pointer-events: none;
 }
 .hb-divider {
 width: 1px;
-height: 28px;
+height: 26px;
 background: #444;
 margin: 0 1px;
 flex-shrink: 0;
@@ -484,8 +492,8 @@ let npcTalked = { golden: false, hairless: false };
 // 麥塊創造模式狀態
 let isDecorating = false;
 let creativeMode = 'place'; // 'place' | 'remove'
-let hotbarItems = [112, 119, 121, 61, 114]; // 預設 5 格快捷家具/角色
-let activeSlot = 0; // 0..4
+let hotbarItems = [112, 119, 121, 61, 114];
+let activeSlot = 0;
 let heldFlipped = false;
 let currentCatalogTab = 'hola';
 let cursorR = 5;
@@ -506,7 +514,6 @@ const itemDims = {
 
 // 全圖鑑目錄
 const catalogItems = [
-    // 賣場家具
     { tile: 112, cat: 'hola', name: '奧丁雙電動沙發', img: 'matchy_sofa2', size: '3×2' },
     { tile: 113, cat: 'hola', name: '伊登麻吉兩人座', img: 'matchy_sofa3', size: '2×2' },
     { tile: 110, cat: 'hola', name: '比佛利石墨烯床', img: 'hola_bed2', size: '2×2' },
@@ -519,7 +526,6 @@ const catalogItems = [
     { tile: 119, cat: 'hola', name: 'La-Z-Boy 521', img: 'lazboy_chair3', size: '1×1' },
     { tile: 120, cat: 'hola', name: '紐約北歐休閒椅', img: 'blue_chair', size: '1×1' },
     { tile: 121, cat: 'hola', name: '聖誕迎賓展示樹', img: 'xmas_tree', size: '2×2' },
-    // 人物與神明
     { tile: 61, cat: 'npc', name: 'Kobe 專員', img: 'Kobe', size: '1×1' },
     { tile: 6, cat: 'npc', name: '藍貓廟公', img: 'npc_bluecat', size: '1×1' },
     { tile: 7, cat: 'npc', name: '金漸層貓', img: 'npc_golden', size: '1×1' },
@@ -531,7 +537,6 @@ const catalogItems = [
     { tile: 51, cat: 'npc', name: '珍奶顧客', img: 'npc_cus1', size: '1×1' },
     { tile: 52, cat: 'npc', name: '香腸顧客', img: 'npc_cus2', size: '1×1' },
     { tile: 99, cat: 'npc', name: '河樂宮神尊', img: activeGod, size: '1×1' },
-    // 廟宇與夜市造景
     { tile: 4, cat: 'props', name: '河樂宮香爐', img: 'altar', size: '1×1' },
     { tile: 5, cat: 'props', name: '靈籤籤筒', img: 'fortune_box', size: '1×1' },
     { tile: 21, cat: 'props', name: '烤香腸攤車', img: 'stall_1', size: '2×2' },
@@ -643,7 +648,6 @@ holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
 holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
 holaStoreMap[10][8] = 61;
 
-// 水平鏡像翻轉狀態圖層 (0 = 正常, 1 = 水平鏡像)
 let templeFlip = Array(10).fill(0).map(() => Array(10).fill(0));
 let nightMarketFlip = Array(10).fill(0).map(() => Array(10).fill(0));
 let holaStoreFlip = Array(20).fill(0).map(() => Array(20).fill(0));
@@ -666,7 +670,6 @@ function loadMaps() {
         if (sfHola) { let p = JSON.parse(sfHola); if(p.length === 20) holaStoreFlip = p; }
     } catch(e) {}
 
-    // 僅在初次建立或舊版升級時自動補入預設角色與聖誕樹（之後允許玩家在創造模式自由拆除）
     let migrated = localStorage.getItem('holaMigrated_v3');
     if (!hadSavedHola || !migrated) {
         let foundTiles = new Set();
@@ -862,7 +865,6 @@ function closeCatalogModal() {
 }
 
 function pickCatalogItem(tile) {
-    // 若該物品已在快捷欄中則直接切換過去，否則放入目前選取的快捷格
     let existingIdx = hotbarItems.indexOf(tile);
     if (existingIdx !== -1) {
         activeSlot = existingIdx;
@@ -1407,6 +1409,24 @@ function isWalkable(newX, newY) {
     return checkWalkable(c1) && checkWalkable(c2) && checkWalkable(c3) && checkWalkable(c4);
 }
 
+// 從賣場返回河樂宮時，自動尋找暗門旁不會卡住角色的空地
+function findSafeTempleExitPos() {
+    const candidates = [
+        [7, 8], [7, 7], [6, 8], [6, 7], [8, 7], [7, 6], [7, 5], [6, 5]
+    ];
+    for (let [r, c] of candidates) {
+        let t = templeMap[r][c];
+        if (t === 0 || t === 3) return { x: c * TILE_SIZE, y: r * TILE_SIZE };
+    }
+    for (let r = 1; r < 9; r++) {
+        for (let c = 1; c < 9; c++) {
+            let t = templeMap[r][c];
+            if (t === 0 || t === 3) return { x: c * TILE_SIZE, y: r * TILE_SIZE };
+        }
+    }
+    return { x: 5 * TILE_SIZE, y: 7 * TILE_SIZE };
+}
+
 let isPrompting = false;
 function tryInteract() {
     if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating) return;
@@ -1512,7 +1532,12 @@ function tryInteract() {
         isPrompting = true;
         showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
         setTimeout(() => {
-            currentMap = 'temple'; cat.x = 8 * TILE_SIZE; cat.y = 8 * TILE_SIZE; cat.dir = 'left'; isPrompting = false;
+            let safePos = findSafeTempleExitPos();
+            currentMap = 'temple';
+            cat.x = safePos.x;
+            cat.y = safePos.y;
+            cat.dir = 'left';
+            isPrompting = false;
             resetZoomForMap(); 
         }, 1500);
     } else if (tile >= 110 && tile <= 121) {
