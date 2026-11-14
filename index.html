@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<title>河樂宮 - 庫存通靈系統 (多重宇宙影分身版)</title>
+<title>河樂宮 - 庫存通靈系統 (大墩旗艦完整版)</title>
 <style>
 body, html {
 margin: 0;
@@ -289,7 +289,7 @@ const assetNames = [
 'wooden_cabinet2', 'wooden_cabinet3', 
 'matchy_sofa2', 'matchy_sofa3', 
 'hola_bed2', 'hola_bed3', 
-'dining_table'
+'dining_table', 'xmas_tree', 'Kobe'
 ];
 const images = {};
 let settledImages = 0;
@@ -316,9 +316,11 @@ const itemDims = {
     31: {w:1, h:1}, 32: {w:1, h:1}, 33: {w:1, h:1},
     41: {w:1, h:1}, 42: {w:1, h:1}, 43: {w:1, h:1}, 44: {w:1, h:1},
     51: {w:1, h:1}, 52: {w:1, h:1},
+    61: {w:1, h:1}, // 賣場駐點專員 Kobe
     110: {w:2, h:2}, 111: {w:2, h:2}, 112: {w:3, h:2}, 113: {w:2, h:2},
     114: {w:2, h:2}, 115: {w:2, h:1}, 116: {w:2, h:2},
-    117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1}
+    117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1},
+    121: {w:2, h:2} // 賣場聖誕樹
 };
 
 // 夜市專用對話
@@ -341,6 +343,16 @@ const holaNpcDialogues = {
     cus2: ["「大腸包小腸吃太撐了，借這張 La-Z-Boy 消化一下。老實說，這椅子的震動頻率，跟我腸胃蠕動的節奏完美同步。」", "「吃飽就想睡，這電動沙發根本是為了我設計的。」", "「我剛剛偷捏了一下那張牛皮椅，觸感比香腸還Q彈。」"]
 };
 
+// HOLA 賣場駐點專員 Kobe 五段對話
+const kobeDialogues = [
+    "「沙發是一個家的心臟，選對才會活起來。」",
+    "「一張好床墊能救回你白天被老闆摧殘的脊椎；至於靈魂的部分，我這邊暫時沒有販售。」",
+    "「很多人挑餐桌只看長得帥不帥，結果回家吃個火鍋就刮花。克萊歐岩紋就是專門治這種顏值焦慮的。」",
+    "「別問我這張 La-Z-Boy 坐久了會不會不想上班——我只能說，這不在我們的保固範圍內。」",
+    "「在賣場逛到選擇障礙發作嗎？直接點下面加我 LINE，告訴我你家客廳多大、預算多少，我直接幫你配到好。」"
+];
+let kobeDialogIndex = 0;
+
 const dialogStates = { boss1: 0, boss2: 0, boss3: 0, boss4: 0, cus1: 0, cus2: 0 };
 
 const furnitureDialogues = {
@@ -354,7 +366,8 @@ const furnitureDialogues = {
     117: "「La-Z-Boy 512 手動經典搖椅。這張的腰部支撐力，比你那脆弱的自尊心還要堅強。手動的好處就是，當你窮到繳不出電費的時候，它依然能陪你在黑暗中搖曳生姿，快買一張回去吧。」",
     118: "「La-Z-Boy 765 雙電動牛皮椅。這坐感軟爛到什麼程度？就是你剛按下遙控器，電視都還沒亮，你人已經在夢裡跟周公打麻將了。服貼度極高，簡直像被一個巨型皮製怪獸吞噬。強烈建議不要在這張椅子上思考人生，你會直接變成一團只會呼吸的廢肉。」",
     119: "「La-Z-Boy 521 雙電動按摩牛皮椅。多段震動加溫熱功能，這哪是椅子，這根本是合法的老人復健中心。冷天開加熱再開震動，舒服到你會懷疑自己是不是已經升天了。唯一缺點就是震到後來括約肌會有點失守，麻煩試坐前先去尿尿。」",
-    120: "「La-Z-Boy 紐約北歐式休閒椅。北歐風就是有一種『我很有錢但我不想讓你看出來』的裝逼感。這皮面、這線條，坐上去彷彿自帶精品手沖咖啡的濾鏡。老實說，你就算穿著泛黃吊嘎在上面摳腳，別人也會以為你在進行什麼北歐行為藝術，滿超值的。」"
+    120: "「La-Z-Boy 紐約北歐式休閒椅。北歐風就是有一種『我很有錢但我不想讓你看出來』的裝逼感。這皮面、這線條，坐上去彷彿自帶精品手沖咖啡的濾鏡。老實說，你就算穿著泛黃吊嘎在上面摳腳，別人也會以為你在進行什麼北歐行為藝術，滿超值的。」",
+    121: "「聖誕檔期限定展示樹。每年十一月就開始放聖誕歌，這棵樹在賣場裡站得比你上班還久。上面的金星跟禮物盒都是裝飾品，但你客廳裡那堆還沒拆封的網購紙箱是真的。趁聖誕節趕快買張大邊櫃把雜物塞進去吧，不然聖誕老公公半夜爬進來，第一件事就是被你家客廳絆倒。」"
 };
 
 let templeMap = [
@@ -402,6 +415,11 @@ holaStoreMap[8][2] = 119;
 holaStoreMap[11][2] = 118;
 holaStoreMap[14][2] = 117;
 holaStoreMap[17][2] = 120;
+// 賣場左側迎賓聖誕樹 (2x2)
+holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
+holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
+// 賣場駐點專員 Kobe
+holaStoreMap[10][8] = 61;
 
 function loadMaps() {
     try {
@@ -413,17 +431,19 @@ function loadMaps() {
         if (savedHola) { let p = JSON.parse(savedHola); if(p.length === 20) holaStoreMap = p; }
     } catch(e) {}
 
-    // 自動將缺少的影分身貓咪注入 HOLA 賣場
-    let foundNpcs = new Set();
+    // 掃描已存在於 HOLA 賣場的角色與新物件
+    let foundTiles = new Set();
     for(let r=0; r<20; r++) {
         for(let c=0; c<20; c++) {
             let t = holaStoreMap[r][c];
-            if ((t >= 41 && t <= 44) || t === 51 || t === 52) foundNpcs.add(t);
+            if ((t >= 41 && t <= 44) || t === 51 || t === 52 || t === 61 || t === 121) foundTiles.add(t);
         }
     }
+
+    // 自動補入 6 隻夜市影分身貓咪
     const defaultPositions = { 41: [7,5], 42: [8,15], 43: [13,5], 44: [14,15], 51: [16,10], 52: [10,10] };
     for(let id of [41, 42, 43, 44, 51, 52]) {
-        if(!foundNpcs.has(id)) {
+        if(!foundTiles.has(id)) {
             let [r, c] = defaultPositions[id];
             if(holaStoreMap[r][c] === 0) {
                 holaStoreMap[r][c] = id;
@@ -434,6 +454,45 @@ function loadMaps() {
                             holaStoreMap[rr][cc] = id;
                             break outer;
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // 自動補入賣場駐點專員 Kobe (61)
+    if (!foundTiles.has(61)) {
+        if (holaStoreMap[10][8] === 0) {
+            holaStoreMap[10][8] = 61;
+        } else {
+            outerKobe: for(let rr=2; rr<18; rr++) {
+                for(let cc=2; cc<18; cc++) {
+                    if(holaStoreMap[rr][cc] === 0) {
+                        holaStoreMap[rr][cc] = 61;
+                        break outerKobe;
+                    }
+                }
+            }
+        }
+    }
+
+    // 自動補入賣場左側迎賓聖誕樹 (121, 佔 2x2)
+    if (!foundTiles.has(121)) {
+        const canPlace2x2 = (r, c) => (
+            r >= 1 && r + 1 < 19 && c >= 1 && c + 1 < 19 &&
+            holaStoreMap[r][c] === 0 && holaStoreMap[r][c+1] === 0 &&
+            holaStoreMap[r+1][c] === 0 && holaStoreMap[r+1][c+1] === 0
+        );
+        if (canPlace2x2(17, 6)) {
+            holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
+            holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
+        } else {
+            outerTree: for(let rr=1; rr<18; rr++) {
+                for(let cc=1; cc<18; cc++) {
+                    if (canPlace2x2(rr, cc)) {
+                        holaStoreMap[rr][cc] = 121; holaStoreMap[rr][cc+1] = 999;
+                        holaStoreMap[rr+1][cc] = 999; holaStoreMap[rr+1][cc+1] = 999;
+                        break outerTree;
                     }
                 }
             }
@@ -502,7 +561,6 @@ function toggleEditMode() {
 editBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); });
 editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); }, { passive: false });
 
-// --- 恢復預設與強制更新選單 ---
 function openResetMenu() {
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
     cat.isInteracting = true;
@@ -843,9 +901,8 @@ function tryInteract() {
         let c = Math.floor(targetX / TILE_SIZE), r = Math.floor(targetY / TILE_SIZE);
         if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
             let tile = mapLayout[r][c];
-            if ((tile >= 110 && tile <= 120) || tile === 999) { foundCoord = { r: r, c: c, tile: tile }; break; }
-            if ([1, 4, 5, 6, 7, 8, 31, 33, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
-                // 放寬無毛貓上方右牆的暗門感應區（第 6、7 列右牆）
+            if ((tile >= 110 && tile <= 121) || tile === 999) { foundCoord = { r: r, c: c, tile: tile }; break; }
+            if ([1, 4, 5, 6, 7, 8, 31, 33, 61, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
                 if (tile === 1 && !(currentMap === 'temple' && (r === 6 || r === 7) && c === 9)) continue;
                 foundCoord = { r: r, c: c, tile: tile }; break;
             }
@@ -865,7 +922,7 @@ function tryInteract() {
                 let nr = foundCoord.r + dr, nc = foundCoord.c + dc;
                 if (nr >= 0 && nc >= 0) {
                     let nt = mapLayout[nr][nc];
-                    if (nt >= 110 && nt <= 120) { tile = nt; break; }
+                    if (nt >= 110 && nt <= 121) { tile = nt; break; }
                 }
             }
             if (tile !== 999) break;
@@ -895,6 +952,7 @@ function tryInteract() {
     if (tile === 6) handleNPC();
     if (tile === 7) handleGolden(); 
     if (tile === 8) handleHairless(); 
+    if (tile === 61) handleKobe();
     
     if (tile >= 41 && tile <= 44) handleNightCat('boss' + (tile-40), ['🐱 橘貓老闆 (烤香腸)', '🐱 黑貓老闆 (章魚燒)', '🐱 白貓老闆 (波霸奶茶)', '🐱 賓士貓老闆 (撈金魚)'][tile-41], currentMap);
     if (tile >= 51 && tile <= 52) handleNightCat('cus' + (tile-50), ['🐈 顧客 (喝珍奶)', '🐈 顧客 (吃香腸)'][tile-51], currentMap);
@@ -924,10 +982,23 @@ function tryInteract() {
                 currentMap = 'temple'; cat.x = 8 * TILE_SIZE; cat.y = 8 * TILE_SIZE; cat.dir = 'left'; isPrompting = false;
                 resetZoomForMap(); 
             }, 1500);
-        } else if (tile >= 110 && tile <= 120) {
-            showDialog(`🪑 <b>商品簡介</b><br><br>${furnitureDialogues[tile]}`, 8000);
+        } else if (tile >= 110 && tile <= 121) {
+            let header = (tile === 121) ? "🎄 <b>聖誕檔期限定展示樹</b>" : "🪑 <b>商品簡介</b>";
+            showDialog(`${header}<br><br>${furnitureDialogues[tile]}`, 8000);
         }
     }
+}
+
+function handleKobe() {
+    let text = kobeDialogues[kobeDialogIndex];
+    showDialog(`
+        <div style='text-align:center;'>
+            <b style="color:#4fc3f7;">🐱 KOBE 資深家具專員：</b><br>
+            ${text}<br>
+            <a href='https://line.me/ti/p/v-9_IDIeyw' target='_blank' style='display:inline-block; margin-top:12px; padding:10px 16px; background:#00c300; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size:1em;'>👉 點擊加 KOBE 的 LINE</a>
+        </div>
+    `, 9000);
+    kobeDialogIndex = (kobeDialogIndex + 1) % kobeDialogues.length;
 }
 
 function handleNightCat(catId, catName, map) {
@@ -1048,12 +1119,14 @@ function update() {
     if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
 }
 
-// 掃地機器人 AI：每隔 2 秒隨機漫步（會自動避開玩家位置）
+// 掃地機器人 AI：放慢節奏（每 4.5 秒、50% 機率移動，玩家靠近 1.5 格內自動定格方便對話）
 setInterval(() => {
     if (currentMap !== 'holaStore' || isDecorating || cat.isInteracting || isPrompting) return;
 
-    let catR = Math.floor((cat.y + TILE_SIZE / 2) / TILE_SIZE);
-    let catC = Math.floor((cat.x + TILE_SIZE / 2) / TILE_SIZE);
+    let catCenterX = cat.x + TILE_SIZE / 2;
+    let catCenterY = cat.y + TILE_SIZE / 2;
+    let catR = Math.floor(catCenterY / TILE_SIZE);
+    let catC = Math.floor(catCenterX / TILE_SIZE);
 
     let npcsToMove = [];
     for (let r = 0; r < holaStoreMap.length; r++) {
@@ -1066,6 +1139,14 @@ setInterval(() => {
     }
 
     npcsToMove.forEach(npc => {
+        // 玩家靠近 1.5 格內自動停下等你按對話鍵
+        let npcCenterX = npc.c * TILE_SIZE + TILE_SIZE / 2;
+        let npcCenterY = npc.r * TILE_SIZE + TILE_SIZE / 2;
+        if (Math.hypot(npcCenterX - catCenterX, npcCenterY - catCenterY) <= TILE_SIZE * 1.8) return;
+
+        // 50% 機率停下來看家具，營造悠閒逛街節奏
+        if (Math.random() > 0.5) return;
+
         let dirs = [{ dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }];
         let moves = dirs.filter(d => {
             let nr = npc.r + d.dr, nc = npc.c + d.dc;
@@ -1083,7 +1164,7 @@ setInterval(() => {
             }
         }
     });
-}, 2000);
+}, 4500);
 
 function drawItemTile(tile, posX, posY, ctx) {
     let tallY = posY - (TILE_SIZE * 0.5);
@@ -1091,7 +1172,8 @@ function drawItemTile(tile, posX, posY, ctx) {
     
     if (tile === 4) ctx.drawImage(images['altar'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 5) ctx.drawImage(images['fortune_box'], posX, posY - (TILE_SIZE * 0.3), TILE_SIZE, TILE_SIZE * 1.3);
-    if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX, tallY, TILE_SIZE, tallH);
+    // 藍貓廟公放大至與無毛貓、金漸層相當
+    if (tile === 6) ctx.drawImage(images['npc_bluecat'], posX - (TILE_SIZE * 0.22), posY - (TILE_SIZE * 0.85), TILE_SIZE * 1.25, TILE_SIZE * 1.85);
     if (tile === 7) ctx.drawImage(images['npc_golden'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 8) ctx.drawImage(images['npc_hairless'], posX, tallY, TILE_SIZE, tallH);
     if (tile === 99) ctx.drawImage(images[activeGod], posX - (TILE_SIZE * 0.5), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
@@ -1103,18 +1185,24 @@ function drawItemTile(tile, posX, posY, ctx) {
     
     if (tile >= 41 && tile <= 44) ctx.drawImage(images['npc_boss' + (tile-40)], posX, posY, TILE_SIZE, TILE_SIZE);
     if (tile >= 51 && tile <= 52) ctx.drawImage(images['npc_cus' + (tile-50)], posX, posY, TILE_SIZE, TILE_SIZE);
+    // 賣場駐點專員 Kobe（比一般角色高大一號）
+    if (tile === 61) ctx.drawImage(images['Kobe'], posX - (TILE_SIZE * 0.125), posY - (TILE_SIZE * 0.85), TILE_SIZE * 1.25, TILE_SIZE * 1.85);
 
     if (tile === 110) ctx.drawImage(images['hola_bed2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
     if (tile === 111) ctx.drawImage(images['hola_bed3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2.5);
-    if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 3, TILE_SIZE * 2); 
+    // 奧丁雙電動沙發還原寬體比例 (3.1 x 1.3 格)
+    if (tile === 112) ctx.drawImage(images['matchy_sofa2'], posX - (TILE_SIZE * 0.05), posY + (TILE_SIZE * 0.7), TILE_SIZE * 3.1, TILE_SIZE * 1.3); 
     if (tile === 113) ctx.drawImage(images['matchy_sofa3'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 2); 
     if (tile === 114) ctx.drawImage(images['dining_table'], posX - 10, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2.2, TILE_SIZE * 2.2);
     if (tile === 115) ctx.drawImage(images['wooden_cabinet2'], posX, posY - (TILE_SIZE * 0.5), TILE_SIZE * 2, TILE_SIZE * 1.5);
-    if (tile === 116) ctx.drawImage(images['wooden_cabinet3'], posX, posY - (TILE_SIZE * 1.5), TILE_SIZE * 2, TILE_SIZE * 3.5); 
+    // 艾禮思木藝二抽高櫃還原正常比例 (1.8 x 2.5 格)
+    if (tile === 116) ctx.drawImage(images['wooden_cabinet3'], posX + (TILE_SIZE * 0.1), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.8, TILE_SIZE * 2.5); 
     if (tile === 117) ctx.drawImage(images['lazboy_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 118) ctx.drawImage(images['lazboy_chair2'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 119) ctx.drawImage(images['lazboy_chair3'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 120) ctx.drawImage(images['blue_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
+    // 賣場聖誕樹 (2 x 3.2 格)
+    if (tile === 121) ctx.drawImage(images['xmas_tree'], posX, posY - (TILE_SIZE * 1.2), TILE_SIZE * 2, TILE_SIZE * 3.2);
 }
 
 function draw() {
