@@ -302,6 +302,7 @@ const activeGod = godList[Math.floor(Math.random() * godList.length)];
 let currentMap = 'temple'; 
 let viewMode = 0; 
 let wallKnockCount = 0;
+let isKnockingWall = false;
 let npcTalked = { golden: false, hairless: false };
 
 let isDecorating = false;
@@ -505,6 +506,7 @@ editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropag
 function openResetMenu() {
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
     cat.isInteracting = true;
+    isKnockingWall = false;
     dialogBox.innerHTML = `
         <div style="text-align:center;">
             <b style="color:#ffcc00; font-size:1.15em;">🔄 快取與地圖恢復選項</b><br>
@@ -540,6 +542,7 @@ function closeDialog() {
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
     dialogBox.style.display = 'none';
     cat.isInteracting = false;
+    isKnockingWall = false;
 }
 
 resetBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openResetMenu(); });
@@ -818,10 +821,21 @@ function isWalkable(newX, newY) {
 
 let isPrompting = false;
 function tryInteract() {
-    if (cat.isInteracting || isPrompting || isDecorating) return;
+    if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating) return;
     let cx = cat.x + (TILE_SIZE / 2), cy = cat.y + (TILE_SIZE / 2);
     let mapLayout = getActiveMapLayout();
-    let checkOffsets = [{ x: 0, y: -TILE_SIZE }, { x: 0, y: TILE_SIZE }, { x: -TILE_SIZE, y: 0 }, { x: TILE_SIZE, y: 0 }];
+
+    // 永遠第一順位檢查貓咪正面朝向 (cat.dir) 的那一格
+    const dirMap = {
+        up: { x: 0, y: -TILE_SIZE },
+        down: { x: 0, y: TILE_SIZE },
+        left: { x: -TILE_SIZE, y: 0 },
+        right: { x: TILE_SIZE, y: 0 }
+    };
+    let checkOffsets = [dirMap[cat.dir] || dirMap.up];
+    for (let key of ['up', 'down', 'left', 'right']) {
+        if (key !== cat.dir) checkOffsets.push(dirMap[key]);
+    }
 
     let foundCoord = null;
     for (let offset of checkOffsets) {
@@ -831,13 +845,19 @@ function tryInteract() {
             let tile = mapLayout[r][c];
             if ((tile >= 110 && tile <= 120) || tile === 999) { foundCoord = { r: r, c: c, tile: tile }; break; }
             if ([1, 4, 5, 6, 7, 8, 31, 33, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
-                if (tile === 1 && !(currentMap === 'temple' && r === 7 && c === 9)) continue;
+                // 放寬無毛貓上方右牆的暗門感應區（第 6、7 列右牆）
+                if (tile === 1 && !(currentMap === 'temple' && (r === 6 || r === 7) && c === 9)) continue;
                 foundCoord = { r: r, c: c, tile: tile }; break;
             }
         }
     }
     if (!foundCoord) return;
     let tile = foundCoord.tile;
+
+    if (tile !== 1) {
+        isKnockingWall = false;
+        wallKnockCount = 0;
+    }
 
     if (tile === 999 && currentMap === 'holaStore') {
         for (let dr = 0; dr >= -2; dr--) {
@@ -855,9 +875,10 @@ function tryInteract() {
     if (currentMap === 'temple' && tile === 1) {
         wallKnockCount++;
         if (wallKnockCount < 5) {
-            showDialog(`<div style='text-align:center;'>🚪 叩、叩... 牆壁發出空洞的聲音。<br><span style='color:#aaa;font-size:0.8em;'>(已敲擊 ${wallKnockCount}/5 下)</span></div>`, 2000);
+            showDialog(`<div style='text-align:center;'>🚪 叩、叩... 牆壁發出空洞的聲音。<br><span style='color:#aaa;font-size:0.8em;'>(已敲擊 ${wallKnockCount}/5 下)</span></div>`, 2000, true);
         } else {
             wallKnockCount = 0;
+            isKnockingWall = false;
             isPrompting = true;
             canvas.classList.add('shake-active');
             setTimeout(() => canvas.classList.remove('shake-active'), 500);
@@ -993,14 +1014,16 @@ function handleNPC() {
     }, 50);
 }
 
-function showDialog(text, duration = 4000) {
+function showDialog(text, duration = 4000, keepKnocking = false) {
     dialogBox.innerHTML = text;
     dialogBox.style.display = 'block';
     cat.isInteracting = true;
+    isKnockingWall = keepKnocking;
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
     window.dialogTimeout = setTimeout(() => {
         dialogBox.style.display = 'none';
         cat.isInteracting = false;
+        isKnockingWall = false;
     }, duration);
 }
 
