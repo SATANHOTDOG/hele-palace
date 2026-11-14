@@ -66,7 +66,7 @@ left: 50%;
 transform: translateX(-50%);
 width: 85%;
 max-width: 450px;
-background: rgba(0, 0, 0, 0.9);
+background: rgba(0, 0, 0, 0.92);
 color: #fff;
 border: 2px solid #d4af37;
 border-radius: 8px;
@@ -75,7 +75,22 @@ font-size: 1.1rem;
 text-align: left;
 box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
 pointer-events: auto; 
-z-index: 10;
+z-index: 150;
+}
+.menu-btn {
+display: block;
+width: 100%;
+margin: 10px 0;
+padding: 12px;
+border: none;
+border-radius: 8px;
+font-size: 1rem;
+font-weight: bold;
+cursor: pointer;
+text-align: center;
+}
+.menu-btn:active {
+transform: scale(0.97);
 }
 #actionBtn {
 position: fixed;
@@ -148,6 +163,28 @@ box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 #editBtn:active {
 transform: scale(0.9);
 }
+#resetBtn {
+position: fixed;
+top: 20px;
+right: 82px;
+width: 50px;
+height: 50px;
+background-color: rgba(0, 0, 0, 0.75);
+border: 2px solid #ff5252;
+border-radius: 50%;
+color: white;
+font-size: 22px;
+text-align: center;
+line-height: 50px;
+user-select: none;
+z-index: 100;
+cursor: pointer;
+display: none;
+box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+#resetBtn:active {
+transform: scale(0.9);
+}
 #editModeUI {
 position: fixed;
 top: 80px;
@@ -208,7 +245,8 @@ text-shadow: 1px 1px 2px #000;
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
 <div id="zoomBtn">🔎</div>
-<div id="editBtn">🛠️</div>
+<div id="resetBtn" title="恢復預設 / 強制更新">🔄</div>
+<div id="editBtn" title="裝潢模式">🛠️</div>
 <div id="editModeUI">🛠️ 裝潢模式：點物件抓起 ➡️ 點空地放下</div>
 <div id="actionBtn"></div>
 <div id="instructions">
@@ -227,6 +265,7 @@ const dialogBox = document.getElementById('dialogBox');
 const actionBtn = document.getElementById('actionBtn');
 const zoomBtn = document.getElementById('zoomBtn');
 const editBtn = document.getElementById('editBtn');
+const resetBtn = document.getElementById('resetBtn');
 const editModeUI = document.getElementById('editModeUI');
 const instructions = document.getElementById('instructions');
 const bgm = document.getElementById('bgm');
@@ -449,15 +488,62 @@ function toggleEditMode() {
     }
     isDecorating = !isDecorating;
     editModeUI.style.display = isDecorating ? 'block' : 'none';
+    resetBtn.style.display = isDecorating ? 'block' : 'none';
     editBtn.style.backgroundColor = isDecorating ? 'rgba(0, 230, 118, 0.85)' : 'rgba(0,0,0,0.6)';
     if(isDecorating) {
         cat.isMoving = false;
         touchDir = null;
         editModeUI.innerText = "🛠️ 裝潢模式：點物件抓起 ➡️ 點空地放下";
+    } else {
+        closeDialog();
     }
 }
 editBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); });
 editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); }, { passive: false });
+
+// --- 恢復預設與強制更新選單 ---
+function openResetMenu() {
+    if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+    cat.isInteracting = true;
+    dialogBox.innerHTML = `
+        <div style="text-align:center;">
+            <b style="color:#ffcc00; font-size:1.15em;">🔄 快取與地圖恢復選項</b><br>
+            <span style="font-size:0.85em; color:#bbb;">請選擇要執行的動作：</span>
+            <button class="menu-btn" style="background:#d4af37; color:#000; margin-top:14px;" onclick="forceReloadOnly()">
+                🌐 強制抓最新網頁（保留家具擺設）
+            </button>
+            <button class="menu-btn" style="background:#ff5252; color:#fff;" onclick="resetAllData()">
+                🧹 清除存檔並還原預設陣型
+            </button>
+            <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">
+                ✖️ 取消
+            </button>
+        </div>
+    `;
+    dialogBox.style.display = 'block';
+}
+
+function forceReloadOnly() {
+    window.location.href = window.location.pathname + '?v=' + Date.now();
+}
+
+function resetAllData() {
+    try {
+        localStorage.removeItem('templeMap_v2');
+        localStorage.removeItem('nightMarketMap_v2');
+        localStorage.removeItem('holaStoreMap_v2');
+    } catch(e) {}
+    window.location.href = window.location.pathname + '?v=' + Date.now();
+}
+
+function closeDialog() {
+    if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+    dialogBox.style.display = 'none';
+    cat.isInteracting = false;
+}
+
+resetBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openResetMenu(); });
+resetBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); openResetMenu(); }, { passive: false });
 
 zoomBtn.addEventListener('click', (e) => { e.stopPropagation(); tryPlayBGM(); toggleZoom(); });
 zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); tryPlayBGM(); toggleZoom(); }, { passive: false });
@@ -567,7 +653,7 @@ canvas.addEventListener('touchmove', e => { if (isDecorating) { e.preventDefault
 let isTouching = false;
 let touchStartX = 0, touchStartY = 0;
 window.addEventListener('touchstart', e => {
-    if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target.closest('#dialogBox')) return;
+    if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target === resetBtn || e.target.closest('#dialogBox')) return;
     if (isDecorating) return;
     isTouching = true;
     touchStartX = e.touches[0].clientX;
@@ -605,7 +691,7 @@ function updateLoadUI() {
 
 async function fetchInventory() {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超時自動放行
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
         const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
         const res = await fetch(url, { signal: controller.signal });
@@ -655,7 +741,6 @@ assetNames.forEach(name => {
     };
 });
 
-// 超過 4 秒自動浮現強制進入按鈕，超過 8 秒自動強制進場
 setTimeout(() => { if (!gameStarted) forceStartBtn.style.display = 'inline-block'; }, 4000);
 setTimeout(() => { if (!gameStarted) launchGame(); }, 8000);
 
