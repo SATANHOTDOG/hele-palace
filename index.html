@@ -24,6 +24,7 @@ image-rendering: pixelated;
 width: 100vw;
 height: 100vh;
 object-fit: contain;
+cursor: pointer;
 }
 #loading {
 color: #fff;
@@ -164,6 +165,115 @@ transform: scale(0.91) translateY(2px);
 box-shadow:
   0 2px 8px rgba(10, 110, 255, 0.5),
   inset 0 3px 8px rgba(0, 15, 60, 0.85);
+}
+#helpBtn {
+position: fixed;
+bottom: 28px;
+left: 22px;
+height: 44px;
+padding: 0 15px;
+background: rgba(15, 18, 26, 0.84);
+border: 2px solid #d4af37;
+border-radius: 22px;
+color: #ffe082;
+font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+font-size: 0.92rem;
+font-weight: bold;
+display: none;
+align-items: center;
+justify-content: center;
+gap: 5px;
+cursor: pointer;
+user-select: none;
+-webkit-user-select: none;
+z-index: 100;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+backdrop-filter: blur(6px);
+-webkit-backdrop-filter: blur(6px);
+}
+#helpBtn:active {
+transform: scale(0.93);
+}
+#helpModal {
+display: none;
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 90%;
+max-width: 480px;
+max-height: 78vh;
+background: rgba(14, 15, 22, 0.97);
+border: 2px solid #d4af37;
+border-radius: 14px;
+padding: 15px;
+z-index: 260;
+flex-direction: column;
+color: #fff;
+font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+box-shadow: 0 14px 40px rgba(0, 0, 0, 0.92);
+}
+.help-tabs {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 5px;
+margin-top: 10px;
+}
+.help-tab {
+padding: 7px 3px;
+background: #252630;
+color: #ccc;
+border: 1px solid #444;
+border-radius: 8px;
+font-size: 0.78rem;
+font-weight: bold;
+cursor: pointer;
+text-align: center;
+}
+.help-tab.active {
+background: #d4af37;
+color: #000;
+border-color: #d4af37;
+}
+.help-body {
+overflow-y: auto;
+margin-top: 10px;
+padding: 4px 4px 6px 2px;
+font-size: 0.88rem;
+line-height: 1.65;
+color: #e8e8e8;
+touch-action: pan-y;
+}
+.help-card {
+background: rgba(255, 255, 255, 0.05);
+border: 1px solid #383a48;
+border-radius: 9px;
+padding: 10px 12px;
+margin-bottom: 9px;
+}
+.help-card b.hl {
+color: #ffcc00;
+}
+.help-card b.gn {
+color: #00e676;
+}
+.help-card b.bl {
+color: #4fc3f7;
+}
+.help-table {
+width: 100%;
+border-collapse: collapse;
+margin-top: 6px;
+font-size: 0.78rem;
+}
+.help-table th, .help-table td {
+border: 1px solid #444;
+padding: 5px 6px;
+text-align: left;
+}
+.help-table th {
+background: rgba(212, 175, 55, 0.22);
+color: #ffcc00;
 }
 #zoomBtn {
 position: fixed;
@@ -424,18 +534,6 @@ font-weight: bold;
 padding: 1px 4px;
 border-radius: 4px;
 }
-#instructions {
-position: fixed;
-bottom: 20px;
-left: 20px;
-color: rgba(255, 255, 255, 0.6);
-font-size: 0.9rem;
-line-height: 1.6;
-pointer-events: none;
-z-index: 50;
-display: none;
-text-shadow: 1px 1px 2px #000;
-}
 @keyframes shake {
   0% { transform: translate(1px, 1px) rotate(0deg); }
   10% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -466,17 +564,15 @@ text-shadow: 1px 1px 2px #000;
 
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
-<div id="zoomBtn">🔎</div>
+<div id="zoomBtn" title="三段縮放視野">🔍</div>
 <div id="resetBtn" title="代碼分享 / 恢復預設">🔄</div>
 <div id="editBtn" title="麥塊創造模式">🛠️</div>
 <div id="editModeUI">🛠️ 創造模式：選下方物件點空地放置</div>
 <div id="hotbar"></div>
 <div id="catalogModal"></div>
+<div id="helpModal"></div>
+<div id="helpBtn" role="button" aria-label="操作與擴充說明">📖 說明</div>
 <div id="actionBtn" role="button" aria-label="調查"></div>
-<div id="instructions">
-💻 電腦版：WASD移動 / 空白鍵調查<br>
-📱 手機版：滑動螢幕 / 點擊「調查」藍鈕
-</div>
 
 <script>
 // ==========================================
@@ -493,13 +589,14 @@ const errorLog = document.getElementById('errorLog');
 const forceStartBtn = document.getElementById('forceStartBtn');
 const dialogBox = document.getElementById('dialogBox');
 const actionBtn = document.getElementById('actionBtn');
+const helpBtn = document.getElementById('helpBtn');
+const helpModal = document.getElementById('helpModal');
 const zoomBtn = document.getElementById('zoomBtn');
 const editBtn = document.getElementById('editBtn');
 const resetBtn = document.getElementById('resetBtn');
 const editModeUI = document.getElementById('editModeUI');
 const hotbar = document.getElementById('hotbar');
 const catalogModal = document.getElementById('catalogModal');
-const instructions = document.getElementById('instructions');
 const bgm = document.getElementById('bgm');
 const TILE_SIZE = 64;
 
@@ -538,6 +635,12 @@ let viewMode = 0;
 let wallKnockCount = 0;
 let isKnockingWall = false;
 let npcTalked = { golden: false, hairless: false };
+let currentHelpTab = 'move';
+
+// 點擊自動尋路狀態
+let autoPath = [];
+let pendingInteractTarget = null;
+let clickMarker = null;
 
 // 麥塊創造模式狀態
 let isDecorating = false;
@@ -657,32 +760,56 @@ const furnitureDialogues = {
 };
 const furnitureDialogIndex = {};
 
-let templeMap = [
-    [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
-    [1, 7, 0, 0, 0, 0, 0, 0, 0, 1], 
-    [1, 0, 0, 0, 0, 99, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
-    [1, 5, 0, 0, 0, 0, 0, 0, 6, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 8, 1], 
-    [1, 1, 1, 1, 0, 3, 1, 1, 1, 1]  
-];
+// 河樂宮 20×20 地圖（保留原相對配置與無毛貓頭頂五下密室牆）
+let templeMap = Array(20).fill(0).map(() => Array(20).fill(0));
+for (let r = 0; r < 20; r++) {
+    for (let c = 0; c < 20; c++) {
+        if (r === 0 || r === 19 || c === 0 || c === 19) templeMap[r][c] = 1;
+    }
+}
+for (let c = 4; c <= 15; c++) templeMap[0][c] = 2; // 正上方蓮花牆
+templeMap[19][9] = 3; templeMap[19][10] = 3;          // 正下方牌樓大門（通往夜市）
+templeMap[2][2] = 7;                                 // 左上：金漸層貓
+templeMap[3][9] = 99;                                // 正上方中央：河樂宮神尊
+templeMap[5][9] = 4;                                 // 神尊正前方：香爐
+templeMap[9][2] = 5;                                 // 左側中段：靈籤籤筒
+templeMap[9][17] = 6;                                // 右側中段：藍貓廟公
+templeMap[17][18] = 8;                               // 右下緊貼右牆：無毛貓（頭頂 r=15,16, c=19 為敲五下密室牆）
 
-let nightMarketMap = [
-    [30, 30, 30, 30, 0, 0, 30, 30, 30, 30],
-    [32, 0, 21, 999, 0, 0, 22, 999, 0, 32],
-    [30, 41, 999, 999, 0, 0, 999, 999, 42, 30],
-    [30, 0, 52, 0, 0, 0, 0, 0, 0, 30],
-    [30, 0, 0, 0, 0, 0, 0, 51, 0, 30],
-    [30, 0, 23, 999, 0, 0, 24, 999, 0, 30],
-    [30, 43, 999, 999, 0, 0, 999, 999, 44, 30],
-    [30, 0, 0, 0, 0, 0, 0, 0, 0, 30],
-    [30, 31, 0, 0, 0, 0, 0, 0, 31, 30],
-    [30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
-];
+// 夜市 20×20 地圖（四座攤車分列左上、右上、中左、中右兩側，機車在最底下）
+let nightMarketMap = Array(20).fill(0).map(() => Array(20).fill(0));
+for (let r = 0; r < 20; r++) {
+    for (let c = 0; c < 20; c++) {
+        if (r === 0 || r === 19 || c === 0 || c === 19) nightMarketMap[r][c] = 30;
+    }
+}
+nightMarketMap[0][9] = 0; nightMarketMap[0][10] = 0; // 正上方與河樂宮相通出口
+// 左上攤車 + 橘貓老闆
+nightMarketMap[3][3] = 21; nightMarketMap[3][4] = 999;
+nightMarketMap[4][3] = 999; nightMarketMap[4][4] = 999;
+nightMarketMap[4][2] = 41;
+// 右上攤車 + 黑貓老闆
+nightMarketMap[3][15] = 22; nightMarketMap[3][16] = 999;
+nightMarketMap[4][15] = 999; nightMarketMap[4][16] = 999;
+nightMarketMap[4][17] = 42;
+// 中左攤車 + 白貓老闆
+nightMarketMap[10][3] = 23; nightMarketMap[10][4] = 999;
+nightMarketMap[11][3] = 999; nightMarketMap[11][4] = 999;
+nightMarketMap[11][2] = 43;
+// 中右攤車 + 賓士貓老闆
+nightMarketMap[10][15] = 24; nightMarketMap[10][16] = 999;
+nightMarketMap[11][15] = 999; nightMarketMap[11][16] = 999;
+nightMarketMap[11][17] = 44;
+// 走道顧客與路樹
+nightMarketMap[7][6] = 52;
+nightMarketMap[8][13] = 51;
+nightMarketMap[1][2] = 32; nightMarketMap[1][17] = 32;
+nightMarketMap[14][6] = 32; nightMarketMap[14][13] = 32;
+// 最底部左右兩側機車（左側叭叭、右側變形金剛）
+nightMarketMap[17][2] = 31;
+nightMarketMap[17][17] = 31;
 
+// HOLA 大墩店 20×20 地圖
 let holaStoreMap = Array(20).fill(0).map(() => Array(20).fill(0));
 for(let r=0; r<20; r++) {
     for(let c=0; c<20; c++) {
@@ -706,24 +833,24 @@ holaStoreMap[17][6] = 121; holaStoreMap[17][7] = 999;
 holaStoreMap[18][6] = 999; holaStoreMap[18][7] = 999;
 holaStoreMap[10][8] = 61;
 
-let templeFlip = Array(10).fill(0).map(() => Array(10).fill(0));
-let nightMarketFlip = Array(10).fill(0).map(() => Array(10).fill(0));
+let templeFlip = Array(20).fill(0).map(() => Array(20).fill(0));
+let nightMarketFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 let holaStoreFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 
 function loadMaps() {
     let hadSavedHola = false;
     try {
-        let savedTemple = localStorage.getItem('templeMap_v2');
-        if (savedTemple) { let p = JSON.parse(savedTemple); if(p.length === 10) templeMap = p; }
-        let savedNight = localStorage.getItem('nightMarketMap_v2');
-        if (savedNight) { let p = JSON.parse(savedNight); if(p.length === 10) nightMarketMap = p; }
+        let savedTemple = localStorage.getItem('templeMap_v3');
+        if (savedTemple) { let p = JSON.parse(savedTemple); if(p.length === 20) templeMap = p; }
+        let savedNight = localStorage.getItem('nightMarketMap_v3');
+        if (savedNight) { let p = JSON.parse(savedNight); if(p.length === 20) nightMarketMap = p; }
         let savedHola = localStorage.getItem('holaStoreMap_v2');
         if (savedHola) { let p = JSON.parse(savedHola); if(p.length === 20) { holaStoreMap = p; hadSavedHola = true; } }
 
-        let sfTemple = localStorage.getItem('templeFlip_v2');
-        if (sfTemple) { let p = JSON.parse(sfTemple); if(p.length === 10) templeFlip = p; }
-        let sfNight = localStorage.getItem('nightMarketFlip_v2');
-        if (sfNight) { let p = JSON.parse(sfNight); if(p.length === 10) nightMarketFlip = p; }
+        let sfTemple = localStorage.getItem('templeFlip_v3');
+        if (sfTemple) { let p = JSON.parse(sfTemple); if(p.length === 20) templeFlip = p; }
+        let sfNight = localStorage.getItem('nightMarketFlip_v3');
+        if (sfNight) { let p = JSON.parse(sfNight); if(p.length === 20) nightMarketFlip = p; }
         let sfHola = localStorage.getItem('holaStoreFlip_v2');
         if (sfHola) { let p = JSON.parse(sfHola); if(p.length === 20) holaStoreFlip = p; }
     } catch(e) {}
@@ -787,27 +914,30 @@ function loadMaps() {
     }
 }
 function saveMaps() {
-    localStorage.setItem('templeMap_v2', JSON.stringify(templeMap));
-    localStorage.setItem('nightMarketMap_v2', JSON.stringify(nightMarketMap));
+    localStorage.setItem('templeMap_v3', JSON.stringify(templeMap));
+    localStorage.setItem('nightMarketMap_v3', JSON.stringify(nightMarketMap));
     localStorage.setItem('holaStoreMap_v2', JSON.stringify(holaStoreMap));
-    localStorage.setItem('templeFlip_v2', JSON.stringify(templeFlip));
-    localStorage.setItem('nightMarketFlip_v2', JSON.stringify(nightMarketFlip));
+    localStorage.setItem('templeFlip_v3', JSON.stringify(templeFlip));
+    localStorage.setItem('nightMarketFlip_v3', JSON.stringify(nightMarketFlip));
     localStorage.setItem('holaStoreFlip_v2', JSON.stringify(holaStoreFlip));
 }
 loadMaps();
 
-const cat = { x: 5.5 * TILE_SIZE, y: 7 * TILE_SIZE, speed: 4, dir: 'up', isMoving: false, isInteracting: false };
+const cat = { x: 9.5 * TILE_SIZE, y: 15 * TILE_SIZE, speed: 4, dir: 'up', isMoving: false, isInteracting: false };
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 let touchDir = null;
 
+function cancelAutoPath() {
+    autoPath = [];
+    pendingInteractTarget = null;
+    clickMarker = null;
+}
+
+// 三張 20×20 地圖皆支援三段縮放（0.5x 全景 -> 1.0x 標準 -> 2.0x 特寫）
 function getScale() {
-    if (currentMap === 'temple' || currentMap === 'nightMarket') {
-        return viewMode === 0 ? 1.0 : 2.0;
-    } else {
-        if (viewMode === 0) return 0.5;
-        if (viewMode === 1) return 1.0;
-        return 2.0;
-    }
+    if (viewMode === 0) return 0.5;
+    if (viewMode === 1) return 1.0;
+    return 2.0;
 }
 
 function updateZoomIcon() {
@@ -818,11 +948,7 @@ function updateZoomIcon() {
 }
 
 function toggleZoom() {
-    if (currentMap === 'temple' || currentMap === 'nightMarket') {
-        viewMode = (viewMode + 1) % 2;
-    } else {
-        viewMode = (viewMode + 1) % 3;
-    }
+    viewMode = (viewMode + 1) % 3;
     updateZoomIcon();
 }
 
@@ -830,6 +956,111 @@ function resetZoomForMap() {
     viewMode = 0; 
     updateZoomIcon();
 }
+
+// --- 操作與擴充說明彈窗 ---
+function openHelpModal() {
+    cancelAutoPath();
+    cat.isMoving = false;
+    let bodyHtml = '';
+    if (currentHelpTab === 'move') {
+        bodyHtml = `
+            <div class="help-card">
+                <b class="hl">🖱️ 電腦版操作（滑鼠＋鍵盤雙支援）</b><br>
+                • <b>滑鼠點擊空地</b>：貓咪會自動繞開障礙物走過去。<br>
+                • <b>滑鼠直接點人物／家具／機關牆</b>：貓咪會走到它旁邊並自動開啟對話或敲牆！<br>
+                • <b>鍵盤控制</b>：<code style="color:#00e676;">WASD</code> 或方向鍵移動，<code style="color:#00e676;">空白鍵 / Enter</code> 調查面前物件（手動按鍵會隨時接管自動走路）。
+            </div>
+            <div class="help-card">
+                <b class="bl">📱 手機版操作</b><br>
+                • <b>輕點螢幕</b>：同樣支援點擊地板自動走過去，或直接點人物／家具自動對話。<br>
+                • <b>滑動螢幕</b>：按住往上下左右滑動可連續手動走位。<br>
+                • <b>右下角藍色「調查」鈕</b>：調查面前的人事物。<br>
+                • <b>左上角縮放鈕</b>：三張 20×20 地圖皆支援 <b class="hl">0.5× 全景 → 1.0× 標準 → 2.0× 特寫</b> 三段視野切換。
+            </div>
+        `;
+    } else if (currentHelpTab === 'secret') {
+        bodyHtml = `
+            <div class="help-card">
+                <b class="hl">🏮 河樂宮互動功能</b><br>
+                • <b>靈籤籤筒（左側）</b>：即時連線 Google 試算表庫存，抽出今日有現貨且促銷中的上上籤商品。<br>
+                • <b>藍貓廟公（右側）</b>：輸入商品 SKU 編號，立即查詢售價與大墩店／楊梅倉庫存。<br>
+                • <b>正下方牌樓大門</b>：往下走可直接穿出廟門進入熱鬧的 <b class="gn">20×20 河樂夜市</b>。
+            </div>
+            <div class="help-card">
+                <b class="gn">🚪 隱藏彩蛋：通往 HOLA 大墩店密室</b><br>
+                • 先找左上角<b>金漸層貓</b>與右下角<b>無毛貓</b>打聽消息。<br>
+                • 走到無毛貓<b>頭頂正上方緊貼右牆</b>的位置，面向右牆連續按「調查」<b>五下</b>（或用滑鼠直接連點該面右牆五次），牆壁就會震動開啟通往大墩店的密道！<br>
+                • 夜市最底下左右各停一台機車，其中一台按調查會有驚喜變身。
+            </div>
+        `;
+    } else if (currentHelpTab === 'build') {
+        bodyHtml = `
+            <div class="help-card">
+                <b class="gn">🛠️ 麥塊創造模式操作</b><br>
+                • 點擊右上角 <b class="gn">🛠️</b> 進入創造模式（所有擺設會自動儲存在瀏覽器）。<br>
+                • <b>下方快捷列</b>：可切換 5 格常用家具、點 <b class="hl">🔃 鏡像</b> 左右翻轉方向、點 <b class="bl">⛏️ 收起</b> 移除場上物件。<br>
+                • <b>🎒 圖鑑背包</b>：收錄「賣場家具」、「人物神明」、「廟宇夜市」以及從 Google 試算表動態載入的自訂素材。
+            </div>
+            <div class="help-card">
+                <b class="bl">🔄 裝潢代碼分享與還原</b><br>
+                • 在創造模式下點擊上方紅色外框 <b class="hl">🔄</b> 按鈕：<br>
+                • <b>📤 匯出代碼</b>：會產生一串 <code style="color:#00e676;">HELE2:...</code> 專屬代碼，複製貼在 LINE 傳給同事或朋友。<br>
+                • <b>📥 匯入代碼</b>：貼上別人傳來的代碼，即可一鍵還原對方的全宇宙家具擺設。
+            </div>
+        `;
+    } else if (currentHelpTab === 'sheet') {
+        bodyHtml = `
+            <div class="help-card">
+                <b class="hl">📂 步驟 1：上傳去背 PNG 到 GitHub</b><br>
+                • 進入 GitHub 倉庫 <code style="color:#00e676;">hele-palace / custom /</code> 資料夾，上傳去背好的 PNG 圖片（例如 <code style="color:#00e676;">014382592.png</code>）。
+            </div>
+            <div class="help-card">
+                <b class="gn">📊 步驟 2：Google 試算表「自訂素材」分頁填寫</b><br>
+                免改任何程式碼，直接在試算表新增一列即可出現在遊戲背包中：
+                <table class="help-table">
+                    <tr><th>欄位</th><th>填寫說明</th></tr>
+                    <tr><td><b>ID</b></td><td>新素材從 <b>501</b> 開始編；若填 <b>110~121</b> 可直接覆蓋內建家具台詞。</td></tr>
+                    <tr><td><b>Category</b></td><td>填 <code style="color:#00e676;">hola</code>（家具）、<code style="color:#00e676;">npc</code>（人物）或 <code style="color:#00e676;">props</code>（廟宇夜市）。</td></tr>
+                    <tr><td><b>Name</b></td><td>顯示名稱（如：SITS Uma 布質旋轉單椅 芥黃）。</td></tr>
+                    <tr><td><b>File</b></td><td>圖片檔名（可省略 .png，例如 <code style="color:#00e676;">014382592</code>）。</td></tr>
+                    <tr><td><b>W / H</b></td><td>佔地格數（寬 × 深），單椅或人物填 <b>1</b> 與 <b>1</b>。</td></tr>
+                    <tr><td><b>ScaleH</b></td><td>視覺高度倍率（預設 <b>1</b>，高櫃或高大人物可填 1.3~1.6）。</td></tr>
+                    <tr><td><b>Dialog</b></td><td>商品台詞，用 <b class="hl">|</b> 隔開可設定多句輪播。</td></tr>
+                    <tr><td><b>LineBtn</b></td><td>填 <b>TRUE</b> 會在對話框下方自動附上加 KOBE LINE 按鈕。</td></tr>
+                </table>
+            </div>
+        `;
+    }
+
+    helpModal.innerHTML = `
+        <div class="cat-header">
+            <b style="color:#ffcc00; font-size:1.05rem;">📖 河樂宮操作與素材擴充指南</b>
+            <button onclick="closeHelpModal()" style="background:#444; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-weight:bold; cursor:pointer;">✖️ 關閉</button>
+        </div>
+        <div class="help-tabs">
+            <div class="help-tab ${currentHelpTab === 'move' ? 'active' : ''}" onclick="switchHelpTab('move')">🎮 移動互動</div>
+            <div class="help-tab ${currentHelpTab === 'secret' ? 'active' : ''}" onclick="switchHelpTab('secret')">🔮 宮廟彩蛋</div>
+            <div class="help-tab ${currentHelpTab === 'build' ? 'active' : ''}" onclick="switchHelpTab('build')">🛠️ 創造分享</div>
+            <div class="help-tab ${currentHelpTab === 'sheet' ? 'active' : ''}" onclick="switchHelpTab('sheet')">📊 新增素材</div>
+        </div>
+        <div class="help-body">${bodyHtml}</div>
+    `;
+    helpModal.style.display = 'flex';
+}
+
+function switchHelpTab(tab) {
+    currentHelpTab = tab;
+    openHelpModal();
+}
+
+function closeHelpModal() {
+    helpModal.style.display = 'none';
+}
+
+helpBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); tryPlayBGM(); openHelpModal(); });
+helpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); tryPlayBGM(); openHelpModal(); }, { passive: false });
+helpModal.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+helpModal.addEventListener('mousedown', e => e.stopPropagation());
 
 // --- 麥塊創造模式 UI 渲染與操作 ---
 function renderHotbar() {
@@ -946,11 +1177,13 @@ catalogModal.addEventListener('mousedown', e => e.stopPropagation());
 
 function toggleEditMode() {
     isDecorating = !isDecorating;
+    cancelAutoPath();
+    closeHelpModal();
     editModeUI.style.display = isDecorating ? 'block' : 'none';
     resetBtn.style.display = isDecorating ? 'block' : 'none';
     hotbar.style.display = isDecorating ? 'flex' : 'none';
     actionBtn.style.display = isDecorating ? 'none' : 'block';
-    instructions.style.display = isDecorating ? 'none' : 'block';
+    helpBtn.style.display = isDecorating ? 'none' : 'flex';
     editBtn.style.backgroundColor = isDecorating ? 'rgba(0, 230, 118, 0.85)' : 'rgba(0,0,0,0.6)';
 
     if(isDecorating) {
@@ -1090,14 +1323,14 @@ function applyImportCode() {
     let token = raw.slice(idx + 6).split(/\s+/)[0];
     try {
         let obj = JSON.parse(atob(token));
-        let nt = decodeGridRLE(obj.t, 10, 10);
-        let ntf = decodeGridRLE(obj.tf, 10, 10);
-        let nn = decodeGridRLE(obj.n, 10, 10);
-        let nnf = decodeGridRLE(obj.nf, 10, 10);
+        let nt = decodeGridRLE(obj.t, 20, 20);
+        let ntf = decodeGridRLE(obj.tf, 20, 20);
+        let nn = decodeGridRLE(obj.n, 20, 20);
+        let nnf = decodeGridRLE(obj.nf, 20, 20);
         let nh = decodeGridRLE(obj.h, 20, 20);
         let nhf = decodeGridRLE(obj.hf, 20, 20);
         if (!nt || !ntf || !nn || !nnf || !nh || !nhf) {
-            msg.innerText = "❌ 代碼內容不完整或已損毀！";
+            msg.innerText = "❌ 代碼內容不完整、版本不符或已損毀！";
             return;
         }
         templeMap = nt; templeFlip = ntf;
@@ -1114,6 +1347,7 @@ function applyImportCode() {
 function openResetMenu() {
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
     closeCatalogModal();
+    closeHelpModal();
     cat.isInteracting = true;
     isKnockingWall = false;
     dialogBox.innerHTML = `
@@ -1148,9 +1382,13 @@ function resetAllData() {
     try {
         localStorage.removeItem('templeMap_v2');
         localStorage.removeItem('nightMarketMap_v2');
+        localStorage.removeItem('templeMap_v3');
+        localStorage.removeItem('nightMarketMap_v3');
         localStorage.removeItem('holaStoreMap_v2');
         localStorage.removeItem('templeFlip_v2');
         localStorage.removeItem('nightMarketFlip_v2');
+        localStorage.removeItem('templeFlip_v3');
+        localStorage.removeItem('nightMarketFlip_v3');
         localStorage.removeItem('holaStoreFlip_v2');
         localStorage.removeItem('holaMigrated_v3');
     } catch(e) {}
@@ -1173,7 +1411,10 @@ zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropag
 window.addEventListener('keydown', e => {
     tryPlayBGM();
     if (isDecorating) return;
-    if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = true;
+        cancelAutoPath();
+    }
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tryInteract(); }
 });
 window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
@@ -1213,6 +1454,200 @@ function getActiveFlipLayout() {
     if (currentMap === 'temple') return templeFlip;
     if (currentMap === 'nightMarket') return nightMarketFlip;
     if (currentMap === 'holaStore') return holaStoreFlip;
+}
+
+function isTileWalkableCell(r, c) {
+    let mapLayout = getActiveMapLayout();
+    if (r < 0 || c < 0 || r >= mapLayout.length || c >= mapLayout[0].length) return false;
+    let tile = mapLayout[r][c];
+    if (currentMap === 'holaStore') return tile === 0 || tile === 201;
+    return tile === 0 || tile === 3;
+}
+
+function isSecretWallCell(r, c) {
+    return currentMap === 'temple' && (r === 15 || r === 16) && c === 19;
+}
+
+function isInteractableCell(r, c) {
+    let mapLayout = getActiveMapLayout();
+    if (r < 0 || c < 0 || r >= mapLayout.length || c >= mapLayout[0].length) return false;
+    let tile = mapLayout[r][c];
+    if (itemDims[tile] || (tile >= 501 && tile !== 999) || tile === 999 || tile === 201) return true;
+    if (isSecretWallCell(r, c)) return true;
+    return false;
+}
+
+// A* 最短路徑尋路演算法（支援單一目標或多格相鄰目標集）
+function findAStarPath(startR, startC, goalSet) {
+    let mapLayout = getActiveMapLayout();
+    let rows = mapLayout.length, cols = mapLayout[0].length;
+    let goalKeys = new Set(goalSet.map(g => `${g.r},${g.c}`));
+    if (goalKeys.size === 0) return null;
+
+    let startKey = `${startR},${startC}`;
+    if (goalKeys.has(startKey)) return [];
+
+    let open = [{ r: startR, c: startC, g: 0, f: 0 }];
+    let cameFrom = {};
+    let gScore = { [startKey]: 0 };
+    let closed = new Set();
+
+    const heuristic = (r, c) => {
+        let best = Infinity;
+        for (let g of goalSet) {
+            let d = Math.abs(r - g.r) + Math.abs(c - g.c);
+            if (d < best) best = d;
+        }
+        return best;
+    };
+
+    const dirs = [{ dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }];
+
+    while (open.length > 0) {
+        open.sort((a, b) => a.f - b.f);
+        let curr = open.shift();
+        let cKey = `${curr.r},${curr.c}`;
+        if (closed.has(cKey)) continue;
+        closed.add(cKey);
+
+        if (goalKeys.has(cKey)) {
+            let path = [];
+            let trace = cKey;
+            while (trace && trace !== startKey) {
+                let [tr, tc] = trace.split(',').map(Number);
+                path.unshift({ r: tr, c: tc });
+                trace = cameFrom[trace];
+            }
+            return path;
+        }
+
+        for (let d of dirs) {
+            let nr = curr.r + d.dr, nc = curr.c + d.dc;
+            if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+            let nKey = `${nr},${nc}`;
+            if (closed.has(nKey)) continue;
+            if (!isTileWalkableCell(nr, nc)) continue;
+
+            let tentativeG = curr.g + 1;
+            if (gScore[nKey] === undefined || tentativeG < gScore[nKey]) {
+                cameFrom[nKey] = cKey;
+                gScore[nKey] = tentativeG;
+                open.push({ r: nr, c: nc, g: tentativeG, f: tentativeG + heuristic(nr, nc) });
+            }
+        }
+    }
+    return null;
+}
+
+// 取得物件所有佔地格及其四周可站立的鄰近格
+function getAdjacentGoalsForTarget(r0, c0) {
+    let mapLayout = getActiveMapLayout();
+    let tile = mapLayout[r0][c0];
+    let cells = [{ r: r0, c: c0 }];
+
+    if (tile === 999) {
+        outerRoot: for (let dr = 0; dr >= -4; dr--) {
+            for (let dc = 0; dc >= -4; dc--) {
+                let rr = r0 + dr, cc = c0 + dc;
+                if (rr >= 0 && cc >= 0) {
+                    let t = mapLayout[rr][cc];
+                    let d = itemDims[t];
+                    if (d && r0 < rr + d.h && c0 < cc + d.w) {
+                        r0 = rr; c0 = cc; tile = t;
+                        break outerRoot;
+                    }
+                }
+            }
+        }
+    }
+
+    if (itemDims[tile] || (tile >= 501 && tile !== 999)) {
+        let dim = itemDims[tile] || { w: 1, h: 1 };
+        cells = [];
+        for (let dr = 0; dr < dim.h; dr++) {
+            for (let dc = 0; dc < dim.w; dc++) {
+                cells.push({ r: r0 + dr, c: c0 + dc });
+            }
+        }
+    }
+
+    let neighborMap = new Map();
+    const dirs = [{ dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }];
+    for (let cell of cells) {
+        for (let d of dirs) {
+            let nr = cell.r + d.dr, nc = cell.c + d.dc;
+            if (isTileWalkableCell(nr, nc)) {
+                neighborMap.set(`${nr},${nc}`, { r: nr, c: nc });
+            }
+        }
+    }
+    return Array.from(neighborMap.values());
+}
+
+// 點擊地圖尋路移動與自動對話
+function handleMapClickMove(clientX, clientY) {
+    if (isDecorating || isPrompting) return;
+    if (helpModal.style.display === 'flex') return;
+
+    if (dialogBox.style.display === 'block') {
+        let posCheck = getGridPos(clientX, clientY);
+        if (!(isKnockingWall && isSecretWallCell(posCheck.r, posCheck.c))) {
+            closeDialog();
+            return;
+        }
+    }
+
+    tryPlayBGM();
+    let pos = getGridPos(clientX, clientY);
+    let mapLayout = getActiveMapLayout();
+    if (pos.r < 0 || pos.c < 0 || pos.r >= mapLayout.length || pos.c >= mapLayout[0].length) return;
+
+    let startR = Math.floor((cat.y + TILE_SIZE / 2) / TILE_SIZE);
+    let startC = Math.floor((cat.x + TILE_SIZE / 2) / TILE_SIZE);
+
+    // 若點擊的是可互動物件、NPC 或敲五下密室牆
+    if (isInteractableCell(pos.r, pos.c) && mapLayout[pos.r][pos.c] !== 201) {
+        let goals = getAdjacentGoalsForTarget(pos.r, pos.c);
+        let path = findAStarPath(startR, startC, goals);
+        if (path !== null) {
+            autoPath = path;
+            pendingInteractTarget = { r: pos.r, c: pos.c };
+            clickMarker = { r: pos.r, c: pos.c, isInteract: true, time: Date.now() };
+            // 若已經站在目標旁邊，直接轉向並互動
+            if (path.length === 0) {
+                faceAndInteractTarget();
+            }
+        }
+        return;
+    }
+
+    // 若點擊的是可行走空地或出入口
+    if (isTileWalkableCell(pos.r, pos.c)) {
+        let path = findAStarPath(startR, startC, [{ r: pos.r, c: pos.c }]);
+        if (path && path.length > 0) {
+            autoPath = path;
+            pendingInteractTarget = (mapLayout[pos.r][pos.c] === 201) ? { r: pos.r, c: pos.c } : null;
+            clickMarker = { r: pos.r, c: pos.c, isInteract: false, time: Date.now() };
+        }
+    }
+}
+
+function faceAndInteractTarget() {
+    if (!pendingInteractTarget) return;
+    let target = pendingInteractTarget;
+    pendingInteractTarget = null;
+    clickMarker = null;
+
+    let catR = Math.floor((cat.y + TILE_SIZE / 2) / TILE_SIZE);
+    let catC = Math.floor((cat.x + TILE_SIZE / 2) / TILE_SIZE);
+    let dr = target.r - catR;
+    let dc = target.c - catC;
+    if (Math.abs(dc) >= Math.abs(dr) && dc !== 0) {
+        cat.dir = dc > 0 ? 'right' : 'left';
+    } else if (dr !== 0) {
+        cat.dir = dr > 0 ? 'down' : 'up';
+    }
+    interactWithCoord(target.r, target.c);
 }
 
 function isPlacementValid(r0, c0, dim) {
@@ -1301,17 +1736,22 @@ function handleEditInteraction(clientX, clientY) {
     }
 }
 
-canvas.addEventListener('mousedown', e => { if (!isDecorating) return; handleEditInteraction(e.clientX, e.clientY); });
+canvas.addEventListener('mousedown', e => {
+    if (isDecorating) handleEditInteraction(e.clientX, e.clientY);
+    else handleMapClickMove(e.clientX, e.clientY);
+});
 canvas.addEventListener('touchstart', e => { if (!isDecorating) return; e.preventDefault(); handleEditInteraction(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
 canvas.addEventListener('mousemove', e => { if (isDecorating) { let pos = getGridPos(e.clientX, e.clientY); cursorR = pos.r; cursorC = pos.c; } });
 canvas.addEventListener('touchmove', e => { if (isDecorating) { e.preventDefault(); let pos = getGridPos(e.touches[0].clientX, e.touches[0].clientY); cursorR = pos.r; cursorC = pos.c; } }, { passive: false });
 
 let isTouching = false;
+let touchMoved = false;
 let touchStartX = 0, touchStartY = 0;
 window.addEventListener('touchstart', e => {
-    if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target === resetBtn || e.target.closest('#dialogBox') || e.target.closest('#hotbar') || e.target.closest('#catalogModal')) return;
+    if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target === resetBtn || e.target === helpBtn || e.target.closest('#dialogBox') || e.target.closest('#hotbar') || e.target.closest('#catalogModal') || e.target.closest('#helpModal')) return;
     if (isDecorating) return;
     isTouching = true;
+    touchMoved = false;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     touchDir = null;
@@ -1322,14 +1762,22 @@ window.addEventListener('touchmove', e => {
     let diffX = e.touches[0].clientX - touchStartX;
     let diffY = e.touches[0].clientY - touchStartY;
     if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
+        touchMoved = true;
+        cancelAutoPath();
         if (Math.abs(diffX) > Math.abs(diffY)) touchDir = diffX > 0 ? 'right' : 'left';
         else touchDir = diffY > 0 ? 'down' : 'up';
     }
 }, { passive: false });
-window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
+window.addEventListener('touchend', e => {
+    if (isTouching && !touchMoved && !isDecorating) {
+        handleMapClickMove(touchStartX, touchStartY);
+    }
+    isTouching = false;
+    touchDir = null;
+});
 
-actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); }, { passive: false });
-actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); });
+actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); cancelAutoPath(); if(!isDecorating) tryInteract(); }, { passive: false });
+actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); cancelAutoPath(); if(!isDecorating) tryInteract(); });
 
 function tryPlayBGM() {
     if (!bgmPlayed) {
@@ -1418,7 +1866,6 @@ async function fetchCustomItems() {
         let loadedCount = 0;
 
         rows.forEach(rawRow => {
-            // 統一轉小寫讀取欄位（相容 ID / id、ScaleH / scaleH、LineBtn / lineBtn 等）
             let row = {};
             Object.keys(rawRow).forEach(k => {
                 row[k.trim().toLowerCase()] = rawRow[k];
@@ -1432,7 +1879,6 @@ async function fetchCustomItems() {
                 ? rawDialog.split('|').map(s => s.trim()).filter(Boolean)
                 : [];
 
-            // 若 id 為既有家具 (110~121)，直接覆蓋其商品台詞
             if (furnitureDialogues[id] && dialogLines.length > 0) {
                 furnitureDialogues[id] = dialogLines;
                 furnitureDialogIndex[id] = 0;
@@ -1440,7 +1886,6 @@ async function fetchCustomItems() {
                 return;
             }
 
-            // 註冊全新自訂素材 (id >= 501)
             let name = (row['name'] || `自訂物件 #${id}`).trim();
             let rawCat = (row['category'] || 'hola').trim().toLowerCase();
             let cat = ['hola', 'npc', 'props'].includes(rawCat) ? rawCat : 'hola';
@@ -1516,9 +1961,9 @@ function launchGame() {
     loadingDiv.style.display = 'none';
     canvas.style.display = 'block';
     actionBtn.style.display = 'block';
+    helpBtn.style.display = 'flex';
     zoomBtn.style.display = 'block'; 
     editBtn.style.display = 'block';
-    instructions.style.display = 'block'; 
     gameLoop();
 }
 
@@ -1579,19 +2024,19 @@ function isWalkable(newX, newY) {
 
 function findSafeTempleExitPos() {
     const candidates = [
-        [7, 8], [7, 7], [6, 8], [6, 7], [8, 7], [7, 6], [7, 5], [6, 5]
+        [16, 17], [16, 18], [15, 17], [17, 17], [16, 16], [15, 16], [15, 10], [15, 9]
     ];
     for (let [r, c] of candidates) {
         let t = templeMap[r][c];
         if (t === 0 || t === 3) return { x: c * TILE_SIZE, y: r * TILE_SIZE };
     }
-    for (let r = 1; r < 9; r++) {
-        for (let c = 1; c < 9; c++) {
+    for (let r = 1; r < 19; r++) {
+        for (let c = 1; c < 19; c++) {
             let t = templeMap[r][c];
             if (t === 0 || t === 3) return { x: c * TILE_SIZE, y: r * TILE_SIZE };
         }
     }
-    return { x: 5 * TILE_SIZE, y: 7 * TILE_SIZE };
+    return { x: 9.5 * TILE_SIZE, y: 15 * TILE_SIZE };
 }
 
 let isPrompting = false;
@@ -1611,21 +2056,25 @@ function tryInteract() {
         if (key !== cat.dir) checkOffsets.push(dirMap[key]);
     }
 
-    let foundCoord = null;
     for (let offset of checkOffsets) {
         let targetX = cx + offset.x, targetY = cy + offset.y;
         let c = Math.floor(targetX / TILE_SIZE), r = Math.floor(targetY / TILE_SIZE);
         if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
             let tile = mapLayout[r][c];
             if (itemDims[tile] || (tile >= 501 && tile !== 999) || tile === 999 || tile === 1 || tile === 201) {
-                if (tile === 1 && !(currentMap === 'temple' && (r === 6 || r === 7) && c === 9)) continue;
-                foundCoord = { r: r, c: c, tile: tile };
-                break;
+                if (tile === 1 && !isSecretWallCell(r, c)) continue;
+                interactWithCoord(r, c);
+                return;
             }
         }
     }
-    if (!foundCoord) return;
-    let tile = foundCoord.tile;
+}
+
+function interactWithCoord(r, c) {
+    if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating) return;
+    let mapLayout = getActiveMapLayout();
+    if (r < 0 || c < 0 || r >= mapLayout.length || c >= mapLayout[0].length) return;
+    let tile = mapLayout[r][c];
 
     if (tile !== 1) {
         isKnockingWall = false;
@@ -1635,11 +2084,11 @@ function tryInteract() {
     if (tile === 999) {
         outerResolve: for (let dr = 0; dr >= -4; dr--) {
             for (let dc = 0; dc >= -4; dc--) {
-                let nr = foundCoord.r + dr, nc = foundCoord.c + dc;
+                let nr = r + dr, nc = c + dc;
                 if (nr >= 0 && nc >= 0) {
                     let nt = mapLayout[nr][nc];
                     let d = itemDims[nt];
-                    if (d && foundCoord.r < nr + d.h && foundCoord.c < nc + d.w) {
+                    if (d && r < nr + d.h && c < nc + d.w) {
                         tile = nt; break outerResolve;
                     }
                 }
@@ -1647,7 +2096,7 @@ function tryInteract() {
         }
     }
 
-    if (currentMap === 'temple' && tile === 1) {
+    if (isSecretWallCell(r, c)) {
         wallKnockCount++;
         if (wallKnockCount < 5) {
             showDialog(`<div style='text-align:center;'>🚪 叩、叩... 牆壁發出空洞的聲音。<br><span style='color:#aaa;font-size:0.8em;'>(已敲擊 ${wallKnockCount}/5 下)</span></div>`, 2000, true);
@@ -1655,6 +2104,7 @@ function tryInteract() {
             wallKnockCount = 0;
             isKnockingWall = false;
             isPrompting = true;
+            cancelAutoPath();
             canvas.classList.add('shake-active');
             setTimeout(() => canvas.classList.remove('shake-active'), 500);
             showDialog("<div style='text-align:center;'>✨ 轟隆隆... 牆壁竟然緩緩打開，露出一個充滿北歐質感的神秘空間！</div>", 3500);
@@ -1678,14 +2128,14 @@ function tryInteract() {
     if (tile >= 51 && tile <= 52) handleNightCat('cus' + (tile-50), ['🐈 顧客 (喝珍奶)', '🐈 顧客 (吃香腸)'][tile-51], currentMap);
 
     if (tile === 31) {
-        if (foundCoord.c === 1) showDialog("<div style='text-align:center;'>🛵 機車：<br>「叭～叭～！找死啊！」</div>", 3000);
+        if (c < 10) showDialog("<div style='text-align:center;'>🛵 機車：<br>「叭～叭～！找死啊！」</div>", 3000);
         else {
             isPrompting = true;
             canvas.classList.add('shake-active');
             setTimeout(() => canvas.classList.remove('shake-active'), 500);
             showDialog("<div style='text-align:center;'>⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」</div>", 1500);
             setTimeout(() => {
-                mapLayout[foundCoord.r][foundCoord.c] = 33; 
+                mapLayout[r][c] = 33; 
                 saveMaps();
                 showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 4000);
                 isPrompting = false;
@@ -1696,6 +2146,7 @@ function tryInteract() {
 
     if (currentMap === 'holaStore' && tile === 201) {
         isPrompting = true;
+        cancelAutoPath();
         showDialog("<div style='text-align:center;'>🚪 離開大墩店，回到人間...</div>", 1500);
         setTimeout(() => {
             let safePos = findSafeTempleExitPos();
@@ -1838,8 +2289,32 @@ function showDialog(text, duration = 4000, keepKnocking = false) {
     }, duration);
 }
 
+function checkMapTransitions(dy) {
+    if (currentMap === 'temple' && cat.y >= 18.5 * TILE_SIZE && dy > 0 && cat.x >= 8 * TILE_SIZE && cat.x <= 11 * TILE_SIZE) {
+        cancelAutoPath();
+        currentMap = 'nightMarket';
+        cat.x = 9.5 * TILE_SIZE;
+        cat.y = 0.5 * TILE_SIZE;
+        cat.isMoving = false;
+        resetZoomForMap();
+        return true;
+    }
+    if (currentMap === 'nightMarket' && cat.y <= 0.5 * TILE_SIZE && dy < 0 && cat.x >= 8 * TILE_SIZE && cat.x <= 11 * TILE_SIZE) {
+        cancelAutoPath();
+        currentMap = 'temple';
+        cat.x = 9.5 * TILE_SIZE;
+        cat.y = 18.5 * TILE_SIZE;
+        cat.isMoving = false;
+        resetZoomForMap();
+        return true;
+    }
+    return false;
+}
+
 function update() {
     if (cat.isInteracting || isPrompting || isDecorating) return;
+    if (helpModal.style.display === 'flex') return;
+
     cat.isMoving = false;
     let dx = 0, dy = 0;
 
@@ -1848,15 +2323,54 @@ function update() {
     else if (keys['a'] || keys['ArrowLeft'] || touchDir === 'left') { dx = -cat.speed; cat.dir = 'left'; cat.isMoving = true; }
     else if (keys['d'] || keys['ArrowRight'] || touchDir === 'right') { dx = cat.speed; cat.dir = 'right'; cat.isMoving = true; }
 
-    if (currentMap === 'temple' && cat.y >= 8.5 * TILE_SIZE && dy > 0 && cat.x >= 3.5 * TILE_SIZE && cat.x <= 5.8 * TILE_SIZE) {
-        currentMap = 'nightMarket'; cat.y = 0.5 * TILE_SIZE; cat.isMoving = false; resetZoomForMap(); return;
-    }
-    if (currentMap === 'nightMarket' && cat.y <= 0.5 * TILE_SIZE && dy < 0 && cat.x >= 3.5 * TILE_SIZE && cat.x <= 5.8 * TILE_SIZE) {
-        currentMap = 'temple'; cat.y = 8.5 * TILE_SIZE; cat.isMoving = false; resetZoomForMap(); return;
+    if (dx !== 0 || dy !== 0) {
+        cancelAutoPath();
+        if (checkMapTransitions(dy)) return;
+        if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
+        if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
+        return;
     }
 
-    if (dx !== 0 && isWalkable(cat.x + dx, cat.y)) cat.x += dx;
-    if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
+    // 點擊自動尋路移動邏輯
+    if (autoPath.length > 0) {
+        let wp = autoPath[0];
+        if (!isTileWalkableCell(wp.r, wp.c)) {
+            cancelAutoPath();
+            return;
+        }
+        let targetX = wp.c * TILE_SIZE;
+        let targetY = wp.r * TILE_SIZE;
+        let diffX = targetX - cat.x;
+        let diffY = targetY - cat.y;
+
+        if (Math.abs(diffX) <= cat.speed && Math.abs(diffY) <= cat.speed) {
+            cat.x = targetX;
+            cat.y = targetY;
+            autoPath.shift();
+            if (autoPath.length === 0) {
+                cat.isMoving = false;
+                if (pendingInteractTarget) {
+                    faceAndInteractTarget();
+                } else {
+                    clickMarker = null;
+                }
+            }
+        } else {
+            cat.isMoving = true;
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                let stepX = Math.sign(diffX) * Math.min(cat.speed, Math.abs(diffX));
+                cat.dir = stepX > 0 ? 'right' : 'left';
+                if (isWalkable(cat.x + stepX, cat.y)) cat.x += stepX;
+                else cancelAutoPath();
+            } else {
+                let stepY = Math.sign(diffY) * Math.min(cat.speed, Math.abs(diffY));
+                cat.dir = stepY > 0 ? 'down' : 'up';
+                if (checkMapTransitions(stepY)) return;
+                if (isWalkable(cat.x, cat.y + stepY)) cat.y += stepY;
+                else cancelAutoPath();
+            }
+        }
+    }
 }
 
 setInterval(() => {
@@ -1866,6 +2380,7 @@ setInterval(() => {
     let catCenterY = cat.y + TILE_SIZE / 2;
     let catR = Math.floor(catCenterY / TILE_SIZE);
     let catC = Math.floor(catCenterX / TILE_SIZE);
+    let pathSet = new Set(autoPath.map(p => `${p.r},${p.c}`));
 
     let npcsToMove = [];
     for (let r = 0; r < holaStoreMap.length; r++) {
@@ -1888,6 +2403,7 @@ setInterval(() => {
             let nr = npc.r + d.dr, nc = npc.c + d.dc;
             if (nr < 0 || nr >= holaStoreMap.length || nc < 0 || nc >= holaStoreMap[0].length) return false;
             if (nr === catR && nc === catC) return false;
+            if (pathSet.has(`${nr},${nc}`)) return false;
             return holaStoreMap[nr][nc] === 0;
         });
 
@@ -2008,6 +2524,20 @@ function draw() {
         }
     }
 
+    // 點擊自動尋路的地面目標標記
+    if (!isDecorating && clickMarker && autoPath.length > 0) {
+        let pulse = 0.55 + 0.35 * Math.sin(Date.now() / 160);
+        let mx = clickMarker.c * TILE_SIZE + TILE_SIZE / 2;
+        let my = clickMarker.r * TILE_SIZE + TILE_SIZE / 2;
+        ctx.save();
+        ctx.strokeStyle = clickMarker.isInteract ? `rgba(79, 195, 247, ${pulse})` : `rgba(255, 204, 0, ${pulse})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(mx, my, TILE_SIZE * 0.34, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
     for (let r = 0; r < mapLayout.length; r++) {
         for (let c = 0; c < mapLayout[r].length; c++) {
             let tile = mapLayout[r][c];
@@ -2016,7 +2546,7 @@ function draw() {
             
             if (tile === 1) ctx.drawImage(images['wall'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 2) ctx.drawImage(images['wall_lotus'], posX, posY, TILE_SIZE, TILE_SIZE);
-            if (tile === 3 && c === 5) ctx.drawImage(images['gate'], posX - (TILE_SIZE * 1.25), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
+            if (tile === 3 && c === 9) ctx.drawImage(images['gate'], posX - (TILE_SIZE * 0.75), posY - (TILE_SIZE * 1.5), TILE_SIZE * 2.5, TILE_SIZE * 2.5);
             if (tile === 30) ctx.drawImage(images['fence'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 101) ctx.drawImage(images['wall_hola'], posX, posY, TILE_SIZE, TILE_SIZE);
 
