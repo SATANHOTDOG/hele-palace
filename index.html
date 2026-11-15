@@ -108,30 +108,62 @@ resize: none;
 }
 #actionBtn {
 position: fixed;
-bottom: 30px;
-right: 30px;
-width: 65px;
-height: 65px;
-background-color: rgba(255, 255, 255, 0.15);
-border: 2px solid rgba(255, 255, 255, 0.4);
+bottom: 28px;
+right: 26px;
+width: 68px;
+height: 68px;
 border-radius: 50%;
-box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+background: radial-gradient(circle at 32% 28%, #5cc8ff 0%, #157efb 48%, #0747a6 88%, #042b69 100%);
+border: 2px solid #8ad4ff;
+box-shadow:
+  0 6px 18px rgba(10, 110, 255, 0.65),
+  inset 0 -4px 8px rgba(0, 20, 70, 0.65),
+  inset 0 2px 4px rgba(255, 255, 255, 0.65);
 user-select: none;
+-webkit-user-select: none;
+-webkit-tap-highlight-color: transparent;
 z-index: 100;
 cursor: pointer;
 display: none;
-font-size: 30px;
-text-align: center;
-line-height: 65px;
-backdrop-filter: blur(8px);
--webkit-backdrop-filter: blur(8px);
+overflow: hidden;
+transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+#actionBtn::before {
+content: '';
+position: absolute;
+top: 4px;
+left: 11px;
+width: 46px;
+height: 25px;
+border-radius: 50%;
+background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.06) 100%);
+pointer-events: none;
+z-index: 1;
 }
 #actionBtn::after {
-content: '👆';
+content: '調查';
+position: absolute;
+inset: 0;
+display: flex;
+align-items: center;
+justify-content: center;
+font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
+font-size: 18px;
+font-weight: 900;
+letter-spacing: 1px;
+color: #ffffff;
+text-shadow:
+  0 2px 2px rgba(0, 32, 96, 0.95),
+  0 0 8px rgba(255, 255, 255, 0.9),
+  0 0 16px rgba(125, 211, 252, 0.95);
+pointer-events: none;
+z-index: 2;
 }
 #actionBtn:active {
-transform: scale(0.9);
-background-color: rgba(255, 255, 255, 0.3);
+transform: scale(0.91) translateY(2px);
+box-shadow:
+  0 2px 8px rgba(10, 110, 255, 0.5),
+  inset 0 3px 8px rgba(0, 15, 60, 0.85);
 }
 #zoomBtn {
 position: fixed;
@@ -216,7 +248,6 @@ z-index: 100;
 pointer-events: none;
 box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
-/* 麥塊快捷道具欄（手機自適應全寬置中，右側不裁切） */
 #hotbar {
 position: fixed;
 bottom: 16px;
@@ -291,7 +322,6 @@ background: #444;
 margin: 0 1px;
 flex-shrink: 0;
 }
-/* 全圖鑑背包彈窗 */
 #catalogModal {
 display: none;
 position: fixed;
@@ -358,6 +388,7 @@ flex-direction: column;
 align-items: center;
 cursor: pointer;
 text-align: center;
+position: relative;
 }
 .cat-card:active {
 transform: scale(0.95);
@@ -381,6 +412,17 @@ line-height: 1.2;
 font-size: 0.68rem;
 color: #aaa;
 margin-top: 2px;
+}
+.cat-badge-custom {
+position: absolute;
+top: 4px;
+right: 4px;
+background: #00e676;
+color: #000;
+font-size: 0.6rem;
+font-weight: bold;
+padding: 1px 4px;
+border-radius: 4px;
 }
 #instructions {
 position: fixed;
@@ -430,13 +472,19 @@ text-shadow: 1px 1px 2px #000;
 <div id="editModeUI">🛠️ 創造模式：選下方物件點空地放置</div>
 <div id="hotbar"></div>
 <div id="catalogModal"></div>
-<div id="actionBtn"></div>
+<div id="actionBtn" role="button" aria-label="調查"></div>
 <div id="instructions">
 💻 電腦版：WASD移動 / 空白鍵調查<br>
-📱 手機版：滑動螢幕 / 點擊 👆 調查
+📱 手機版：滑動螢幕 / 點擊「調查」藍鈕
 </div>
 
 <script>
+// ==========================================
+// 【自訂素材資料庫設定區】
+// Google 試算表「自訂素材」分頁 CSV 網址：
+// ==========================================
+const CUSTOM_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=276757910&single=true&output=csv";
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const loadingDiv = document.getElementById('loading');
@@ -478,7 +526,9 @@ const assetNames = [
 const images = {};
 let settledImages = 0;
 let sheetSettled = false;
+let customSheetSettled = false;
 let sheetStateText = "連線中";
+let customSheetStateText = "連線中";
 let inventoryData = [];
 const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'];
 const activeGod = godList[Math.floor(Math.random() * godList.length)];
@@ -491,7 +541,7 @@ let npcTalked = { golden: false, hairless: false };
 
 // 麥塊創造模式狀態
 let isDecorating = false;
-let creativeMode = 'place'; // 'place' | 'remove'
+let creativeMode = 'place';
 let hotbarItems = [112, 119, 121, 61, 114];
 let activeSlot = 0;
 let heldFlipped = false;
@@ -512,7 +562,11 @@ const itemDims = {
     121: {w:2, h:2}
 };
 
-// 全圖鑑目錄
+// 自訂資料庫註冊表（由 Google 試算表動態填入）
+const customItemMeta = {};
+const customDialogIndex = {};
+
+// 內建圖鑑目錄
 const catalogItems = [
     { tile: 112, cat: 'hola', name: '奧丁雙電動沙發', img: 'matchy_sofa2', size: '3×2' },
     { tile: 113, cat: 'hola', name: '伊登麻吉兩人座', img: 'matchy_sofa3', size: '2×2' },
@@ -549,20 +603,23 @@ const catalogItems = [
 ];
 
 function getItemMeta(tile) {
-    return catalogItems.find(i => i.tile === tile) || { tile, name: '物件', img: 'icon', size: '1×1' };
+    if (customItemMeta[tile]) return customItemMeta[tile];
+    let found = catalogItems.find(i => i.tile === tile);
+    if (found) return { ...found, imgSrc: found.img + '.png' };
+    return { tile, name: `自訂物件 #${tile}`, img: 'icon', imgSrc: 'icon.png', size: '1×1' };
 }
 
 // 夜市專用對話
 const dialogues = {
     boss1: ["「聽說 KOBE 那傢伙一天只能吃兩餐，那我這香腸算正餐還是點心？」", "「蒜頭自己剝，不要逼一隻貓做這種破壞指甲的粗活。」", "「這香腸烤得比我的人生還要通透，來一根？」"],
     boss2: ["「裡面包的是章魚還是魷魚？這是一個連 KOBE 都參不透的哲學問題。」", "「柴魚片在跳舞，不是因為熱，是因為它們也有業績壓力。」", "「買一盒吧，綁這頭巾讓我的耳朵有點悶，需要用錢來通風。」"],
-    boss3: ["「KOBE 上次點了無糖微冰，然後偷偷加了兩包砂糖，我都看到了。」", "「搖飲料的手速，完全取決於今天的罐罐等級。」", "「珍珠是用我的黑眼圈搓出來的，保證純天然。」"],
+    boss3: ["「KOBE 上次點了無糖微冰，然後偷偷加兩包砂糖，我都看到了。」", "「搖飲料的手速，完全取決於今天的罐罐等級。」", "「珍珠是用我的黑眼圈搓出來的，保證純天然。」"],
     boss4: ["「撈不到金魚不要哭，KOBE 當年連水球都撈破。」", "「網子是用紙做的，我的良心也是。」", "「別問我魚從哪裡來，有些事情知道了對你沒好處。」"],
     cus1: ["「我只是想在夜市找個角落安靜地喝珍奶，為什麼 KOBE 一直在看我？」", "「半糖去冰是成人的妥協，但我只是隻貓。」", "「排隊排了半小時，結果我根本乳糖不耐症。」"],
     cus2: ["「大腸包小腸的精髓在於，你永遠不知道哪個是大腸，哪個是小腸。」", "「聽說 KOBE 推薦這攤，但我懷疑他有抽成。」", "「吃太飽了，需要找張 La-Z-Boy 躺一下...啊，走錯棚了。」"]
 };
 
-// HOLA 賣場專用對話 (影分身切換)
+// HOLA 賣場專用對話
 const holaNpcDialogues = {
     boss1: ["「KOBE 說賣場禁止生火，但我看那張克萊歐岩紋餐桌挺耐熱的，要不我們等下拿來烤香腸試試？」", "「這冷氣真舒服，比在夜市流汗好多了。」", "「聽說這裡買家具能分期，那我買香腸可以分期嗎？」"],
     boss2: ["「我只是來蹭免費冷氣的。那張電動沙發躺起來比我的章魚燒還要軟爛，真是不簡單。」", "「這裡的氣氛太高級了，我都不敢大聲叫賣。」", "「KOBE 那傢伙在這裡看起來居然有點專業，真是見鬼了。」"],
@@ -585,19 +642,20 @@ let kobeDialogIndex = 0;
 const dialogStates = { boss1: 0, boss2: 0, boss3: 0, boss4: 0, cus1: 0, cus2: 0 };
 
 const furnitureDialogues = {
-    110: "「比佛利石墨烯恆溫乳膠獨立筒。表面石墨烯加天然乳膠，軟硬適中，聽起來像什麼拯救失眠的高科技黑魔法。躺上去體溫跟智商都會跟著恆定。強烈建議買回去要設十個鬧鐘，上個月有個客人早上賣場剛開門就來試躺，他醒來已經是我們要打烊的時候了。」",
-    111: "「LADY 銅離子抗菌乳膠獨立筒。裡面加了蠶絲冬暖夏涼，表層還抗菌。這年頭連床都比人的抵抗力還強。就算你三天沒洗澡躺上去，細菌都會嫌你髒自己搬家。真的是單身狗的終極救贖，反正也沒人會幫你暖床。」",
-    112: "「奧丁雙電動零重力三人沙發。零重力聽起來像要去外太空，其實就是可以直接躺平到 180 度。這設計根本在鼓勵大家跟老婆吵架時，直接睡客廳還比睡床舒服。缺點大概就是躺久了會毫無求生慾吧。」",
-    113: "「伊登麻吉模組沙發兩人座。主打『模組化』，聽起來很自由，可以像積木拼出你夢想中的客廳，但殘酷的事實是你家客廳根本不夠大。坐感滿Q彈的，像坐在一個巨大的發福史萊姆上。顏色很搭那些剛辦完40年房貸、對生活還有不切實際幻想的年輕人。」",
-    114: "「克萊歐岩紋餐桌。岩紋表面有一種冷酷的專業感，就算你在上面打翻排骨酥湯，抹布一嚕就乾淨了，完全看不出昨晚經歷過什麼摧殘。吃泡麵都能吃出米其林的錯覺。對了，這桌子夠硬，吵架翻桌的時候記得三思，桌子沒事，你會先骨折。」",
-    115: "「艾禮思木藝邊櫃。這玩意兒就是家具界的萬金油。當電視櫃、展示櫃，或者拿來塞你買了卻從來不用的智商稅家電。只要拉門一關，裡面就算藏了一堆沒繳的信用卡帳單，外面看起來依然是個品味高雅的中產階級。假掰必備。」",
-    116: "「艾禮思木藝二抽高櫃。這造型...X的，根本就是我阿嬤家拿來放拜拜剩菜的那個菜櫥啊！現在套上『復古木藝』四個字價格直接翻倍，這就是資本主義的魔法。買回去半夜打開，如果裡面沒擺一盤冷掉的白斬雞，我可是會客訴的。」",
-    117: "「La-Z-Boy 512 手動經典搖椅。這張的腰部支撐力，比你那脆弱的自尊心還要堅強。手動的好處就是，當你窮到繳不出電費的時候，它依然能陪你在黑暗中搖曳生姿，快買一張回去吧。」",
-    118: "「La-Z-Boy 765 雙電動牛皮椅。這坐感軟爛到什麼程度？就是你剛按下遙控器，電視都還沒亮，你人已經在夢裡跟周公打麻將了。服貼度極高，簡直像被一個巨型皮製怪獸吞噬。強烈建議不要在這張椅子上思考人生，你會直接變成一團只會呼吸的廢肉。」",
-    119: "「La-Z-Boy 521 雙電動按摩牛皮椅。多段震動加溫熱功能，這哪是椅子，這根本是合法的老人復健中心。冷天開加熱再開震動，舒服到你會懷疑自己是不是已經升天了。唯一缺點就是震到後來括約肌會有點失守，麻煩試坐前先去尿尿。」",
-    120: "「La-Z-Boy 紐約北歐式休閒椅。北歐風就是有一種『我很有錢但我不想讓你看出來』的裝逼感。這皮面、這線條，坐上去彷彿自帶精品手沖咖啡的濾鏡。老實說，你就算穿著泛黃吊嘎在上面摳腳，別人也會以為你在進行什麼北歐行為藝術，滿超值的。」",
-    121: "「聖誕檔期限定展示樹。每年十一月就開始放聖誕歌，這棵樹在賣場裡站得比你上班還久。上面的金星跟禮物盒都是裝飾品，但你客廳裡那堆還沒拆封的網購紙箱是真的。趁聖誕節趕快買張大邊櫃把雜物塞進去吧，不然聖誕老公公半夜爬進來，第一件事就是被你家客廳絆倒。」"
+    110: ["「比佛利石墨烯恆溫乳膠獨立筒。表面石墨烯加天然乳膠，軟硬適中，聽起來像什麼拯救失眠的高科技黑魔法。躺上去體溫跟智商都會跟著恆定。強烈建議買回去要設十個鬧鐘，上個月有個客人早上賣場剛開門就來試躺，他醒來已經是我們要打烊的時候了。」"],
+    111: ["「LADY 銅離子抗菌乳膠獨立筒。裡面加了蠶絲冬暖夏涼，表層還抗菌。這年頭連床都比人的抵抗力還強。就算你三天沒洗澡躺上去，細菌都會嫌你髒自己搬家。真的是單身狗的終極救贖，反正也沒人會幫你暖床。」"],
+    112: ["「奧丁雙電動零重力三人沙發。零重力聽起來像要去外太空，其實就是可以直接躺平到 180 度。這設計根本在鼓勵大家跟老婆吵架時，直接睡客廳還比睡床舒服。缺點大概就是躺久了會毫無求生慾吧。」"],
+    113: ["「伊登麻吉模組沙發兩人座。主打『模組化』，聽起來很自由，可以像積木拼出你夢想中的客廳，但殘酷的事實是你家客廳根本不夠大。坐感滿Q彈的，像坐在一個巨大的發福史萊姆上。顏色很搭那些剛辦完40年房貸、對生活還有不切實際幻想的年輕人。」"],
+    114: ["「克萊歐岩紋餐桌。岩紋表面有一種冷酷的專業感，就算你在上面打翻排骨酥湯，抹布一嚕就乾淨了，完全看不出昨晚經歷過什麼摧殘。吃泡麵都能吃出米其林的錯覺。對了，這桌子夠硬，吵架翻桌的時候記得三思，桌子沒事，你會先骨折。」"],
+    115: ["「艾禮思木藝邊櫃。這玩意兒就是家具界的萬金油。當電視櫃、展示櫃，或者拿來塞你買了卻從來不用的智商稅家電。只要拉門一關，裡面就算藏了一堆沒繳的信用卡帳單，外面看起來依然是個品味高雅的中產階級。假掰必備。」"],
+    116: ["「艾禮思木藝二抽高櫃。這造型...X的，根本就是我阿嬤家拿來放拜拜剩菜的那個菜櫥啊！現在套上『復古木藝』四個字價格直接翻倍，這就是資本主義的魔法。買回去半夜打開，如果裡面沒擺一盤冷掉的白斬雞，我可是會客訴的。」"],
+    117: ["「La-Z-Boy 512 手動經典搖椅。這張的腰部支撐力，比你那脆弱的自尊心還要堅強。手動的好處就是，當你窮到繳不出電費的時候，它依然能陪你在黑暗中搖曳生姿，快買一張回去吧。」"],
+    118: ["「La-Z-Boy 765 雙電動牛皮椅。這坐感軟爛到什麼程度？就是你剛按下遙控器，電視都還沒亮，你人已經在夢裡跟周公打麻將了。服貼度極高，簡直像被一個巨型皮製怪獸吞噬。強烈建議不要在這張椅子上思考人生，你會直接變成一團只會呼吸的廢肉。」"],
+    119: ["「La-Z-Boy 521 雙電動按摩牛皮椅。多段震動加溫熱功能，這哪是椅子，這根本是合法的老人復健中心。冷天開加熱再開震動，舒服到你會懷疑自己是不是已經升天了。唯一缺點就是震到後來括約肌會有點失守，麻煩試坐前先去尿尿。」"],
+    120: ["「La-Z-Boy 紐約北歐式休閒椅。北歐風就是有一種『我很有錢但我不想讓你看出來』的裝逼感。這皮面、這線條，坐上去彷彿自帶精品手沖咖啡的濾鏡。老實說，你就算穿著泛黃吊嘎在上面摳腳，別人也會以為你在進行什麼北歐行為藝術，滿超值的。」"],
+    121: ["「聖誕檔期限定展示樹。每年十一月就開始放聖誕歌，這棵樹在賣場裡站得比你上班還久。上面的金星跟禮物盒都是裝飾品，但你客廳裡那堆還沒拆封的網購紙箱是真的。趁聖誕節趕快買張大邊櫃把雜物塞進去吧，不然聖誕老公公半夜爬進來，第一件事就是被你家客廳絆倒。」"]
 };
+const furnitureDialogIndex = {};
 
 let templeMap = [
     [1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
@@ -788,7 +846,7 @@ function renderHotbar() {
         let flipClass = (isActive && heldFlipped) ? 'flipped' : '';
         html += `
             <div class="hb-slot ${isActive ? 'active' : ''}" onclick="selectHotbarSlot(${i})" title="${meta.name}">
-                <img src="${meta.img}.png" class="${flipClass}">
+                <img src="${meta.imgSrc}" class="${flipClass}" onerror="this.src='icon.png'">
                 <span class="hb-label">${meta.size}</span>
             </div>
         `;
@@ -842,9 +900,12 @@ function openCatalogModal() {
     `;
     let list = catalogItems.filter(item => item.cat === currentCatalogTab);
     list.forEach(item => {
+        let src = item.imgSrc || (item.img + '.png');
+        let badge = item.isCustom ? `<span class="cat-badge-custom">自訂</span>` : '';
         tabsHtml += `
             <div class="cat-card" onclick="pickCatalogItem(${item.tile})">
-                <img src="${item.img}.png">
+                ${badge}
+                <img src="${src}" onerror="this.src='icon.png'">
                 <div class="cat-card-name">${item.name}</div>
                 <div class="cat-card-size">${item.size} 格</div>
             </div>
@@ -1188,8 +1249,8 @@ function handleEditInteraction(clientX, clientY) {
         let tile = mapLayout[pos.r][pos.c];
         let rootR = pos.r, rootC = pos.c, rootTile = tile;
         if (tile === 999) {
-            outerFind: for (let dr = 0; dr >= -2; dr--) {
-                for (let dc = 0; dc >= -2; dc--) {
+            outerFind: for (let dr = 0; dr >= -4; dr--) {
+                for (let dc = 0; dc >= -4; dc--) {
                     let rr = pos.r + dr, cc = pos.c + dc;
                     if (rr >= 0 && cc >= 0) {
                         let t = mapLayout[rr][cc];
@@ -1202,13 +1263,15 @@ function handleEditInteraction(clientX, clientY) {
                 }
             }
         }
-        if (itemDims[rootTile]) {
-            let dim = itemDims[rootTile];
+        if (itemDims[rootTile] || (rootTile >= 501 && rootTile !== 999)) {
+            let dim = itemDims[rootTile] || { w: 1, h: 1 };
             let meta = getItemMeta(rootTile);
             for (let dr = 0; dr < dim.h; dr++) {
                 for (let dc = 0; dc < dim.w; dc++) {
-                    mapLayout[rootR + dr][rootC + dc] = 0;
-                    flipLayout[rootR + dr][rootC + dc] = 0;
+                    if (rootR + dr < mapLayout.length && rootC + dc < mapLayout[0].length) {
+                        mapLayout[rootR + dr][rootC + dc] = 0;
+                        flipLayout[rootR + dr][rootC + dc] = 0;
+                    }
                 }
             }
             saveMaps();
@@ -1220,7 +1283,7 @@ function handleEditInteraction(clientX, clientY) {
         }
     } else {
         let activeTile = hotbarItems[activeSlot];
-        let dim = itemDims[activeTile];
+        let dim = itemDims[activeTile] || { w: 1, h: 1 };
         let meta = getItemMeta(activeTile);
         if (isPlacementValid(pos.r, pos.c, dim)) {
             for (let dr = 0; dr < dim.h; dr++) {
@@ -1265,7 +1328,7 @@ window.addEventListener('touchmove', e => {
 }, { passive: false });
 window.addEventListener('touchend', e => { isTouching = false; touchDir = null; });
 
-actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); });
+actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); }, { passive: false });
 actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); if(!isDecorating) tryInteract(); });
 
 function tryPlayBGM() {
@@ -1278,8 +1341,35 @@ function tryPlayBGM() {
 }
 
 function updateLoadUI() {
-    loadStatus.innerText = `圖片圖資：${settledImages}/${assetNames.length} ｜ 庫存試算表：${sheetStateText}`;
+    loadStatus.innerText = `圖資：${settledImages}/${assetNames.length} ｜ 庫存：${sheetStateText} ｜ 自訂庫：${customSheetStateText}`;
     checkStartGame();
+}
+
+function parseCSVText(text) {
+    let result = [];
+    let row = [], col = "", quote = false;
+    for (let i = 0; i < text.length; i++) {
+        let cc = text[i], nc = text[i+1];
+        if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
+        if (cc === '"') { quote = !quote; continue; }
+        if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
+        if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
+        if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
+        col += cc;
+    }
+    if (col !== "" || text.endsWith(',')) row.push(col);
+    if (row.length > 0) result.push(row);
+
+    let objects = [];
+    if (result.length > 1) {
+        const headers = result[0].map(h => h.trim());
+        for (let i = 1; i < result.length; i++) {
+            let obj = {};
+            headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
+            objects.push(obj);
+        }
+    }
+    return objects;
 }
 
 async function fetchInventory() {
@@ -1291,34 +1381,111 @@ async function fetchInventory() {
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const text = await res.text();
-        let result = [];
-        let row = [], col = "", quote = false;
-        for (let i = 0; i < text.length; i++) {
-            let cc = text[i], nc = text[i+1];
-            if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
-            if (cc === '"') { quote = !quote; continue; }
-            if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
-            if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
-            if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
-            col += cc;
-        }
-        if (col !== "" || text.endsWith(',')) row.push(col);
-        if (row.length > 0) result.push(row);
-        
-        if (result.length > 1) {
-            const headers = result[0].map(h => h.trim());
-            for (let i = 1; i < result.length; i++) {
-                let obj = {};
-                headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
-                inventoryData.push(obj);
-            }
-        }
-        sheetStateText = `完成 (${inventoryData.length}筆)`;
+        inventoryData = parseCSVText(text);
+        sheetStateText = `完成(${inventoryData.length}筆)`;
     } catch(err) {
         clearTimeout(timeoutId);
         sheetStateText = "離線放行";
     } finally {
         sheetSettled = true;
+        updateLoadUI();
+    }
+}
+
+// 動態載入 Google 試算表「自訂素材」與 custom/ 資料夾圖片（支援大小寫欄位）
+async function fetchCustomItems() {
+    let rawUrl = (CUSTOM_SHEET_URL || "").trim();
+    if (!rawUrl) {
+        customSheetStateText = "未啟用";
+        customSheetSettled = true;
+        updateLoadUI();
+        return;
+    }
+
+    let csvUrl = rawUrl.replace('/pubhtml', '/pub');
+    if (!csvUrl.includes('output=csv')) {
+        csvUrl += (csvUrl.includes('?') ? '&' : '?') + 'output=csv';
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    try {
+        const res = await fetch(csvUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const text = await res.text();
+        const rows = parseCSVText(text);
+        let loadedCount = 0;
+
+        rows.forEach(rawRow => {
+            // 統一轉小寫讀取欄位（相容 ID / id、ScaleH / scaleH、LineBtn / lineBtn 等）
+            let row = {};
+            Object.keys(rawRow).forEach(k => {
+                row[k.trim().toLowerCase()] = rawRow[k];
+            });
+
+            let id = parseInt(row['id']);
+            if (isNaN(id)) return;
+
+            let rawDialog = (row['dialog'] || "").trim();
+            let dialogLines = rawDialog
+                ? rawDialog.split('|').map(s => s.trim()).filter(Boolean)
+                : [];
+
+            // 若 id 為既有家具 (110~121)，直接覆蓋其商品台詞
+            if (furnitureDialogues[id] && dialogLines.length > 0) {
+                furnitureDialogues[id] = dialogLines;
+                furnitureDialogIndex[id] = 0;
+                loadedCount++;
+                return;
+            }
+
+            // 註冊全新自訂素材 (id >= 501)
+            let name = (row['name'] || `自訂物件 #${id}`).trim();
+            let rawCat = (row['category'] || 'hola').trim().toLowerCase();
+            let cat = ['hola', 'npc', 'props'].includes(rawCat) ? rawCat : 'hola';
+            let w = Math.max(1, parseInt(row['w']) || 1);
+            let h = Math.max(1, parseInt(row['h']) || 1);
+            let scaleH = parseFloat(row['scaleh']) || 1.0;
+            let lineBtnFlag = ['true', '1', 'yes', '是'].includes((row['linebtn'] || '').toLowerCase());
+
+            let file = (row['file'] || "").trim();
+            let imgSrc = 'icon.png';
+            if (file) {
+                if (!/\.[a-zA-Z0-9]+$/.test(file)) file += '.png';
+                imgSrc = (file.startsWith('http') || file.startsWith('custom/')) ? file : ('custom/' + file);
+            }
+
+            let imgKey = 'custom_' + id;
+            let imgObj = new Image();
+            imgObj.src = imgSrc;
+            images[imgKey] = imgObj;
+
+            itemDims[id] = { w, h };
+            customItemMeta[id] = {
+                tile: id,
+                cat,
+                name,
+                img: imgKey,
+                imgSrc,
+                size: `${w}×${h}`,
+                scaleH,
+                dialogs: dialogLines,
+                lineBtn: lineBtnFlag,
+                isCustom: true
+            };
+            customDialogIndex[id] = 0;
+            catalogItems.push(customItemMeta[id]);
+            loadedCount++;
+        });
+
+        customSheetStateText = `完成(${loadedCount}筆)`;
+        if (isDecorating) renderHotbar();
+    } catch (err) {
+        clearTimeout(timeoutId);
+        customSheetStateText = "離線放行";
+    } finally {
+        customSheetSettled = true;
         updateLoadUI();
     }
 }
@@ -1338,7 +1505,7 @@ setTimeout(() => { if (!gameStarted) forceStartBtn.style.display = 'inline-block
 setTimeout(() => { if (!gameStarted) launchGame(); }, 8000);
 
 function checkStartGame() {
-    if (settledImages === assetNames.length && sheetSettled) {
+    if (settledImages === assetNames.length && sheetSettled && customSheetSettled) {
         launchGame();
     }
 }
@@ -1358,6 +1525,7 @@ function launchGame() {
 function init() {
     updateZoomIcon();
     fetchInventory();
+    fetchCustomItems();
 }
 
 function getBestPromoPrice(item) {
@@ -1409,7 +1577,6 @@ function isWalkable(newX, newY) {
     return checkWalkable(c1) && checkWalkable(c2) && checkWalkable(c3) && checkWalkable(c4);
 }
 
-// 從賣場返回河樂宮時，自動尋找暗門旁不會卡住角色的空地
 function findSafeTempleExitPos() {
     const candidates = [
         [7, 8], [7, 7], [6, 8], [6, 7], [8, 7], [7, 6], [7, 5], [6, 5]
@@ -1433,7 +1600,6 @@ function tryInteract() {
     let cx = cat.x + (TILE_SIZE / 2), cy = cat.y + (TILE_SIZE / 2);
     let mapLayout = getActiveMapLayout();
 
-    // 永遠第一順位檢查貓咪正面朝向 (cat.dir) 的那一格
     const dirMap = {
         up: { x: 0, y: -TILE_SIZE },
         down: { x: 0, y: TILE_SIZE },
@@ -1451,10 +1617,10 @@ function tryInteract() {
         let c = Math.floor(targetX / TILE_SIZE), r = Math.floor(targetY / TILE_SIZE);
         if (r >= 0 && r < mapLayout.length && c >= 0 && c < mapLayout[0].length) {
             let tile = mapLayout[r][c];
-            if ((tile >= 110 && tile <= 121) || tile === 999) { foundCoord = { r: r, c: c, tile: tile }; break; }
-            if ([1, 4, 5, 6, 7, 8, 31, 33, 61, 99, 201].includes(tile) || (tile >= 41 && tile <= 44) || (tile >= 51 && tile <= 52)) {
+            if (itemDims[tile] || (tile >= 501 && tile !== 999) || tile === 999 || tile === 1 || tile === 201) {
                 if (tile === 1 && !(currentMap === 'temple' && (r === 6 || r === 7) && c === 9)) continue;
-                foundCoord = { r: r, c: c, tile: tile }; break;
+                foundCoord = { r: r, c: c, tile: tile };
+                break;
             }
         }
     }
@@ -1467,8 +1633,8 @@ function tryInteract() {
     }
 
     if (tile === 999) {
-        outerResolve: for (let dr = 0; dr >= -2; dr--) {
-            for (let dc = 0; dc >= -2; dc--) {
+        outerResolve: for (let dr = 0; dr >= -4; dr--) {
+            for (let dc = 0; dc >= -4; dc--) {
                 let nr = foundCoord.r + dr, nc = foundCoord.c + dc;
                 if (nr >= 0 && nc >= 0) {
                     let nt = mapLayout[nr][nc];
@@ -1541,8 +1707,25 @@ function tryInteract() {
             resetZoomForMap(); 
         }, 1500);
     } else if (tile >= 110 && tile <= 121) {
+        let lines = furnitureDialogues[tile] || [];
+        let idx = furnitureDialogIndex[tile] || 0;
+        let text = lines[idx % lines.length];
+        furnitureDialogIndex[tile] = (idx + 1) % lines.length;
         let header = (tile === 121) ? "🎄 <b>聖誕檔期限定展示樹</b>" : "🪑 <b>商品簡介</b>";
-        showDialog(`${header}<br><br>${furnitureDialogues[tile]}`, 8000);
+        showDialog(`${header}<br><br>${text}`, 8000);
+    } else if (customItemMeta[tile]) {
+        let meta = customItemMeta[tile];
+        let lines = meta.dialogs && meta.dialogs.length > 0
+            ? meta.dialogs
+            : [`「這是一款非常有質感的【${meta.name}】，歡迎現場體驗！」`];
+        let idx = customDialogIndex[tile] || 0;
+        let text = lines[idx % lines.length];
+        customDialogIndex[tile] = (idx + 1) % lines.length;
+        let icon = meta.cat === 'npc' ? '🐱' : '🪑';
+        let lineHtml = meta.lineBtn
+            ? `<div style="text-align:center;"><a href='https://line.me/ti/p/v-9_IDIeyw' target='_blank' style='display:inline-block; margin-top:12px; padding:10px 16px; background:#00c300; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size:0.95em;'>👉 點擊加 KOBE 的 LINE</a></div>`
+            : '';
+        showDialog(`${icon} <b style="color:#ffcc00;">${meta.name}</b><br><br>${text}${lineHtml}`, 8000);
     }
 }
 
@@ -1676,7 +1859,6 @@ function update() {
     if (dy !== 0 && isWalkable(cat.x, cat.y + dy)) cat.y += dy;
 }
 
-// 掃地機器人 AI：放慢節奏（每 4.5 秒、50% 機率移動，玩家靠近 1.5 格內自動定格方便對話）
 setInterval(() => {
     if (currentMap !== 'holaStore' || isDecorating || cat.isInteracting || isPrompting) return;
 
@@ -1764,6 +1946,26 @@ function drawItemTile(tile, posX, posY, ctx, flipped = false) {
     if (tile === 120) ctx.drawImage(images['blue_chair'], posX - (TILE_SIZE * 0.25), posY - (TILE_SIZE * 0.5), TILE_SIZE * 1.5, TILE_SIZE * 1.5);
     if (tile === 121) ctx.drawImage(images['xmas_tree'], posX, posY - (TILE_SIZE * 1.2), TILE_SIZE * 2, TILE_SIZE * 3.2);
 
+    // 繪製自訂資料庫素材
+    if (customItemMeta[tile] || (tile >= 501 && tile !== 999)) {
+        let meta = customItemMeta[tile] || { img: '', scaleH: 1.0 };
+        let dim = itemDims[tile] || { w: 1, h: 1 };
+        let img = images[meta.img];
+        let drawW = dim.w * TILE_SIZE;
+        let drawH = dim.h * TILE_SIZE * (meta.scaleH || 1.0);
+        let drawY = posY + (dim.h * TILE_SIZE) - drawH;
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, posX, drawY, drawW, drawH);
+        } else {
+            ctx.fillStyle = 'rgba(0, 230, 118, 0.28)';
+            ctx.fillRect(posX + 4, posY + 4, drawW - 8, dim.h * TILE_SIZE - 8);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`#${tile}`, posX + drawW / 2, posY + (dim.h * TILE_SIZE) / 2 + 5);
+        }
+    }
+
     if (flipped) {
         ctx.restore();
     }
@@ -1818,7 +2020,7 @@ function draw() {
             if (tile === 30) ctx.drawImage(images['fence'], posX, posY, TILE_SIZE, TILE_SIZE);
             if (tile === 101) ctx.drawImage(images['wall_hola'], posX, posY, TILE_SIZE, TILE_SIZE);
 
-            if (itemDims[tile]) drawItemTile(tile, posX, posY, ctx, flipLayout[r][c] === 1);
+            if (itemDims[tile] || (tile >= 501 && tile !== 999)) drawItemTile(tile, posX, posY, ctx, flipLayout[r][c] === 1);
         }
     }
 
@@ -1841,7 +2043,7 @@ function draw() {
             }
         } else {
             let activeTile = hotbarItems[activeSlot];
-            let dim = itemDims[activeTile];
+            let dim = itemDims[activeTile] || { w: 1, h: 1 };
             let valid = isPlacementValid(cursorR, cursorC, dim);
             ctx.fillStyle = valid ? 'rgba(0, 230, 118, 0.35)' : 'rgba(255, 0, 0, 0.35)';
             ctx.fillRect(cursorC*TILE_SIZE, cursorR*TILE_SIZE, dim.w*TILE_SIZE, dim.h*TILE_SIZE);
