@@ -664,7 +664,7 @@ border-radius: 4px;
 const PRODUCT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
 const CUSTOM_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=276757910&single=true&output=csv";
 
-// 主殿右上角長駐 3×3 萬壽光明燈牆編號（不進入創造模式圖鑑）
+// 主殿右上角 3×3 萬壽光明燈牆編號（位於 r=1~3, c=16~18，不覆蓋 r=0 牆壁）
 const BLESSING_WALL_TILE = 9;
 
 // 系統內部大型物件多餘格佔位碼（釋放 999 給試算表自訂 ID 使用）
@@ -889,10 +889,20 @@ const furnitureDialogues = {
 };
 const furnitureDialogIndex = {};
 
-// 鏡像翻轉狀態陣列（必須在 ensureBlessingLanternWall 之前宣告）
+// 鏡像翻轉狀態陣列（必須在放置光明燈牆之前宣告）
 let templeFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 let nightMarketFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 let holaStoreFlip = Array(20).fill(0).map(() => Array(20).fill(0));
+
+// 在主殿右上角 r=1~3, c=16~18 放置預設 3×3 萬壽光明燈牆（往下一格，保留最上方 r=0 牆壁）
+function placeDefaultBlessingLanternWall() {
+    for (let r = 1; r <= 3; r++) {
+        for (let c = 16; c <= 18; c++) {
+            templeMap[r][c] = (r === 1 && c === 16) ? BLESSING_WALL_TILE : OCCUPIED_TILE;
+            templeFlip[r][c] = 0;
+        }
+    }
+}
 
 // 河樂宮 20×20 地圖
 let templeMap = Array(20).fill(0).map(() => Array(20).fill(0));
@@ -909,17 +919,7 @@ templeMap[5][9] = 4;
 templeMap[9][2] = 5;
 templeMap[9][17] = 6;
 templeMap[17][18] = 8;
-
-// 確保主殿右上角 3×3（r=0~2, c=16~18）長駐萬壽光明燈牆
-function ensureBlessingLanternWall() {
-    for (let r = 0; r < 3; r++) {
-        for (let c = 16; c <= 18; c++) {
-            templeMap[r][c] = (r === 0 && c === 16) ? BLESSING_WALL_TILE : OCCUPIED_TILE;
-            templeFlip[r][c] = 0;
-        }
-    }
-}
-ensureBlessingLanternWall();
+placeDefaultBlessingLanternWall();
 
 // 夜市 20×20 地圖
 let nightMarketMap = Array(20).fill(0).map(() => Array(20).fill(0));
@@ -994,9 +994,10 @@ function migrateOccupiedCells(grid) {
 
 function loadMaps() {
     let hadSavedHola = false;
+    let hadSavedTemple = false;
     try {
         let savedTemple = localStorage.getItem('templeMap_v3');
-        if (savedTemple) { let p = JSON.parse(savedTemple); if(p.length === 20) { templeMap = p; migrateOccupiedCells(templeMap); } }
+        if (savedTemple) { let p = JSON.parse(savedTemple); if(p.length === 20) { templeMap = p; migrateOccupiedCells(templeMap); hadSavedTemple = true; } }
         let savedNight = localStorage.getItem('nightMarketMap_v3');
         if (savedNight) { let p = JSON.parse(savedNight); if(p.length === 20) { nightMarketMap = p; migrateOccupiedCells(nightMarketMap); } }
         let savedHola = localStorage.getItem('holaStoreMap_v2');
@@ -1010,7 +1011,34 @@ function loadMaps() {
         if (sfHola) { let p = JSON.parse(sfHola); if(p.length === 20) holaStoreFlip = p; }
     } catch(e) {}
 
-    ensureBlessingLanternWall();
+    // 確保最上方 r=0 牆壁完整；若為舊版 r=0 位置則自動下移一格至 r=1~3, c=16~18（清空後重整則維持清空狀態）
+    let needSaveAfterMigrate = false;
+    if (hadSavedTemple) {
+        if (templeMap[0][16] === BLESSING_WALL_TILE) {
+            for (let r = 0; r < 3; r++) {
+                for (let c = 16; c <= 18; c++) {
+                    templeMap[r][c] = (r === 0) ? 1 : 0;
+                    templeFlip[r][c] = 0;
+                }
+            }
+            placeDefaultBlessingLanternWall();
+            needSaveAfterMigrate = true;
+        } else if (!localStorage.getItem('blessingWall_r1')) {
+            for (let c = 16; c <= 18; c++) {
+                if (templeMap[0][c] === 0 || templeMap[0][c] === OCCUPIED_TILE) templeMap[0][c] = 1;
+            }
+            let areaClear = true;
+            for (let r = 1; r <= 3; r++) {
+                for (let c = 16; c <= 18; c++) {
+                    if (templeMap[r][c] !== 0) areaClear = false;
+                }
+            }
+            if (areaClear) placeDefaultBlessingLanternWall();
+            needSaveAfterMigrate = true;
+        }
+    }
+    localStorage.setItem('blessingWall_r1', '1');
+    if (needSaveAfterMigrate) saveMaps();
 
     let migrated = localStorage.getItem('holaMigrated_v3');
     if (!hadSavedHola || !migrated) {
@@ -1138,7 +1166,7 @@ function openHelpModal() {
         bodyHtml = `
             <div class="help-card">
                 <b class="hl">🏮 河樂宮互動功能</b><br>
-                • <b>萬壽光明燈牆（右上牆面）</b>：輸入商品 SKU 貨號祈福求籤，鑄造 60 天有效的專屬價格與庫存查詢盲盒網址，一鍵複製貼到 LINE 分享！<br>
+                • <b>萬壽光明燈牆（右上牆前）</b>：輸入商品 SKU 貨號祈福求籤，鑄造 60 天有效的專屬價格與庫存查詢盲盒網址，一鍵複製貼到 LINE 分享！<br>
                 • <b>靈籤籤筒（左側）</b>：即時連線 Google 試算表庫存，抽出今日有現貨且促銷中的上上籤商品。<br>
                 • <b>藍貓廟公（右側）</b>：輸入商品 SKU 編號，立即查詢售價與大墩店／楊梅倉庫存。<br>
                 • <b>正下方牌樓大門</b>：往下走可直接穿出廟門進入熱鬧的 <b class="gn">20×20 河樂夜市</b>。
@@ -1160,7 +1188,7 @@ function openHelpModal() {
             <div class="help-card">
                 <b class="bl">🔄 清空場地、裝潢代碼分享與一鍵還原</b><br>
                 • 在創造模式下點擊上方紅色外框 <b class="hl">🔄</b> 按鈕：<br>
-                • <b>🗑️ 清空所有配置商品與 NPC</b>：經過二次確認後，可一鍵清空目前地圖或全部三張地圖的家具與 NPC（保留牆壁、光明燈牆、地板與大門）。<br>
+                • <b>🗑️ 清空所有配置商品與 NPC</b>：經過二次確認後，可一鍵清空目前地圖或全部三張地圖的所有物品（含光明燈牆）與 NPC（僅保留外牆、地板與大門）。<br>
                 • <b>📤 匯出 / 📥 匯入代碼</b>：產生 <code style="color:#00e676;">HELE2:...</code> 專屬代碼分享擺設。<br>
                 • <b>🧹 清除存檔並還原預設陣型</b>：隨時可一鍵恢復最初的預設配置。
             </div>
@@ -1508,7 +1536,7 @@ function applyImportCode() {
         templeMap = nt; templeFlip = ntf;
         nightMarketMap = nn; nightMarketFlip = nnf;
         holaStoreMap = nh; holaStoreFlip = nhf;
-        ensureBlessingLanternWall();
+        localStorage.setItem('blessingWall_r1', '1');
         localStorage.setItem('holaMigrated_v3', '1');
         saveMaps();
         showDialog("<div style='text-align:center;'>🎉 <b>裝潢代碼匯入成功！</b><br>已完整還原對方設計的宇宙陣型！</div>", 3000);
@@ -1523,7 +1551,7 @@ function openClearConfirmMenu() {
         <div style="text-align:center;">
             <b style="color:#ff9800; font-size:1.15em;">⚠️ 確定要清空所有配置嗎？</b><br>
             <div style="font-size:0.86em; color:#eee; margin-top:8px; line-height:1.55; text-align:left; background:rgba(255,152,0,0.12); border:1px solid #ff9800; border-radius:8px; padding:10px;">
-                這將會移除地圖上所有的<b>商品家具、攤車、神明與 NPC</b>（僅保留外牆、光明燈牆、地板與出入口大門）。<br>
+                這將會移除地圖上所有的<b>商品家具、光明燈牆、攤車、神明與 NPC</b>（僅保留外牆、地板與出入口大門）。<br>
                 <span style="color:#bbb;">※ 若之後想恢復原本擺設，隨時可點「🧹 清除存檔並還原預設陣型」。</span>
             </div>
             <button class="menu-btn" style="background:#ff9800; color:#000; margin-top:12px;" onclick="clearConfiguredItems('current')">
@@ -1560,14 +1588,14 @@ function clearConfiguredItems(scope) {
         sweepGrid(holaStoreMap, holaStoreFlip);
     }
 
-    ensureBlessingLanternWall();
+    localStorage.setItem('blessingWall_r1', '1');
     localStorage.setItem('holaMigrated_v3', '1');
     saveMaps();
     let label = scope === 'current' ? '目前地圖' : '全部三張地圖';
     if (isDecorating) {
         editModeUI.innerText = `🧹 已清空${label}的所有配置商品與 NPC！`;
     }
-    showDialog(`<div style='text-align:center;'>🧹 <b>已清空【${label}】所有商品與 NPC！</b><br><span style='font-size:0.88em; color:#ccc;'>外牆、光明燈牆、地板與出入口已保留，現在可以自由從零佈置囉！</span></div>`, 3200);
+    showDialog(`<div style='text-align:center;'>🧹 <b>已清空【${label}】所有商品與 NPC！</b><br><span style='font-size:0.88em; color:#ccc;'>外牆、地板與出入口已保留，現在可以自由從零佈置囉！</span></div>`, 3200);
 }
 
 function openResetMenu() {
@@ -1622,6 +1650,7 @@ function resetAllData() {
         localStorage.removeItem('nightMarketFlip_v3');
         localStorage.removeItem('holaStoreFlip_v2');
         localStorage.removeItem('holaMigrated_v3');
+        localStorage.removeItem('blessingWall_r1');
     } catch(e) {}
     window.location.href = window.location.pathname + '?v=' + Date.now();
 }
