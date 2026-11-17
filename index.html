@@ -81,7 +81,7 @@ pointer-events: auto;
 touch-action: auto;
 z-index: 250;
 }
-/* 光明燈盲盒專屬互動元件樣式 */
+/* 光明燈盲盒 & 管理員密碼專屬互動元件樣式 */
 .blindbox-wrap {
 font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
 line-height: 1.55;
@@ -174,6 +174,15 @@ text-align: center;
 }
 .menu-btn:active {
 transform: scale(0.97);
+}
+.admin-panel-box {
+background: rgba(212, 175, 55, 0.12);
+border: 1px solid #d4af37;
+border-radius: 10px;
+padding: 10px;
+margin-top: 10px;
+margin-bottom: 10px;
+font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
 }
 .code-box {
 width: 100%;
@@ -647,7 +656,7 @@ border-radius: 4px;
 <canvas id="gameCanvas" width="640" height="640"></canvas>
 <div id="dialogBox"></div>
 <div id="zoomBtn" title="三段縮放視野">🔍</div>
-<div id="resetBtn" title="代碼分享 / 清空 / 恢復預設">🔄</div>
+<div id="resetBtn" title="管理員發布 / 裝潢代碼 / 清空 / 還原">🔄</div>
 <div id="editBtn" title="麥塊創造模式">🛠️</div>
 <div id="editModeUI">🛠️ 創造模式：請先點選下方欄位或圖鑑選擇物件</div>
 <div id="hotbar"></div>
@@ -658,17 +667,21 @@ border-radius: 4px;
 
 <script>
 // ==========================================
-// 【資料庫設定區】
-// Google 試算表「商品全資料」&「自訂素材」分頁 CSV 網址：
+// 【資料庫與雲端管理員 API 設定區】
 // ==========================================
 const PRODUCT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
 const CUSTOM_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=276757910&single=true&output=csv";
+const MAP_CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbxYlSNUXb_Lu2mslqN6TAwYUeSVyIfOpO8akA_kpsIbXgA3AAMe6iOc4M__o8XeA_nrag/exec";
+const ADMIN_PASSCODE = "0816";
 
 // 主殿右上角 3×3 萬壽光明燈牆編號（位於 r=1~3, c=16~18，不覆蓋 r=0 牆壁）
 const BLESSING_WALL_TILE = 9;
 
 // 系統內部大型物件多餘格佔位碼（釋放 999 給試算表自訂 ID 使用）
 const OCCUPIED_TILE = -999;
+
+// 寫死核心互動功能 ID 清單（籤筒、藍貓廟公、光明燈牆、機車變形、Kobe專員）
+const HARDCODED_CORE_IDS = new Set([5, 6, 9, 31, 61]);
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -714,11 +727,25 @@ const images = {};
 let settledImages = 0;
 let sheetSettled = false;
 let customSheetSettled = false;
+let cloudMapSettled = false;
 let sheetStateText = "連線中";
 let customSheetStateText = "連線中";
+let cloudMapStateText = "連線中";
 let inventoryData = [];
 const godList = ['god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small'];
 const activeGod = godList[Math.floor(Math.random() * godList.length)];
+
+// 管理員與雲端公開創造模式狀態
+let isAdmin = false;
+try {
+    isAdmin = (localStorage.getItem('hele_admin_unlocked') === '1');
+} catch (e) {}
+let cloudPublicEdit = false;
+let cloudUpdatedAt = "";
+let cloudMapCode = "";
+let topLeftTapCount = 0;
+let topLeftLastTapTime = 0;
+let isAdminModalOpen = false;
 
 let currentMap = 'temple'; 
 let viewMode = 0; 
@@ -794,6 +821,7 @@ const catalogItems = [
     { tile: 51, cat: 'npc', name: '珍奶顧客', img: 'npc_cus1', size: '1×1' },
     { tile: 52, cat: 'npc', name: '香腸顧客', img: 'npc_cus2', size: '1×1' },
     { tile: 99, cat: 'npc', name: '河樂宮神尊', img: activeGod, size: '1×1' },
+    { tile: 9, cat: 'props', name: '萬壽光明燈牆', img: 'blessing_lantern_wall', size: '3×3' },
     { tile: 4, cat: 'props', name: '河樂宮香爐', img: 'altar', size: '1×1' },
     { tile: 5, cat: 'props', name: '靈籤籤筒', img: 'fortune_box', size: '1×1' },
     { tile: 21, cat: 'props', name: '烤香腸攤車', img: 'stall_1', size: '2×2' },
@@ -806,9 +834,6 @@ const catalogItems = [
 ];
 
 function getItemMeta(tile) {
-    if (tile === BLESSING_WALL_TILE) {
-        return { tile: 9, name: '萬壽光明燈牆', img: 'blessing_lantern_wall', imgSrc: 'blessing_lantern_wall.png', size: '3×3' };
-    }
     if (customItemMeta[tile]) return customItemMeta[tile];
     let ov = builtInOverrides[tile];
     let found = catalogItems.find(i => i.tile === tile);
@@ -889,12 +914,11 @@ const furnitureDialogues = {
 };
 const furnitureDialogIndex = {};
 
-// 鏡像翻轉狀態陣列（必須在放置光明燈牆之前宣告）
+// 鏡像翻轉狀態陣列
 let templeFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 let nightMarketFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 let holaStoreFlip = Array(20).fill(0).map(() => Array(20).fill(0));
 
-// 在主殿右上角 r=1~3, c=16~18 放置預設 3×3 萬壽光明燈牆（往下一格，保留最上方 r=0 牆壁）
 function placeDefaultBlessingLanternWall() {
     for (let r = 1; r <= 3; r++) {
         for (let c = 16; c <= 18; c++) {
@@ -972,7 +996,6 @@ holaStoreMap[17][6] = 121; holaStoreMap[17][7] = OCCUPIED_TILE;
 holaStoreMap[18][6] = OCCUPIED_TILE; holaStoreMap[18][7] = OCCUPIED_TILE;
 holaStoreMap[10][8] = 61;
 
-// 舊版存檔中的 999 佔位碼自動轉為 -999，完整釋放 999 給試算表自訂 ID 使用
 function migrateOccupiedCells(grid) {
     for (let r = 0; r < grid.length; r++) {
         for (let c = 0; c < grid[r].length; c++) {
@@ -1011,7 +1034,6 @@ function loadMaps() {
         if (sfHola) { let p = JSON.parse(sfHola); if(p.length === 20) holaStoreFlip = p; }
     } catch(e) {}
 
-    // 確保最上方 r=0 牆壁完整；若為舊版 r=0 位置則自動下移一格至 r=1~3, c=16~18（清空後重整則維持清空狀態）
     let needSaveAfterMigrate = false;
     if (hadSavedTemple) {
         if (templeMap[0][16] === BLESSING_WALL_TILE) {
@@ -1141,6 +1163,143 @@ function resetZoomForMap() {
     updateZoomIcon();
 }
 
+// 同步更新創造模式按鈕可見度（管理員或雲端公開創造模式開啟時才顯示 🛠️）
+function syncCreativeAccessUI() {
+    let canUseCreative = isAdmin || cloudPublicEdit;
+    if (gameStarted) {
+        editBtn.style.display = canUseCreative ? 'block' : 'none';
+        editBtn.style.borderColor = isAdmin ? '#ffcc00' : '#00e676';
+    }
+    if (!canUseCreative && isDecorating) {
+        isDecorating = false;
+        editModeUI.style.display = 'none';
+        resetBtn.style.display = 'none';
+        hotbar.style.display = 'none';
+        closeCatalogModal();
+        if (gameStarted) {
+            actionBtn.style.display = 'block';
+            helpBtn.style.display = 'flex';
+        }
+    }
+}
+
+// ==========================================
+// 【管理員入口：連點河樂宮最左上角牆壁 (0, 0) 五下】
+// ==========================================
+function checkAdminCornerTap(clientX, clientY) {
+    if (currentMap !== 'temple') {
+        topLeftTapCount = 0;
+        return false;
+    }
+    let pos = getGridPos(clientX, clientY);
+    if (pos.r === 0 && pos.c === 0) {
+        let now = Date.now();
+        if (now - topLeftLastTapTime > 2500) {
+            topLeftTapCount = 0;
+        }
+        topLeftLastTapTime = now;
+        topLeftTapCount++;
+        if (topLeftTapCount >= 5) {
+            topLeftTapCount = 0;
+            openAdminPasswordModal();
+            return true;
+        }
+    } else {
+        topLeftTapCount = 0;
+    }
+    return false;
+}
+
+function openAdminPasswordModal() {
+    if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+    cancelAutoPath();
+    closeCatalogModal();
+    closeHelpModal();
+    cat.isMoving = false;
+    cat.isInteracting = true;
+    isKnockingWall = false;
+    isBlindBoxOpen = false;
+    activeTransformState = null;
+    isAdminModalOpen = true;
+
+    if (isAdmin) {
+        dialogBox.innerHTML = `
+            <div class="blindbox-wrap" style="text-align:center;">
+                <div class="blindbox-title">👑 管理員權限已處於解鎖狀態</div>
+                <div class="blindbox-desc">
+                    您可以直接點擊右上角 <b style="color:#00e676;">🛠️ 創造模式</b> 調整擺設，再按 <b style="color:#ff5252;">🔄</b> 發布給所有訪客。
+                </div>
+                <button class="menu-btn" style="background:#00e676; color:#000;" onclick="closeDialog(); if(!isDecorating) toggleEditMode();">
+                    🛠️ 立即進入創造與發布模式
+                </button>
+                <button class="menu-btn" style="background:#ff5252; color:#fff;" onclick="logoutAdminMode()">
+                    🔒 登出管理員模式（預覽訪客視角）
+                </button>
+                <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">
+                    關閉
+                </button>
+            </div>
+        `;
+        dialogBox.style.display = 'block';
+        return;
+    }
+
+    dialogBox.innerHTML = `
+        <div class="blindbox-wrap">
+            <div class="blindbox-title">🔐 河樂宮管理員驗證</div>
+            <div class="blindbox-desc" style="text-align:center;">
+                請輸入管理員密碼以解鎖全站地圖發布與創造模式權限：
+            </div>
+            <input
+                type="password"
+                id="adminPassInput"
+                class="blindbox-input"
+                inputmode="numeric"
+                maxlength="12"
+                placeholder="請輸入管理員密碼"
+                onkeydown="if(event.key==='Enter'){ event.preventDefault(); verifyAdminPassword(); }"
+            />
+            <div id="adminPassMsg" style="font-size:0.84rem; color:#ff5252; margin-top:7px; text-align:center; min-height:1.2em;"></div>
+            <button class="menu-btn" style="background:linear-gradient(135deg, #ffd54f 0%, #ff9800 100%); color:#111; font-weight:900; margin-top:6px;" onclick="verifyAdminPassword()">
+                🔓 確認解鎖管理員
+            </button>
+            <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">
+                取消
+            </button>
+        </div>
+    `;
+    dialogBox.style.display = 'block';
+    setTimeout(() => {
+        let inp = document.getElementById('adminPassInput');
+        if (inp) inp.focus();
+    }, 60);
+}
+
+function verifyAdminPassword() {
+    let inp = document.getElementById('adminPassInput');
+    let msg = document.getElementById('adminPassMsg');
+    if (!inp) return;
+    if (inp.value.trim() === ADMIN_PASSCODE) {
+        isAdmin = true;
+        try { localStorage.setItem('hele_admin_unlocked', '1'); } catch (e) {}
+        syncCreativeAccessUI();
+        closeDialog();
+        if (!isDecorating) toggleEditMode();
+        editModeUI.innerText = "👑 管理員已解鎖！擺好後點右上方 🔄 可一鍵發布給所有人";
+    } else {
+        if (msg) msg.innerText = "❌ 管理員密碼錯誤，請重新輸入！";
+        inp.value = "";
+        inp.focus();
+    }
+}
+
+function logoutAdminMode() {
+    isAdmin = false;
+    try { localStorage.removeItem('hele_admin_unlocked'); } catch (e) {}
+    syncCreativeAccessUI();
+    showDialog("<div style='text-align:center;'>🔒 <b>已登出管理員模式</b><br>目前畫面已切換為一般訪客視角。</div>", 2500);
+}
+
 // --- 操作與擴充說明彈窗 ---
 function openHelpModal() {
     cancelAutoPath();
@@ -1173,9 +1332,9 @@ function openHelpModal() {
             </div>
             <div class="help-card">
                 <b class="gn">🚪 隱藏彩蛋：通往 HOLA 大墩店密室</b><br>
-                • 先找左上角<b>金漸層貓</b>與右下角<b>無毛貓</b>打聽消息。<br>
-                • 走到無毛貓<b>頭頂正上方緊貼右牆</b>的位置，面向右牆連續按「調查」<b>五下</b>（或用滑鼠直接連點該面右牆五次），牆壁就會震動開啟通往大墩店的密道！<br>
-                • 夜市最底下左右各停一台機車，其中一台按調查會有驚喜變身。
+                • 先找<b>金漸層貓</b>與<b>無毛貓</b>打聽消息。<br>
+                • 走到河樂宮<b>右下角牆壁</b>旁，面向牆壁連續按「調查」<b>五下</b>（或用滑鼠直接連點右下角牆壁五次），牆壁就會震動開啟通往大墩店的密道！<br>
+                • 夜市停放的機車按調查會有驚喜變身。
             </div>
         `;
     } else if (currentHelpTab === 'build') {
@@ -1188,9 +1347,9 @@ function openHelpModal() {
             <div class="help-card">
                 <b class="bl">🔄 清空場地、裝潢代碼分享與一鍵還原</b><br>
                 • 在創造模式下點擊上方紅色外框 <b class="hl">🔄</b> 按鈕：<br>
-                • <b>🗑️ 清空所有配置商品與 NPC</b>：經過二次確認後，可一鍵清空目前地圖或全部三張地圖的所有物品（含光明燈牆）與 NPC（僅保留外牆、地板與大門）。<br>
+                • <b>🗑️ 清空所有配置商品與 NPC</b>：經過二次確認後，可一鍵清空目前地圖或全部三張地圖的所有物品與 NPC（僅保留外牆、地板與大門）。<br>
                 • <b>📤 匯出 / 📥 匯入代碼</b>：產生 <code style="color:#00e676;">HELE2:...</code> 專屬代碼分享擺設。<br>
-                • <b>🧹 清除存檔並還原預設陣型</b>：隨時可一鍵恢復最初的預設配置。
+                • <b>🧹 清除存檔並還原預設陣型</b>：隨時可一鍵恢復官方最新基準配置。
             </div>
         `;
     } else if (currentHelpTab === 'sheet') {
@@ -1201,16 +1360,16 @@ function openHelpModal() {
             </div>
             <div class="help-card">
                 <b class="gn">📊 步驟 2：Google 試算表「自訂素材」分頁（A～K 欄）</b><br>
-                支援<b>新增素材（ID 501 起）</b>與<b>直接修改既有物件（ID 3～121）</b>：
+                支援<b>新增素材（ID 501 起）</b>與<b>直接修改既有物件（ID 4～121）</b>：
                 <table class="help-table">
                     <tr><th>欄位</th><th>填寫說明</th></tr>
-                    <tr><td><b>ID</b></td><td>新素材填 <b>501</b> 以上；填 <b>3～121</b> 可直接覆蓋既有角色或家具設定。</td></tr>
+                    <tr><td><b>ID</b></td><td>新素材填 <b>501</b> 以上；填 <b>4～121</b> 可直接覆蓋既有角色或家具設定。</td></tr>
                     <tr><td><b>Category</b></td><td>填 <code style="color:#00e676;">hola</code>（家具）、<code style="color:#00e676;">npc</code>（人物）或 <code style="color:#00e676;">props</code>（廟宇夜市）。</td></tr>
                     <tr><td><b>Name</b></td><td>顯示名稱（修改既有物件時留空則維持原名）。</td></tr>
-                    <tr><td><b>File</b></td><td>圖片檔名（可省略 .png；修改既有物件時留空則沿用原圖）。</td></tr>
+                    <tr><td><b>File</b></td><td>圖片檔名（可省略 .png；主目錄舊圖與 custom 新圖皆自動辨識）。</td></tr>
                     <tr><td><b>W / H</b></td><td>佔地格數（寬 × 深），修改既有物件時留空則維持原大小。</td></tr>
                     <tr><td><b>ScaleH</b></td><td>視覺高度倍率（預設 <b>1</b>，高櫃或高大人物可填 1.3~1.6）。</td></tr>
-                    <tr><td><b>Dialog</b></td><td>對話台詞，用 <b class="hl">|</b> 隔開可設定多句輪播。</td></tr>
+                    <tr><td><b>Dialog</b></td><td>對話台詞，用 <b class="hl">|</b> 隔開可設定多句輪播（寫死功能 ID 請留白）。</td></tr>
                     <tr><td><b>LineBtn</b></td><td>填 <b>TRUE</b> 會在對話框下方自動附上加 KOBE LINE 按鈕。</td></tr>
                     <tr><td><b>Clicks</b></td><td>J 欄：按「㊙️切換外觀」按鈕幾次觸發變身（填 <b>0</b> 或留空則不顯示按鈕）。</td></tr>
                     <tr><td><b>TransformID</b></td><td>K 欄：變身後的目標物件 ID（例如腳托展開後的物件編號）。</td></tr>
@@ -1375,6 +1534,7 @@ dialogBox.addEventListener('keydown', e => e.stopPropagation());
 dialogBox.addEventListener('mousedown', e => e.stopPropagation());
 
 function toggleEditMode() {
+    if (!isAdmin && !cloudPublicEdit) return;
     isDecorating = !isDecorating;
     cancelAutoPath();
     closeHelpModal();
@@ -1391,7 +1551,9 @@ function toggleEditMode() {
         creativeMode = 'none';
         activeSlot = -1;
         hasHoveredGrid = false;
-        editModeUI.innerText = "🛠️ 創造模式：請先點選下方欄位或圖鑑選擇物件";
+        editModeUI.innerText = isAdmin
+            ? "👑 管理員創造模式：擺好後點右上方 🔄 可發布給所有人"
+            : "🛠️ 創造模式：請先點選下方欄位或圖鑑選擇物件";
         renderHotbar();
     } else {
         closeCatalogModal();
@@ -1401,7 +1563,7 @@ function toggleEditMode() {
 editBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); });
 editBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleEditMode(); }, { passive: false });
 
-// --- 裝潢代碼分享、清空場地與地圖恢復系統 ---
+// --- 裝潢代碼編解碼、雲端發布、清空場地與地圖恢復系統 ---
 function encodeGridRLE(grid) {
     let flat = [];
     for (let r = 0; r < grid.length; r++) {
@@ -1452,6 +1614,89 @@ function generateShareCode() {
         hf: encodeGridRLE(holaStoreFlip)
     };
     return 'HELE2:' + btoa(JSON.stringify(payload));
+}
+
+function applyEncodedMapString(rawCode) {
+    if (!rawCode) return false;
+    let idx = rawCode.indexOf('HELE2:');
+    if (idx === -1) return false;
+    let token = rawCode.slice(idx + 6).split(/\s+/)[0];
+    try {
+        let obj = JSON.parse(atob(token));
+        let nt = decodeGridRLE(obj.t, 20, 20);
+        let ntf = decodeGridRLE(obj.tf, 20, 20);
+        let nn = decodeGridRLE(obj.n, 20, 20);
+        let nnf = decodeGridRLE(obj.nf, 20, 20);
+        let nh = decodeGridRLE(obj.h, 20, 20);
+        let nhf = decodeGridRLE(obj.hf, 20, 20);
+        if (!nt || !ntf || !nn || !nnf || !nh || !nhf) return false;
+        migrateOccupiedCells(nt);
+        migrateOccupiedCells(nn);
+        migrateOccupiedCells(nh);
+        templeMap = nt; templeFlip = ntf;
+        nightMarketMap = nn; nightMarketFlip = nnf;
+        holaStoreMap = nh; holaStoreFlip = nhf;
+        localStorage.setItem('blessingWall_r1', '1');
+        localStorage.setItem('holaMigrated_v3', '1');
+        saveMaps();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// 雲端一鍵發布（儲存目前三張地圖擺設 + 公開創造模式開關到 Google 試算表「地圖配置」）
+async function publishCloudMap(targetPublicEdit) {
+    let statusEl = document.getElementById('adminCloudStatus');
+    if (statusEl) {
+        statusEl.style.color = '#4fc3f7';
+        statusEl.innerText = '⏳ 正在將最新地圖配置與權限發布至雲端...';
+    }
+
+    let code = generateShareCode();
+    try {
+        const res = await fetch(MAP_CONFIG_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                password: ADMIN_PASSCODE,
+                code: code,
+                publicEdit: !!targetPublicEdit
+            })
+        });
+        let data = null;
+        try { data = await res.json(); } catch (e) {}
+
+        if (data && data.ok === false) {
+            if (statusEl) {
+                statusEl.style.color = '#ff5252';
+                statusEl.innerText = `❌ 發布失敗：${data.msg || '權限驗證未通過'}`;
+            }
+            return;
+        }
+
+        cloudMapCode = code;
+        cloudPublicEdit = !!targetPublicEdit;
+        cloudUpdatedAt = (data && data.updatedAt) ? data.updatedAt : new Date().toLocaleString('zh-TW');
+        try { localStorage.setItem('hele_cloud_synced_at', cloudUpdatedAt); } catch (e) {}
+        saveMaps();
+        syncCreativeAccessUI();
+
+        showDialog(`
+            <div style="text-align:center;">
+                <b style="color:#00e676; font-size:1.15em;">☁️ 雲端發布成功！</b><br><br>
+                所有訪客重新整理或開啟網頁時，都會直接看到你剛剛設計好的最新畫面！<br><br>
+                <span style="font-size:0.86em; color:#ffe082;">
+                    目前公開創造模式：<b>${cloudPublicEdit ? '🟢 已開啟（訪客可自由創作）' : '🔴 已關閉（訪客僅能互動）'}</b><br>
+                    發布時間：${cloudUpdatedAt}
+                </span>
+            </div>
+        `, 3800);
+    } catch (err) {
+        if (statusEl) {
+            statusEl.style.color = '#ff5252';
+            statusEl.innerText = '❌ 雲端連線異常，請確認網路連線或 Apps Script 部署權限！';
+        }
+    }
 }
 
 function openExportCodeUI() {
@@ -1512,36 +1757,14 @@ function applyImportCode() {
     let msg = document.getElementById('importMsg');
     if (!area) return;
     let raw = area.value.trim();
-    let idx = raw.indexOf('HELE2:');
-    if (idx === -1) {
+    if (!raw.includes('HELE2:')) {
         msg.innerText = "❌ 找不到有效的 HELE2: 裝潢代碼格式！";
         return;
     }
-    let token = raw.slice(idx + 6).split(/\s+/)[0];
-    try {
-        let obj = JSON.parse(atob(token));
-        let nt = decodeGridRLE(obj.t, 20, 20);
-        let ntf = decodeGridRLE(obj.tf, 20, 20);
-        let nn = decodeGridRLE(obj.n, 20, 20);
-        let nnf = decodeGridRLE(obj.nf, 20, 20);
-        let nh = decodeGridRLE(obj.h, 20, 20);
-        let nhf = decodeGridRLE(obj.hf, 20, 20);
-        if (!nt || !ntf || !nn || !nnf || !nh || !nhf) {
-            msg.innerText = "❌ 代碼內容不完整、版本不符或已損毀！";
-            return;
-        }
-        migrateOccupiedCells(nt);
-        migrateOccupiedCells(nn);
-        migrateOccupiedCells(nh);
-        templeMap = nt; templeFlip = ntf;
-        nightMarketMap = nn; nightMarketFlip = nnf;
-        holaStoreMap = nh; holaStoreFlip = nhf;
-        localStorage.setItem('blessingWall_r1', '1');
-        localStorage.setItem('holaMigrated_v3', '1');
-        saveMaps();
+    if (applyEncodedMapString(raw)) {
         showDialog("<div style='text-align:center;'>🎉 <b>裝潢代碼匯入成功！</b><br>已完整還原對方設計的宇宙陣型！</div>", 3000);
-    } catch (e) {
-        msg.innerText = "❌ 代碼解析失敗，請確認複製時沒有漏字！";
+    } else {
+        msg.innerText = "❌ 代碼內容不完整、版本不符或已損毀！";
     }
 }
 
@@ -1604,13 +1827,41 @@ function openResetMenu() {
     closeHelpModal();
     activeTransformState = null;
     isBlindBoxOpen = false;
+    isAdminModalOpen = false;
     cat.isInteracting = true;
     isKnockingWall = false;
+
+    let adminSectionHtml = '';
+    if (isAdmin) {
+        let nextPubState = !cloudPublicEdit;
+        adminSectionHtml = `
+            <div class="admin-panel-box">
+                <div style="color:#ffcc00; font-weight:900; font-size:0.98em; margin-bottom:4px;">👑 管理員雲端發布中心</div>
+                <div style="font-size:0.78em; color:#ddd; line-height:1.45;">
+                    公開創造模式：<b style="color:${cloudPublicEdit ? '#00e676' : '#ff5252'};">${cloudPublicEdit ? '🟢 開啟中 (訪客可自由創作)' : '🔴 已關閉 (訪客僅能互動)'}</b><br>
+                    雲端最後發布：${escapeHtml(cloudUpdatedAt || '尚未發布')}
+                </div>
+                <div id="adminCloudStatus" style="font-size:0.8rem; margin-top:5px; min-height:1.1em;"></div>
+                <button class="menu-btn" style="background:linear-gradient(135deg, #ffd54f 0%, #ff9800 100%); color:#000; font-weight:900; margin-top:6px;" onclick="publishCloudMap(${cloudPublicEdit})">
+                    ☁️ 一鍵儲存並發布給所有人
+                </button>
+                <button class="menu-btn" style="background:${nextPubState ? '#00e676' : '#607d8b'}; color:${nextPubState ? '#000' : '#fff'}; margin-bottom:2px;" onclick="publishCloudMap(${nextPubState})">
+                    🌐 公開創造模式：目前【${cloudPublicEdit ? '開啟' : '關閉'}】➡️ 切換為【${nextPubState ? '開啟' : '關閉'}】
+                </button>
+            </div>
+        `;
+    }
+
+    let adminLogoutHtml = isAdmin
+        ? `<button class="menu-btn" style="background:#5d4037; color:#ffe082;" onclick="logoutAdminMode()">🔒 登出管理員模式（預覽訪客視角）</button>`
+        : '';
+
     dialogBox.innerHTML = `
         <div style="text-align:center;">
             <b style="color:#ffcc00; font-size:1.15em;">🔄 裝潢分享與地圖選項</b><br>
             <span style="font-size:0.85em; color:#bbb;">請選擇要執行的動作：</span>
-            <button class="menu-btn" style="background:#00e676; color:#000; margin-top:12px;" onclick="openExportCodeUI()">
+            ${adminSectionHtml}
+            <button class="menu-btn" style="background:#00e676; color:#000; margin-top:10px;" onclick="openExportCodeUI()">
                 📤 匯出目前地圖裝潢代碼
             </button>
             <button class="menu-btn" style="background:#4fc3f7; color:#000;" onclick="openImportCodeUI()">
@@ -1625,6 +1876,7 @@ function openResetMenu() {
             <button class="menu-btn" style="background:#ff5252; color:#fff;" onclick="resetAllData()">
                 🧹 清除存檔並還原預設陣型
             </button>
+            ${adminLogoutHtml}
             <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">
                 ✖️ 取消
             </button>
@@ -1651,6 +1903,7 @@ function resetAllData() {
         localStorage.removeItem('holaStoreFlip_v2');
         localStorage.removeItem('holaMigrated_v3');
         localStorage.removeItem('blessingWall_r1');
+        localStorage.removeItem('hele_cloud_synced_at');
     } catch(e) {}
     window.location.href = window.location.pathname + '?v=' + Date.now();
 }
@@ -1661,6 +1914,7 @@ function closeDialog() {
     cat.isInteracting = false;
     isKnockingWall = false;
     isBlindBoxOpen = false;
+    isAdminModalOpen = false;
     activeTransformState = null;
 }
 
@@ -1672,7 +1926,7 @@ zoomBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropag
 
 window.addEventListener('keydown', e => {
     tryPlayBGM();
-    if (isBlindBoxOpen) {
+    if (isBlindBoxOpen || isAdminModalOpen) {
         if (e.key === 'Escape') closeDialog();
         return;
     }
@@ -1730,8 +1984,12 @@ function isTileWalkableCell(r, c) {
     return tile === 0 || tile === 3;
 }
 
+// 河樂宮右下角牆壁暗門感應區（涵蓋右下轉角右牆 r=15~18 與下牆 c=15~18）
 function isSecretWallCell(r, c) {
-    return currentMap === 'temple' && (r === 15 || r === 16) && c === 19;
+    if (currentMap !== 'temple') return false;
+    let isRightCornerWall = (c === 19 && r >= 15 && r <= 19);
+    let isBottomCornerWall = (r === 19 && c >= 15 && c <= 19);
+    return isRightCornerWall || isBottomCornerWall;
 }
 
 function isInteractableCell(r, c) {
@@ -1850,7 +2108,8 @@ function getAdjacentGoalsForTarget(r0, c0) {
 }
 
 function handleMapClickMove(clientX, clientY) {
-    if (isDecorating || isPrompting || isBlindBoxOpen) return;
+    if (checkAdminCornerTap(clientX, clientY)) return;
+    if (isDecorating || isPrompting || isBlindBoxOpen || isAdminModalOpen) return;
     if (helpModal.style.display === 'flex') return;
 
     if (dialogBox.style.display === 'block') {
@@ -1932,6 +2191,7 @@ function isPlacementValid(r0, c0, dim) {
 }
 
 function handleEditInteraction(clientX, clientY) {
+    if (checkAdminCornerTap(clientX, clientY)) return;
     if (catalogModal.style.display === 'flex' || dialogBox.style.display === 'block') return;
     tryPlayBGM();
     let pos = getGridPos(clientX, clientY);
@@ -1965,8 +2225,8 @@ function handleEditInteraction(clientX, clientY) {
                 }
             }
         }
-        if ([1, 2, 30, 101, 3, 201, BLESSING_WALL_TILE].includes(rootTile)) {
-            editModeUI.innerText = "🔒 外牆、光明燈牆與出入口大門受到結界保護，無法拆除！";
+        if ([1, 2, 30, 101, 3, 201].includes(rootTile)) {
+            editModeUI.innerText = "🔒 外牆與出入口大門受到結界保護，無法拆除！";
         } else if (itemDims[rootTile] || (rootTile >= 501 && rootTile !== OCCUPIED_TILE)) {
             let dim = itemDims[rootTile] || { w: 1, h: 1 };
             let meta = getItemMeta(rootTile);
@@ -2016,7 +2276,7 @@ let touchMoved = false;
 let touchStartX = 0, touchStartY = 0;
 window.addEventListener('touchstart', e => {
     if(e.target === actionBtn || e.target === zoomBtn || e.target === editBtn || e.target === resetBtn || e.target === helpBtn || e.target.closest('#dialogBox') || e.target.closest('#hotbar') || e.target.closest('#catalogModal') || e.target.closest('#helpModal')) return;
-    if (isDecorating || isBlindBoxOpen) return;
+    if (isDecorating || isBlindBoxOpen || isAdminModalOpen) return;
     isTouching = true;
     touchMoved = false;
     touchStartX = e.touches[0].clientX;
@@ -2024,7 +2284,7 @@ window.addEventListener('touchstart', e => {
     touchDir = null;
 }, { passive: false });
 window.addEventListener('touchmove', e => {
-    if (isDecorating || isBlindBoxOpen || !isTouching) return;
+    if (isDecorating || isBlindBoxOpen || isAdminModalOpen || !isTouching) return;
     e.preventDefault();
     let diffX = e.touches[0].clientX - touchStartX;
     let diffY = e.touches[0].clientY - touchStartY;
@@ -2036,15 +2296,15 @@ window.addEventListener('touchmove', e => {
     }
 }, { passive: false });
 window.addEventListener('touchend', e => {
-    if (isTouching && !touchMoved && !isDecorating && !isBlindBoxOpen) {
+    if (isTouching && !touchMoved && !isDecorating && !isBlindBoxOpen && !isAdminModalOpen) {
         handleMapClickMove(touchStartX, touchStartY);
     }
     isTouching = false;
     touchDir = null;
 });
 
-actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); cancelAutoPath(); if(!isDecorating && !isBlindBoxOpen) tryInteract(); }, { passive: false });
-actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); cancelAutoPath(); if(!isDecorating && !isBlindBoxOpen) tryInteract(); });
+actionBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); cancelAutoPath(); if(!isDecorating && !isBlindBoxOpen && !isAdminModalOpen) tryInteract(); }, { passive: false });
+actionBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); tryPlayBGM(); cancelAutoPath(); if(!isDecorating && !isBlindBoxOpen && !isAdminModalOpen) tryInteract(); });
 
 function tryPlayBGM() {
     if (!bgmPlayed) {
@@ -2056,7 +2316,7 @@ function tryPlayBGM() {
 }
 
 function updateLoadUI() {
-    loadStatus.innerText = `圖資：${settledImages}/${assetNames.length} ｜ 庫存：${sheetStateText} ｜ 自訂庫：${customSheetStateText}`;
+    loadStatus.innerText = `圖資：${settledImages}/${assetNames.length} ｜ 庫存：${sheetStateText} ｜ 自訂庫：${customSheetStateText} ｜ 雲端：${cloudMapStateText}`;
     checkStartGame();
 }
 
@@ -2106,7 +2366,7 @@ async function fetchInventory() {
     }
 }
 
-// 動態載入 Google 試算表「自訂素材」：支援 A~K 欄（含 Clicks 與 TransformID 外觀切換）
+// 動態載入 Google 試算表「自訂素材」：支援 A~K 欄（自動辨識主目錄舊圖與 custom/ 新圖）
 async function fetchCustomItems() {
     let rawUrl = (CUSTOM_SHEET_URL || "").trim();
     if (!rawUrl) {
@@ -2159,15 +2419,22 @@ async function fetchCustomItems() {
             let imgKey = null;
             let imgSrc = null;
             if (file) {
-                if (!/\.[a-zA-Z0-9]+$/.test(file)) file += '.png';
-                imgSrc = (file.startsWith('http') || file.startsWith('custom/')) ? file : ('custom/' + file);
-                imgKey = 'custom_' + id;
-                let imgObj = new Image();
-                imgObj.src = imgSrc;
-                images[imgKey] = imgObj;
+                let baseNoExt = file.replace(/\.[^/.]+$/, '');
+                if (assetNames.includes(baseNoExt)) {
+                    // 主目錄既有圖檔：直接沿用原圖，不加 custom/ 前綴
+                    imgKey = baseNoExt;
+                    imgSrc = baseNoExt + '.png';
+                } else {
+                    if (!/\.[a-zA-Z0-9]+$/.test(file)) file += '.png';
+                    imgSrc = (file.startsWith('http') || file.startsWith('custom/')) ? file : ('custom/' + file);
+                    imgKey = 'custom_' + id;
+                    let imgObj = new Image();
+                    imgObj.src = imgSrc;
+                    images[imgKey] = imgObj;
+                }
             }
 
-            // 情況 A：修改既有內建物件／人物（ID < 501，如 3~121）
+            // 情況 A：修改既有內建物件／人物（ID < 501，如 4~121）
             if (id < 501) {
                 let oldDim = itemDims[id] || { w: 1, h: 1 };
                 let newW = rawW ? Math.max(1, parseInt(rawW) || 1) : oldDim.w;
@@ -2239,6 +2506,44 @@ async function fetchCustomItems() {
     }
 }
 
+// 開局讀取 Google 試算表「地圖配置」分頁，同步最新陣型與公開創造模式開關
+async function fetchCloudMapConfig() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    try {
+        const res = await fetch(`${MAP_CONFIG_API_URL}?action=getMap&t=${Date.now()}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data && data.ok) {
+            cloudPublicEdit = !!data.publicEdit;
+            cloudUpdatedAt = data.updatedAt || "";
+            cloudMapCode = data.code || "";
+
+            if (cloudMapCode) {
+                let lastSyncedAt = "";
+                try { lastSyncedAt = localStorage.getItem('hele_cloud_synced_at') || ""; } catch (e) {}
+                // 若雲端版本時間更新，或公開創造模式已關閉，直接同步為管理員發布的官方畫面
+                if (!cloudPublicEdit || cloudUpdatedAt !== lastSyncedAt) {
+                    if (applyEncodedMapString(cloudMapCode)) {
+                        try { localStorage.setItem('hele_cloud_synced_at', cloudUpdatedAt); } catch (e) {}
+                    }
+                }
+            }
+            cloudMapStateText = cloudUpdatedAt ? "已同步" : "預設";
+        } else {
+            cloudMapStateText = "預設";
+        }
+    } catch (err) {
+        clearTimeout(timeoutId);
+        cloudMapStateText = "離線放行";
+    } finally {
+        cloudMapSettled = true;
+        syncCreativeAccessUI();
+        updateLoadUI();
+    }
+}
+
 assetNames.forEach(name => {
     images[name] = new Image();
     images[name].src = name + '.png';
@@ -2254,7 +2559,7 @@ setTimeout(() => { if (!gameStarted) forceStartBtn.style.display = 'inline-block
 setTimeout(() => { if (!gameStarted) launchGame(); }, 8000);
 
 function checkStartGame() {
-    if (settledImages === assetNames.length && sheetSettled && customSheetSettled) {
+    if (settledImages === assetNames.length && sheetSettled && customSheetSettled && cloudMapSettled) {
         launchGame();
     }
 }
@@ -2267,7 +2572,7 @@ function launchGame() {
     actionBtn.style.display = 'block';
     helpBtn.style.display = 'flex';
     zoomBtn.style.display = 'block'; 
-    editBtn.style.display = 'block';
+    syncCreativeAccessUI();
     gameLoop();
 }
 
@@ -2275,6 +2580,7 @@ function init() {
     updateZoomIcon();
     fetchInventory();
     fetchCustomItems();
+    fetchCloudMapConfig();
 }
 
 function getBestPromoPrice(item) {
@@ -2344,7 +2650,7 @@ function findSafeTempleExitPos() {
 }
 
 function tryInteract() {
-    if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating || isBlindBoxOpen) return;
+    if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating || isBlindBoxOpen || isAdminModalOpen) return;
     let cx = cat.x + (TILE_SIZE / 2), cy = cat.y + (TILE_SIZE / 2);
     let mapLayout = getActiveMapLayout();
 
@@ -2507,12 +2813,15 @@ function openBlessingBlindBoxUI(prefillSku = '', errorMsg = '') {
     cat.isMoving = false;
     cat.isInteracting = true;
     isKnockingWall = false;
+    isAdminModalOpen = false;
     activeTransformState = null;
     isBlindBoxOpen = true;
 
+    let displayTitle = getItemMeta(BLESSING_WALL_TILE).name || '萬壽光明燈';
+
     dialogBox.innerHTML = `
         <div class="blindbox-wrap">
-            <div class="blindbox-title">🏮 萬壽光明燈 · 盲盒</div>
+            <div class="blindbox-title">🏮 ${escapeHtml(displayTitle)} · 盲盒</div>
             <div class="blindbox-desc">
                 輸入你想在 60 天內追蹤的商品貨號 (SKU) 祈福求籤，神明會將當前的價格與庫存打包成 60 天有效的專屬分享連結！
             </div>
@@ -2559,11 +2868,9 @@ async function castBlindBoxLink() {
         return;
     }
 
-    // 去除前後空白後，若長度為 8 碼，自動在前方補 0 變成 9 碼
     let sku = normalizeSku9(rawInput);
     inp.value = sku;
 
-    // 若開局時試算表尚未載入完成，這裡即時向《商品全資料》CSV 補抓一次
     if (inventoryData.length === 0) {
         if (statusEl) {
             statusEl.style.color = "#4fc3f7";
@@ -2587,7 +2894,6 @@ async function castBlindBoxLink() {
         return;
     }
 
-    // 比對 SKU 欄位是否存在（相容試算表內 8 碼或 9 碼補零格式）
     let matchedItem = inventoryData.find(row => {
         let rowSku = normalizeSku9(row['SKU'] || '');
         return rowSku !== '' && rowSku === sku;
@@ -2604,14 +2910,11 @@ async function castBlindBoxLink() {
     }
 
     let productName = (matchedItem['商品名稱'] || sku).trim();
-
-    // 1. 取得當天日期 YYYYMMDD（例如 20261116）
     const now = new Date();
     const dateStr = now.getFullYear() +
         String(now.getMonth() + 1).padStart(2, '0') +
         String(now.getDate()).padStart(2, '0');
 
-    // 2. 嚴格使用「SKU|YYYYMMDD」格式進行編碼
     const rawPayload = `${sku}|${dateStr}`;
     const encoded = btoa(encodeURIComponent(rawPayload));
     const blindBoxUrl = `https://satanhotdog.github.io/vip-check/?c=${encoded}`;
@@ -2683,7 +2986,7 @@ function copyBlindBoxUrl() {
 }
 
 function interactWithCoord(r, c) {
-    if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating || isBlindBoxOpen) return;
+    if ((cat.isInteracting && !isKnockingWall) || isPrompting || isDecorating || isBlindBoxOpen || isAdminModalOpen) return;
     let mapLayout = getActiveMapLayout();
     if (r < 0 || c < 0 || r >= mapLayout.length || c >= mapLayout[0].length) return;
     let rootR = r, rootC = c;
@@ -2709,12 +3012,6 @@ function interactWithCoord(r, c) {
         }
     }
 
-    // 攔截「萬壽光明燈牆」，開啟版本 A 盲盒互動彈窗
-    if (tile === BLESSING_WALL_TILE) {
-        openBlessingBlindBoxUI();
-        return;
-    }
-
     if (isSecretWallCell(r, c)) {
         wallKnockCount++;
         if (wallKnockCount < 5) {
@@ -2736,9 +3033,31 @@ function interactWithCoord(r, c) {
     }
 
     let tfBtnHtml = buildTransformButtonHtml(rootR, rootC, tile);
+
+    // 優先保障五大寫死核心功能 ID（5 籤筒、6 藍貓廟公、9 光明燈牆、31 機車全位置變身、61 Kobe 專員）
+    if (HARDCODED_CORE_IDS.has(tile)) {
+        if (tile === BLESSING_WALL_TILE) { openBlessingBlindBoxUI(); return; }
+        if (tile === 5) { handleFortune(); return; }
+        if (tile === 6) { handleNPC(); return; }
+        if (tile === 61) { handleKobe(tfBtnHtml); return; }
+        if (tile === 31) {
+            isPrompting = true;
+            canvas.classList.add('shake-active');
+            setTimeout(() => canvas.classList.remove('shake-active'), 500);
+            showDialog("<div style='text-align:center;'>⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」</div>", 1500);
+            setTimeout(() => {
+                mapLayout[rootR][rootC] = 33;
+                saveMaps();
+                showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 4000);
+                isPrompting = false;
+            }, 1500);
+            return;
+        }
+    }
+
     let ov = builtInOverrides[tile];
 
-    // 若試算表有為既有物件 (ID < 501) 設定自訂台詞，優先播放自訂台詞（並支援同時顯示加 LINE 與 ㊙️切換外觀）
+    // 若試算表有為其他既有物件 (ID < 501) 設定自訂台詞，優先播放自訂台詞
     if (ov && ov.dialogs && ov.dialogs.length > 0) {
         let text = ov.dialogs[ov.dialogIdx % ov.dialogs.length];
         ov.dialogIdx = (ov.dialogIdx + 1) % ov.dialogs.length;
@@ -2757,30 +3076,12 @@ function interactWithCoord(r, c) {
 
     if (tile === 4) showDialog(`<div style='text-align:center;'>🔥 河樂宮香爐：<br>「香火鼎盛，保佑今天大墩店業績長紅、客人刷卡不手軟！」</div>${extraOvLine}${tfBtnHtml}`, 4500);
     if (tile === 99) showDialog(`<div style='text-align:center;'>🙏 河樂宮神尊：<br>「心誠則靈，抽支上上籤看看今天哪款沙發最有緣吧！」</div>${extraOvLine}${tfBtnHtml}`, 4500);
-    if (tile === 5) handleFortune();
-    if (tile === 6) handleNPC();
     if (tile === 7) handleGolden(); 
     if (tile === 8) handleHairless(); 
-    if (tile === 61) handleKobe(tfBtnHtml);
     
     if (tile >= 41 && tile <= 44) handleNightCat('boss' + (tile-40), ['🐱 橘貓老闆 (烤香腸)', '🐱 黑貓老闆 (章魚燒)', '🐱 白貓老闆 (波霸奶茶)', '🐱 賓士貓老闆 (撈金魚)'][tile-41], currentMap, extraOvLine + tfBtnHtml);
     if (tile >= 51 && tile <= 52) handleNightCat('cus' + (tile-50), ['🐈 顧客 (喝珍奶)', '🐈 顧客 (吃香腸)'][tile-51], currentMap, extraOvLine + tfBtnHtml);
 
-    if (tile === 31) {
-        if (c < 10) showDialog(`<div style='text-align:center;'>🛵 機車：<br>「叭～叭～！找死啊！」</div>${extraOvLine}${tfBtnHtml}`, 3500);
-        else {
-            isPrompting = true;
-            canvas.classList.add('shake-active');
-            setTimeout(() => canvas.classList.remove('shake-active'), 500);
-            showDialog("<div style='text-align:center;'>⚙️ 機車：<br>「卡其庫克庫...（劣質的變形音效）」</div>", 1500);
-            setTimeout(() => {
-                mapLayout[r][c] = 33; 
-                saveMaps();
-                showDialog("<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>", 4000);
-                isPrompting = false;
-            }, 1500);
-        }
-    }
     if (tile === 33) showDialog(`<div style='text-align:center;'>🤖 大墩店變形金剛：<br>「為您服務。但我現在下班了。」</div>${extraOvLine}${tfBtnHtml}`, 3500);
 
     if (currentMap === 'holaStore' && tile === 201) {
@@ -2845,7 +3146,7 @@ function handleGolden() {
         showDialog("<div style='text-align:center;'>🐱 金漸層：<br>「如果你有看中什麼家具，不如直接找這位藍貓廟公處理...<br><br><a href='https://line.me/ti/p/v-9_IDIeyw' target='_blank' style='display:inline-block; margin-top:10px; padding:10px 15px; background:#00c300; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size:1.1em;'>👉 點擊加 KOBE 的 LINE</a>」</div>", 10000); 
         npcTalked.golden = true;
     } else {
-        showDialog("<div style='text-align:center;'>🐱 金漸層：<br>「偷偷告訴你，無毛貓『正上方』的那面牆壁，好像有點玄機，總覺得裡面藏了一整個賣場...」</div>", 5500); 
+        showDialog("<div style='text-align:center;'>🐱 金漸層：<br>「偷偷告訴你，廟裡右下角那面牆壁，好像有點玄機，總覺得裡面藏了一整個賣場...」</div>", 5500); 
     }
 }
 
@@ -2854,7 +3155,7 @@ function handleHairless() {
         showDialog("<div style='text-align:center;'>🐈 無毛貓：<br>「偷偷跟你說，聽說這裡的藍貓廟公KOBE，有在兼職HOLA大墩店家具業務耶。」</div>", 5000); 
         npcTalked.hairless = true;
     } else {
-        showDialog("<div style='text-align:center;'>🐈 無毛貓：<br>「如果你走到我頭頂上那面牆，面向它敲『五下』！對，連點調查鍵，不多不少就是五下！」</div>", 5500); 
+        showDialog("<div style='text-align:center;'>🐈 無毛貓：<br>「廟裡右下角那面牆壁，面向它敲『五下』！對，連點調查鍵，不多不少就是五下，就會出現神蹟！」</div>", 5500); 
     }
 }
 
@@ -2919,6 +3220,7 @@ function handleNPC() {
 
 function showDialog(text, duration = 4000, keepKnocking = false) {
     isBlindBoxOpen = false;
+    isAdminModalOpen = false;
     dialogBox.innerHTML = text;
     dialogBox.style.display = 'block';
     cat.isInteracting = true;
@@ -2955,7 +3257,7 @@ function checkMapTransitions(dy) {
 }
 
 function update() {
-    if (cat.isInteracting || isPrompting || isDecorating || isBlindBoxOpen) return;
+    if (cat.isInteracting || isPrompting || isDecorating || isBlindBoxOpen || isAdminModalOpen) return;
     if (helpModal.style.display === 'flex') return;
 
     cat.isMoving = false;
@@ -3076,7 +3378,8 @@ function drawItemTile(tile, posX, posY, ctx, flipped = false) {
         ctx.translate(-pivotX, 0);
     }
 
-    if (ov && ov.imgKey) {
+    // 若在自訂素材分頁指定了不同圖檔，優先繪製指定圖檔
+    if (ov && ov.imgKey && !assetNames.includes(ov.imgKey)) {
         let img = images[ov.imgKey];
         let drawW = dim.w * TILE_SIZE;
         let drawH = dim.h * TILE_SIZE * (ov.scaleH || 1.0);
