@@ -81,7 +81,6 @@ pointer-events: auto;
 touch-action: auto;
 z-index: 250;
 }
-/* 光明燈盲盒 & 管理員密碼專屬互動元件樣式 */
 .blindbox-wrap {
 font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
 line-height: 1.55;
@@ -442,41 +441,85 @@ color: #000;
 padding: 7px 14px;
 border-radius: 20px;
 font-weight: bold;
-font-size: 0.85rem;
+font-size: 0.84rem;
 white-space: nowrap;
+max-width: 94vw;
+overflow: hidden;
+text-overflow: ellipsis;
 display: none;
 z-index: 100;
 pointer-events: none;
 box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
+/* 兩排式底部創造工具欄 */
 #hotbar {
 position: fixed;
-bottom: 16px;
+bottom: 14px;
 left: 50%;
 transform: translateX(-50%);
-background: rgba(18, 18, 22, 0.94);
+background: rgba(18, 18, 24, 0.95);
 border: 2px solid #00e676;
 border-radius: 14px;
-padding: 5px 6px;
+padding: 6px 7px;
 display: none;
-gap: 3px;
-align-items: center;
-justify-content: space-between;
+flex-direction: column;
+gap: 6px;
 z-index: 140;
-width: 96vw;
-max-width: 430px;
+width: 95vw;
+max-width: 440px;
 box-sizing: border-box;
-box-shadow: 0 6px 20px rgba(0,0,0,0.75);
+box-shadow: 0 6px 22px rgba(0,0,0,0.8);
 backdrop-filter: blur(8px);
 -webkit-backdrop-filter: blur(8px);
+}
+.hb-row {
+display: flex;
+gap: 6px;
+width: 100%;
+align-items: center;
+justify-content: space-between;
+}
+.hb-action {
+flex: 1 1 0;
+min-width: 0;
+height: 38px;
+box-sizing: border-box;
+border-radius: 9px;
+border: 1.5px solid #555;
+background: rgba(255, 255, 255, 0.08);
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 4px;
+cursor: pointer;
+user-select: none;
+color: #fff;
+font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+font-size: 13px;
+font-weight: bold;
+padding: 0 4px;
+}
+.hb-action:active {
+transform: scale(0.94);
+}
+.hb-action.active {
+border-color: #ffcc00;
+background: rgba(255, 204, 0, 0.25);
+color: #ffe082;
+box-shadow: 0 0 10px rgba(255, 204, 0, 0.45);
+}
+.hb-action.move-active {
+border-color: #4fc3f7;
+background: rgba(79, 195, 247, 0.26);
+color: #81d4fa;
+box-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
 }
 .hb-slot {
 flex: 1 1 0;
 min-width: 0;
-max-width: 44px;
-height: 42px;
+height: 48px;
 box-sizing: border-box;
-border-radius: 8px;
+border-radius: 9px;
 border: 2px solid #444;
 background: rgba(255,255,255,0.07);
 display: flex;
@@ -487,11 +530,10 @@ cursor: pointer;
 position: relative;
 user-select: none;
 color: #fff;
-font-size: 16px;
-padding: 2px 1px;
+padding: 2px;
 }
 .hb-slot:active {
-transform: scale(0.92);
+transform: scale(0.94);
 }
 .hb-slot.active {
 border-color: #ffcc00;
@@ -499,8 +541,8 @@ background: rgba(255, 204, 0, 0.24);
 box-shadow: 0 0 10px rgba(255, 204, 0, 0.55);
 }
 .hb-slot img {
-max-width: 24px;
-max-height: 24px;
+max-width: 28px;
+max-height: 28px;
 object-fit: contain;
 image-rendering: pixelated;
 pointer-events: none;
@@ -509,19 +551,12 @@ pointer-events: none;
 transform: scaleX(-1);
 }
 .hb-label {
-font-size: 8.5px;
+font-size: 9.5px;
 line-height: 1;
 margin-top: 2px;
 color: #ddd;
 white-space: nowrap;
 pointer-events: none;
-}
-.hb-divider {
-width: 1px;
-height: 26px;
-background: #444;
-margin: 0 1px;
-flex-shrink: 0;
 }
 #catalogModal {
 display: none;
@@ -658,7 +693,7 @@ border-radius: 4px;
 <div id="zoomBtn" title="三段縮放視野">🔍</div>
 <div id="resetBtn" title="管理員發布 / 裝潢代碼 / 清空 / 還原">🔄</div>
 <div id="editBtn" title="麥塊創造模式">🛠️</div>
-<div id="editModeUI">🛠️ 創造模式：請先點選下方欄位或圖鑑選擇物件</div>
+<div id="editModeUI">🛠️ 創造模式：請先點選下方工具或物件</div>
 <div id="hotbar"></div>
 <div id="catalogModal"></div>
 <div id="helpModal"></div>
@@ -764,9 +799,10 @@ let autoPath = [];
 let pendingInteractTarget = null;
 let clickMarker = null;
 
-// 麥塊創造模式狀態（預設 'none'，點擊下方欄位後才出現預覽物件）
+// 麥塊創造模式狀態（creativeMode: 'none' | 'place' | 'move' | 'remove'）
 let isDecorating = false;
 let creativeMode = 'none';
+let movingItem = null; // { tile, origR, origC, flipped }
 let hotbarItems = [112, 119, 121, 61, 114];
 let activeSlot = -1;
 let heldFlipped = false;
@@ -1163,6 +1199,27 @@ function resetZoomForMap() {
     updateZoomIcon();
 }
 
+// 若手上正抓著移動中的物件，切換工具或關閉模式時自動放回原位，絕不遺失
+function restoreMovingItemIfNeeded() {
+    if (!movingItem) return false;
+    let mapLayout = getActiveMapLayout();
+    let flipLayout = getActiveFlipLayout();
+    let { tile, origR, origC, flipped } = movingItem;
+    let dim = itemDims[tile] || { w: 1, h: 1 };
+    for (let dr = 0; dr < dim.h; dr++) {
+        for (let dc = 0; dc < dim.w; dc++) {
+            let isRoot = (dr === 0 && dc === 0);
+            if (origR + dr < mapLayout.length && origC + dc < mapLayout[0].length) {
+                mapLayout[origR + dr][origC + dc] = isRoot ? tile : OCCUPIED_TILE;
+                flipLayout[origR + dr][origC + dc] = (isRoot && flipped) ? 1 : 0;
+            }
+        }
+    }
+    movingItem = null;
+    hasHoveredGrid = false;
+    return true;
+}
+
 // 同步更新創造模式按鈕可見度（管理員或雲端公開創造模式開啟時才顯示 🛠️）
 function syncCreativeAccessUI() {
     let canUseCreative = isAdmin || cloudPublicEdit;
@@ -1171,6 +1228,7 @@ function syncCreativeAccessUI() {
         editBtn.style.borderColor = isAdmin ? '#ffcc00' : '#00e676';
     }
     if (!canUseCreative && isDecorating) {
+        restoreMovingItemIfNeeded();
         isDecorating = false;
         editModeUI.style.display = 'none';
         resetBtn.style.display = 'none';
@@ -1340,9 +1398,10 @@ function openHelpModal() {
     } else if (currentHelpTab === 'build') {
         bodyHtml = `
             <div class="help-card">
-                <b class="gn">🛠️ 麥塊創造模式操作</b><br>
-                • 點擊右上角 <b class="gn">🛠️</b> 進入創造模式，先點選下方道具列或 <b class="hl">🎒 圖鑑</b> 選擇物件後，再點擊地圖空地放置（自動存檔）。<br>
-                • 可點 <b class="hl">🔃 鏡像</b> 左右翻轉方向、點 <b class="bl">⛏️ 收起</b> 移除單一物件。
+                <b class="gn">🛠️ 麥塊創造模式（兩排工具列）</b><br>
+                • <b class="bl">✋ 移動</b>：點場上任一家具或 NPC「抓起」，再點目標空地「放下」（自動保留原方向、不複製多隻；再按一次移動可放回原位）。<br>
+                • <b class="hl">⛏️ 收起 / 🔃 鏡像 / 🎒 圖鑑</b>：移除單一物件、左右翻轉方向，或從圖鑑挑選素材放入第二排快捷欄。<br>
+                • <b>第二排快捷欄</b>：點選物件後，點擊地圖空地即可連續放置並自動存檔。
             </div>
             <div class="help-card">
                 <b class="bl">🔄 清空場地、裝潢代碼分享與一鍵還原</b><br>
@@ -1368,7 +1427,7 @@ function openHelpModal() {
                     <tr><td><b>Name</b></td><td>顯示名稱（修改既有物件時留空則維持原名）。</td></tr>
                     <tr><td><b>File</b></td><td>圖片檔名（可省略 .png；主目錄舊圖與 custom 新圖皆自動辨識）。</td></tr>
                     <tr><td><b>W / H</b></td><td>佔地格數（寬 × 深），修改既有物件時留空則維持原大小。</td></tr>
-                    <tr><td><b>ScaleH</b></td><td>視覺高度倍率（預設 <b>1</b>，高櫃或高大人物可填 1.3~1.6）。</td></tr>
+                    <tr><td><b>ScaleH</b></td><td>視覺高度倍率（既有物件建議填 <b>1</b>，高大新素材可填 1.3~1.6）。</td></tr>
                     <tr><td><b>Dialog</b></td><td>對話台詞，用 <b class="hl">|</b> 隔開可設定多句輪播（寫死功能 ID 請留白）。</td></tr>
                     <tr><td><b>LineBtn</b></td><td>填 <b>TRUE</b> 會在對話框下方自動附上加 KOBE LINE 按鈕。</td></tr>
                     <tr><td><b>Clicks</b></td><td>J 欄：按「㊙️切換外觀」按鈕幾次觸發變身（填 <b>0</b> 或留空則不顯示按鈕）。</td></tr>
@@ -1408,39 +1467,63 @@ helpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropag
 helpModal.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
 helpModal.addEventListener('mousedown', e => e.stopPropagation());
 
-// --- 麥塊創造模式 UI 渲染與操作 ---
+// --- 麥塊創造模式兩排 UI 渲染與操作 ---
 function renderHotbar() {
-    let html = `
-        <div class="hb-slot ${creativeMode === 'remove' ? 'active' : ''}" onclick="selectRemoveTool()" title="收起／拆除物件">
-            ⛏️<span class="hb-label">收起</span>
+    let isMoveActive = (creativeMode === 'move');
+    let isRemoveActive = (creativeMode === 'remove');
+    let row1Html = `
+        <div class="hb-row">
+            <div class="hb-action ${isMoveActive ? 'move-active' : ''}" onclick="selectMoveTool()" title="移動場上物件位置">
+                ✋ 移動
+            </div>
+            <div class="hb-action ${isRemoveActive ? 'active' : ''}" onclick="selectRemoveTool()" title="收起／拆除物件">
+                ⛏️ 收起
+            </div>
+            <div class="hb-action ${heldFlipped ? 'active' : ''}" onclick="toggleFlipBrush()" title="左右鏡像翻轉">
+                🔃 鏡像
+            </div>
+            <div class="hb-action" onclick="openCatalogModal()" title="開啟全圖鑑背包">
+                🎒 圖鑑
+            </div>
         </div>
-        <div class="hb-divider"></div>
     `;
+
+    let row2Slots = '';
     for (let i = 0; i < 5; i++) {
         let tile = hotbarItems[i];
         let meta = getItemMeta(tile);
         let isActive = (creativeMode === 'place' && activeSlot === i);
         let flipClass = (isActive && heldFlipped) ? 'flipped' : '';
-        html += `
+        row2Slots += `
             <div class="hb-slot ${isActive ? 'active' : ''}" onclick="selectHotbarSlot(${i})" title="${meta.name}">
                 <img src="${meta.imgSrc}" class="${flipClass}" onerror="this.src='icon.png'">
                 <span class="hb-label">${meta.size}</span>
             </div>
         `;
     }
-    html += `
-        <div class="hb-divider"></div>
-        <div class="hb-slot ${heldFlipped ? 'active' : ''}" onclick="toggleFlipBrush()" title="左右鏡像翻轉">
-            🔃<span class="hb-label">鏡像</span>
-        </div>
-        <div class="hb-slot" onclick="openCatalogModal()" title="開啟全圖鑑背包">
-            🎒<span class="hb-label">圖鑑</span>
-        </div>
-    `;
-    hotbar.innerHTML = html;
+    let row2Html = `<div class="hb-row">${row2Slots}</div>`;
+
+    hotbar.innerHTML = row1Html + row2Html;
+}
+
+function selectMoveTool() {
+    if (creativeMode === 'move' && movingItem) {
+        let meta = getItemMeta(movingItem.tile);
+        restoreMovingItemIfNeeded();
+        editModeUI.innerText = `↩️ 已取消移動，將【${meta.name}】放回原位`;
+        renderHotbar();
+        return;
+    }
+    restoreMovingItemIfNeeded();
+    creativeMode = 'move';
+    activeSlot = -1;
+    hasHoveredGrid = false;
+    editModeUI.innerText = "✋ 移動模式：請點擊場上要移動的家具或人物";
+    renderHotbar();
 }
 
 function selectRemoveTool() {
+    restoreMovingItemIfNeeded();
     creativeMode = 'remove';
     activeSlot = -1;
     hasHoveredGrid = false;
@@ -1449,6 +1532,7 @@ function selectRemoveTool() {
 }
 
 function selectHotbarSlot(idx) {
+    restoreMovingItemIfNeeded();
     creativeMode = 'place';
     activeSlot = idx;
     hasHoveredGrid = false;
@@ -1459,7 +1543,14 @@ function selectHotbarSlot(idx) {
 
 function toggleFlipBrush() {
     heldFlipped = !heldFlipped;
+    if (creativeMode === 'move' && movingItem) {
+        let meta = getItemMeta(movingItem.tile);
+        editModeUI.innerText = `🔃 已翻轉移動中的【${meta.name}】，點目標空地放下`;
+        renderHotbar();
+        return;
+    }
     if (creativeMode !== 'place' || activeSlot < 0) {
+        restoreMovingItemIfNeeded();
         creativeMode = 'place';
         activeSlot = 0;
         hasHoveredGrid = false;
@@ -1470,6 +1561,7 @@ function toggleFlipBrush() {
 }
 
 function openCatalogModal() {
+    restoreMovingItemIfNeeded();
     let tabsHtml = `
         <div class="cat-header">
             <b style="color:#ffcc00; font-size:1.05rem;">🎒 麥塊全圖鑑背包</b>
@@ -1510,6 +1602,7 @@ function closeCatalogModal() {
 }
 
 function pickCatalogItem(tile) {
+    restoreMovingItemIfNeeded();
     let existingIdx = hotbarItems.indexOf(tile);
     if (existingIdx !== -1) {
         activeSlot = existingIdx;
@@ -1535,6 +1628,9 @@ dialogBox.addEventListener('mousedown', e => e.stopPropagation());
 
 function toggleEditMode() {
     if (!isAdmin && !cloudPublicEdit) return;
+    if (isDecorating) {
+        restoreMovingItemIfNeeded();
+    }
     isDecorating = !isDecorating;
     cancelAutoPath();
     closeHelpModal();
@@ -1549,11 +1645,12 @@ function toggleEditMode() {
         cat.isMoving = false;
         touchDir = null;
         creativeMode = 'none';
+        movingItem = null;
         activeSlot = -1;
         hasHoveredGrid = false;
         editModeUI.innerText = isAdmin
             ? "👑 管理員創造模式：擺好後點右上方 🔄 可發布給所有人"
-            : "🛠️ 創造模式：請先點選下方欄位或圖鑑選擇物件";
+            : "🛠️ 創造模式：請先點選下方「移動 / 收起」或物件欄位";
         renderHotbar();
     } else {
         closeCatalogModal();
@@ -1645,7 +1742,6 @@ function applyEncodedMapString(rawCode) {
     }
 }
 
-// 雲端一鍵發布（儲存目前三張地圖擺設 + 公開創造模式開關到 Google 試算表「地圖配置」）
 async function publishCloudMap(targetPublicEdit) {
     let statusEl = document.getElementById('adminCloudStatus');
     if (statusEl) {
@@ -1791,6 +1887,7 @@ function openClearConfirmMenu() {
 }
 
 function clearConfiguredItems(scope) {
+    movingItem = null;
     const keepTiles = new Set([0, 1, 2, 3, 30, 101, 201]);
     const sweepGrid = (grid, flip) => {
         for (let r = 0; r < grid.length; r++) {
@@ -1822,6 +1919,7 @@ function clearConfiguredItems(scope) {
 }
 
 function openResetMenu() {
+    restoreMovingItemIfNeeded();
     if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
     closeCatalogModal();
     closeHelpModal();
@@ -2190,6 +2288,29 @@ function isPlacementValid(r0, c0, dim) {
     return true;
 }
 
+// 解析點擊座標所屬的物件左上角根格與編號
+function resolveRootObjectAt(r, c) {
+    let mapLayout = getActiveMapLayout();
+    let tile = mapLayout[r][c];
+    let rootR = r, rootC = c, rootTile = tile;
+    if (tile === OCCUPIED_TILE) {
+        outerFind: for (let dr = 0; dr >= -4; dr--) {
+            for (let dc = 0; dc >= -4; dc--) {
+                let rr = r + dr, cc = c + dc;
+                if (rr >= 0 && cc >= 0) {
+                    let t = mapLayout[rr][cc];
+                    let d = itemDims[t];
+                    if (d && r < rr + d.h && c < cc + d.w) {
+                        rootTile = t; rootR = rr; rootC = cc;
+                        break outerFind;
+                    }
+                }
+            }
+        }
+    }
+    return { rootR, rootC, rootTile };
+}
+
 function handleEditInteraction(clientX, clientY) {
     if (checkAdminCornerTap(clientX, clientY)) return;
     if (catalogModal.style.display === 'flex' || dialogBox.style.display === 'block') return;
@@ -2203,28 +2324,62 @@ function handleEditInteraction(clientX, clientY) {
     if (pos.r < 0 || pos.r >= mapLayout.length || pos.c < 0 || pos.c >= mapLayout[0].length) return;
 
     if (creativeMode === 'none' || (creativeMode === 'place' && activeSlot < 0)) {
-        editModeUI.innerText = "👆 請先點擊下方快捷列物件或「🎒 圖鑑」再點空地放置！";
+        editModeUI.innerText = "👆 請先點選下方「移動 / 收起」或第二排物件欄位！";
+        return;
+    }
+
+    // 移動模式：第一下抓起、第二下放下
+    if (creativeMode === 'move') {
+        if (!movingItem) {
+            let { rootR, rootC, rootTile } = resolveRootObjectAt(pos.r, pos.c);
+            if ([1, 2, 30, 101, 3, 201].includes(rootTile)) {
+                editModeUI.innerText = "🔒 外牆與出入口大門受到結界保護，無法移動！";
+            } else if (itemDims[rootTile] || (rootTile >= 501 && rootTile !== OCCUPIED_TILE)) {
+                let dim = itemDims[rootTile] || { w: 1, h: 1 };
+                let meta = getItemMeta(rootTile);
+                let origFlipped = (flipLayout[rootR][rootC] === 1);
+                movingItem = { tile: rootTile, origR: rootR, origC: rootC, flipped: origFlipped };
+                heldFlipped = origFlipped;
+                renderHotbar();
+
+                for (let dr = 0; dr < dim.h; dr++) {
+                    for (let dc = 0; dc < dim.w; dc++) {
+                        if (rootR + dr < mapLayout.length && rootC + dc < mapLayout[0].length) {
+                            mapLayout[rootR + dr][rootC + dc] = 0;
+                            flipLayout[rootR + dr][rootC + dc] = 0;
+                        }
+                    }
+                }
+                cursorR = rootR;
+                cursorC = rootC;
+                editModeUI.innerText = `✋ 已抓起【${meta.name}】！請點目標空地放下`;
+            } else {
+                editModeUI.innerText = "✋ 移動模式：請點擊場上要移動的家具或人物";
+            }
+        } else {
+            let dim = itemDims[movingItem.tile] || { w: 1, h: 1 };
+            let meta = getItemMeta(movingItem.tile);
+            if (isPlacementValid(pos.r, pos.c, dim)) {
+                for (let dr = 0; dr < dim.h; dr++) {
+                    for (let dc = 0; dc < dim.w; dc++) {
+                        let isRoot = (dr === 0 && dc === 0);
+                        mapLayout[pos.r + dr][pos.c + dc] = isRoot ? movingItem.tile : OCCUPIED_TILE;
+                        flipLayout[pos.r + dr][pos.c + dc] = (isRoot && heldFlipped) ? 1 : 0;
+                    }
+                }
+                movingItem = null;
+                hasHoveredGrid = false;
+                saveMaps();
+                editModeUI.innerText = `✅ 已移至新位置【${meta.name}】！可繼續點其他物件移動`;
+            } else {
+                editModeUI.innerText = `❌ 這裡有牆壁、物件或站著貓咪，請改點其他空地放下【${meta.name}】！`;
+            }
+        }
         return;
     }
 
     if (creativeMode === 'remove') {
-        let tile = mapLayout[pos.r][pos.c];
-        let rootR = pos.r, rootC = pos.c, rootTile = tile;
-        if (tile === OCCUPIED_TILE) {
-            outerFind: for (let dr = 0; dr >= -4; dr--) {
-                for (let dc = 0; dc >= -4; dc--) {
-                    let rr = pos.r + dr, cc = pos.c + dc;
-                    if (rr >= 0 && cc >= 0) {
-                        let t = mapLayout[rr][cc];
-                        let d = itemDims[t];
-                        if (d && pos.r < rr + d.h && pos.c < cc + d.w) {
-                            rootTile = t; rootR = rr; rootC = cc;
-                            break outerFind;
-                        }
-                    }
-                }
-            }
-        }
+        let { rootR, rootC, rootTile } = resolveRootObjectAt(pos.r, pos.c);
         if ([1, 2, 30, 101, 3, 201].includes(rootTile)) {
             editModeUI.innerText = "🔒 外牆與出入口大門受到結界保護，無法拆除！";
         } else if (itemDims[rootTile] || (rootTile >= 501 && rootTile !== OCCUPIED_TILE)) {
@@ -2366,7 +2521,6 @@ async function fetchInventory() {
     }
 }
 
-// 動態載入 Google 試算表「自訂素材」：支援 A~K 欄（自動辨識主目錄舊圖與 custom/ 新圖）
 async function fetchCustomItems() {
     let rawUrl = (CUSTOM_SHEET_URL || "").trim();
     if (!rawUrl) {
@@ -2421,7 +2575,6 @@ async function fetchCustomItems() {
             if (file) {
                 let baseNoExt = file.replace(/\.[^/.]+$/, '');
                 if (assetNames.includes(baseNoExt)) {
-                    // 主目錄既有圖檔：直接沿用原圖，不加 custom/ 前綴
                     imgKey = baseNoExt;
                     imgSrc = baseNoExt + '.png';
                 } else {
@@ -2434,7 +2587,6 @@ async function fetchCustomItems() {
                 }
             }
 
-            // 情況 A：修改既有內建物件／人物（ID < 501，如 4~121）
             if (id < 501) {
                 let oldDim = itemDims[id] || { w: 1, h: 1 };
                 let newW = rawW ? Math.max(1, parseInt(rawW) || 1) : oldDim.w;
@@ -2467,7 +2619,6 @@ async function fetchCustomItems() {
                 return;
             }
 
-            // 情況 B：新增全新自訂素材（ID >= 501）
             let name = rawName || `自訂物件 #${id}`;
             let cat = ['hola', 'npc', 'props'].includes(rawCat) ? rawCat : 'hola';
             let w = Math.max(1, parseInt(rawW) || 1);
@@ -2506,7 +2657,6 @@ async function fetchCustomItems() {
     }
 }
 
-// 開局讀取 Google 試算表「地圖配置」分頁，同步最新陣型與公開創造模式開關
 async function fetchCloudMapConfig() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -2523,7 +2673,6 @@ async function fetchCloudMapConfig() {
             if (cloudMapCode) {
                 let lastSyncedAt = "";
                 try { lastSyncedAt = localStorage.getItem('hele_cloud_synced_at') || ""; } catch (e) {}
-                // 若雲端版本時間更新，或公開創造模式已關閉，直接同步為管理員發布的官方畫面
                 if (!cloudPublicEdit || cloudUpdatedAt !== lastSyncedAt) {
                     if (applyEncodedMapString(cloudMapCode)) {
                         try { localStorage.setItem('hele_cloud_synced_at', cloudUpdatedAt); } catch (e) {}
@@ -2692,7 +2841,6 @@ function getTileIcon(tile) {
     return '🪑';
 }
 
-// 點擊對話框內的「㊙️切換外觀」按鈕
 function handleTransformBtnClick(event) {
     if (event) event.stopPropagation();
     if (!activeTransformState) return;
@@ -3034,7 +3182,6 @@ function interactWithCoord(r, c) {
 
     let tfBtnHtml = buildTransformButtonHtml(rootR, rootC, tile);
 
-    // 優先保障五大寫死核心功能 ID（5 籤筒、6 藍貓廟公、9 光明燈牆、31 機車全位置變身、61 Kobe 專員）
     if (HARDCODED_CORE_IDS.has(tile)) {
         if (tile === BLESSING_WALL_TILE) { openBlessingBlindBoxUI(); return; }
         if (tile === 5) { handleFortune(); return; }
@@ -3057,7 +3204,6 @@ function interactWithCoord(r, c) {
 
     let ov = builtInOverrides[tile];
 
-    // 若試算表有為其他既有物件 (ID < 501) 設定自訂台詞，優先播放自訂台詞
     if (ov && ov.dialogs && ov.dialogs.length > 0) {
         let text = ov.dialogs[ov.dialogIdx % ov.dialogs.length];
         ov.dialogIdx = (ov.dialogIdx + 1) % ov.dialogs.length;
@@ -3378,7 +3524,6 @@ function drawItemTile(tile, posX, posY, ctx, flipped = false) {
         ctx.translate(-pivotX, 0);
     }
 
-    // 若在自訂素材分頁指定了不同圖檔，優先繪製指定圖檔
     if (ov && ov.imgKey && !assetNames.includes(ov.imgKey)) {
         let img = images[ov.imgKey];
         let drawW = dim.w * TILE_SIZE;
@@ -3554,8 +3699,34 @@ function draw() {
                 ctx.strokeRect(c*TILE_SIZE, r*TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
         }
-        
-        if (hasHoveredGrid && creativeMode === 'remove') {
+
+        // 若正抓著移動中的物件，標出原位虛線框並在游標處顯示預覽
+        if (creativeMode === 'move' && movingItem) {
+            let dim = itemDims[movingItem.tile] || { w: 1, h: 1 };
+            ctx.save();
+            ctx.setLineDash([8, 6]);
+            ctx.strokeStyle = '#ffcc00';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(movingItem.origC * TILE_SIZE + 2, movingItem.origR * TILE_SIZE + 2, dim.w * TILE_SIZE - 4, dim.h * TILE_SIZE - 4);
+            ctx.restore();
+
+            if (hasHoveredGrid) {
+                let valid = isPlacementValid(cursorR, cursorC, dim);
+                ctx.fillStyle = valid ? 'rgba(79, 195, 247, 0.35)' : 'rgba(255, 0, 0, 0.35)';
+                ctx.fillRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, dim.w * TILE_SIZE, dim.h * TILE_SIZE);
+                ctx.globalAlpha = 0.78;
+                drawItemTile(movingItem.tile, cursorC * TILE_SIZE, cursorR * TILE_SIZE, ctx, heldFlipped);
+                ctx.globalAlpha = 1.0;
+            }
+        } else if (hasHoveredGrid && creativeMode === 'move' && !movingItem) {
+            if (cursorR >= 0 && cursorR < mapRows && cursorC >= 0 && cursorC < mapCols) {
+                ctx.fillStyle = 'rgba(79, 195, 247, 0.32)';
+                ctx.fillRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#4fc3f7';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
+        } else if (hasHoveredGrid && creativeMode === 'remove') {
             if (cursorR >= 0 && cursorR < mapRows && cursorC >= 0 && cursorC < mapCols) {
                 ctx.fillStyle = 'rgba(255, 82, 82, 0.35)';
                 ctx.fillRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, TILE_SIZE, TILE_SIZE);
