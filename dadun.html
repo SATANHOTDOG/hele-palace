@@ -1,0 +1,3123 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<title>HOLA 大墩店：店長模擬 × 庫存導購 (3D巡店版)</title>
+<style>
+* { box-sizing: border-box; }
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #111318;
+  overflow: hidden;
+  touch-action: none;
+  font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#gameWrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+  flex-direction: column;
+  background: #0d0f14;
+}
+#canvasArea {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #181a20;
+}
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+/* 載入畫面 */
+#loading {
+  color: #fff;
+  text-align: center;
+  margin-top: 34vh;
+  font-size: 1.2rem;
+  line-height: 1.8;
+  padding: 0 20px;
+}
+#loadStatus {
+  font-size: 0.9rem;
+  color: #aaa;
+  display: block;
+  margin-top: 8px;
+}
+#forceStartBtn {
+  display: none;
+  margin: 20px auto 0;
+  padding: 12px 24px;
+  background: #d4af37;
+  color: #000;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+}
+
+/* 頂部經營資訊列 */
+#topHud {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  z-index: 120;
+  pointer-events: none;
+}
+.hud-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+.hud-pill {
+  background: rgba(14, 17, 24, 0.88);
+  border: 1.5px solid #d4af37;
+  border-radius: 20px;
+  padding: 5px 10px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.hud-btn {
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+.hud-btn:active { transform: scale(0.93); }
+.hud-btn.open-state { border-color: #00e676; color: #00e676; }
+.hud-btn.closed-state { border-color: #ff5252; color: #ff8a80; }
+.hud-btn.mode-3d { border-color: #4fc3f7; color: #4fc3f7; }
+.hud-btn.edit-active { background: rgba(0, 230, 118, 0.9); color: #000; border-color: #00e676; }
+
+/* 賣場臨時廣播跑馬燈 */
+#broadcastBar {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-150%);
+  width: 94%;
+  max-width: 680px;
+  background: linear-gradient(90deg, rgba(160, 20, 20, 0.95), rgba(215, 75, 10, 0.95));
+  border: 2px solid #ffcc00;
+  border-radius: 10px;
+  padding: 7px 14px;
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: bold;
+  z-index: 118;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#broadcastBar.active {
+  transform: translateX(-50%) translateY(0);
+}
+.marquee-inner {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marqueeScroll 14s linear infinite;
+}
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* 3D DOOM 經典底部狀態列 HUD */
+#doomHud {
+  height: 76px;
+  width: 100%;
+  background: linear-gradient(180deg, #2b2e38 0%, #191b22 100%);
+  border-top: 3px solid #555966;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  z-index: 110;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.75);
+}
+.doom-panel {
+  background: #111318;
+  border: 2px inset #444854;
+  border-radius: 6px;
+  padding: 4px 8px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.doom-label {
+  font-size: 0.65rem;
+  color: #9aa0b0;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.doom-val {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #ffcc00;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#doomFaceBox {
+  width: 64px;
+  height: 64px;
+  background: #0d0f14;
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+}
+#doomFaceCanvas {
+  width: 60px;
+  height: 60px;
+  image-rendering: pixelated;
+}
+
+/* 手機版左下角虛擬十字方向鍵 (D-Pad) */
+#mobileDpad {
+  position: fixed;
+  bottom: 88px;
+  left: 14px;
+  width: 132px;
+  height: 132px;
+  display: none;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  z-index: 116;
+  touch-action: none;
+}
+.dpad-btn {
+  background: rgba(16, 20, 28, 0.72);
+  border: 1.5px solid rgba(212, 175, 55, 0.75);
+  border-radius: 10px;
+  color: #ffe082;
+  font-size: 18px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.06s ease, background 0.06s ease;
+}
+.dpad-btn:active, .dpad-btn.pressed {
+  transform: scale(0.92);
+  background: rgba(212, 175, 55, 0.42);
+  border-color: #00e676;
+  color: #fff;
+}
+.dpad-center {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  margin: 8px;
+  pointer-events: none;
+}
+
+/* 右下角調查按鈕 */
+#actionBtn {
+  position: fixed;
+  bottom: 92px;
+  right: 18px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #5cc8ff 0%, #157efb 48%, #0747a6 88%, #042b69 100%);
+  border: 2px solid #8ad4ff;
+  box-shadow: 0 6px 18px rgba(10, 110, 255, 0.65), inset 0 -4px 8px rgba(0, 20, 70, 0.65);
+  z-index: 116;
+  cursor: pointer;
+  display: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#actionBtn::after {
+  content: '調查';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 20, 70, 0.95);
+}
+#actionBtn:active { transform: scale(0.91); }
+
+/* 對話與功能彈窗 */
+#dialogBox {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 470px;
+  max-height: 82vh;
+  overflow-y: auto;
+  background: rgba(12, 14, 20, 0.96);
+  color: #fff;
+  border: 2px solid #d4af37;
+  border-radius: 12px;
+  padding: 18px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9);
+  pointer-events: auto;
+  touch-action: pan-y;
+  z-index: 250;
+}
+.modal-title {
+  text-align: center;
+  color: #ffcc00;
+  font-size: 1.15rem;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.ui-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #161922;
+  color: #ffcc00;
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.05rem;
+  font-weight: bold;
+  text-align: center;
+  outline: none;
+}
+.ui-input:focus { border-color: #00e676; }
+.menu-btn {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.94rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+}
+.menu-btn:active { transform: scale(0.97); }
+.notice-box {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.45);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #ffe082;
+  line-height: 1.45;
+}
+.code-box {
+  width: 100%;
+  height: 68px;
+  margin-top: 8px;
+  background: #0d0f14;
+  color: #00e676;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-family: monospace;
+  font-size: 0.78rem;
+  resize: none;
+  word-break: break-all;
+}
+.sku-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 8px;
+  font-size: 0.88rem;
+}
+
+/* 創造模式 UI */
+#editModeUI {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 230, 118, 0.94);
+  color: #000;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  display: none;
+  z-index: 125;
+  pointer-events: none;
+}
+#hotbar {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 18, 22, 0.95);
+  border: 2px solid #00e676;
+  border-radius: 14px;
+  padding: 5px 6px;
+  display: none;
+  gap: 3px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 140;
+  width: 96vw;
+  max-width: 450px;
+}
+.hb-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 44px;
+  height: 42px;
+  border-radius: 8px;
+  border: 2px solid #444;
+  background: rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  font-size: 15px;
+}
+.hb-slot.active {
+  border-color: #ffcc00;
+  background: rgba(255, 204, 0, 0.25);
+}
+.hb-slot img {
+  max-width: 22px;
+  max-height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.hb-slot img.flipped { transform: scaleX(-1); }
+.hb-label { font-size: 8.5px; color: #ddd; margin-top: 2px; }
+.hb-divider { width: 1px; height: 26px; background: #444; }
+
+#catalogModal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 460px;
+  max-height: 74vh;
+  background: rgba(15, 15, 20, 0.97);
+  border: 2px solid #d4af37;
+  border-radius: 14px;
+  padding: 14px;
+  z-index: 260;
+  flex-direction: column;
+  color: #fff;
+}
+.cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #333;
+  padding-bottom: 8px;
+}
+.cat-tabs { display: flex; gap: 6px; margin-top: 10px; }
+.cat-tab {
+  flex: 1;
+  padding: 7px 4px;
+  background: #2a2a32;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+}
+.cat-tab.active { background: #d4af37; color: #000; border-color: #d4af37; }
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  overflow-y: auto;
+  padding: 8px 2px;
+  margin-top: 8px;
+  touch-action: pan-y;
+}
+.cat-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+}
+.cat-card img { width: 42px; height: 42px; object-fit: contain; image-rendering: pixelated; margin-bottom: 4px; }
+.cat-card-name { font-size: 0.76rem; font-weight: bold; color: #fff; }
+.cat-card-size { font-size: 0.68rem; color: #aaa; margin-top: 2px; }
+.cat-badge-custom {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #00e676;
+  color: #000;
+  font-size: 0.6rem;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.transform-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 9px 16px;
+  background: linear-gradient(135deg, #ffd54f 0%, #ff9800 100%);
+  color: #111;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-4px, 2px); }
+  50% { transform: translate(4px, -2px); }
+  75% { transform: translate(-3px, -2px); }
+}
+.shake-active { animation: shake 0.45s; }
+</style>
+</head>
+<body>
+<audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
+
+<div id="loading">
+  🏪 HOLA 大墩店營業系統啟動中...<br>
+  <span id="loadStatus">連線商品全資料與賣場圖資...</span>
+  <button id="forceStartBtn" onclick="launchGame()">⚡ 略過等待直接開店</button>
+</div>
+
+<div id="gameWrapper">
+  <div id="topHud">
+    <div class="hud-group">
+      <div class="hud-pill">💰 <span id="hudRevenue">$0</span></div>
+      <div class="hud-pill">👥 <span id="hudVisitors">0</span>人</div>
+      <div id="storeToggleBtn" class="hud-pill hud-btn open-state" onclick="toggleStoreOpen()">🟢 營業中</div>
+    </div>
+    <div class="hud-group">
+      <div id="viewToggleBtn" class="hud-pill hud-btn mode-3d" onclick="toggleViewMode()">👁️ 3D巡店</div>
+      <div id="zoom2dBtn" class="hud-pill hud-btn" style="display:none;" onclick="cycle2DZoom()">🔍 縮放</div>
+      <div id="resetBtn" class="hud-pill hud-btn" style="display:none; border-color:#ff5252; color:#ff8a80;" onclick="openResetMenu()">🔄 分享/清空</div>
+      <div id="editBtn" class="hud-pill hud-btn" onclick="toggleEditMode()">🛠️ 創造</div>
+      <div id="helpBtn" class="hud-pill hud-btn" onclick="openHelpModal()">📖 說明</div>
+    </div>
+  </div>
+
+  <div id="broadcastBar">
+    <div id="broadcastText" class="marquee-inner">📢 歡迎光臨 HOLA 大墩店！</div>
+  </div>
+
+  <div id="editModeUI">🛠️ 創造模式：請先點選下方欄位或圖鑑選擇物件</div>
+
+  <div id="canvasArea">
+    <canvas id="gameCanvas" width="960" height="600"></canvas>
+  </div>
+
+  <!-- 經典 DOOM 風格底部狀態列 -->
+  <div id="doomHud">
+    <div class="doom-panel" style="flex:1.1;">
+      <div class="doom-label">TODAY REVENUE</div>
+      <div id="doomRevVal" class="doom-val" style="color:#00e676;">$0</div>
+    </div>
+    <div class="doom-panel" style="flex:0.85; margin:0 6px;">
+      <div class="doom-label">GUESTS / QUEUE</div>
+      <div id="doomGuestVal" class="doom-val">0 / 0</div>
+    </div>
+    <div id="doomFaceBox" title="店長狀態監控">
+      <canvas id="doomFaceCanvas" width="60" height="60"></canvas>
+    </div>
+    <div class="doom-panel" style="flex:1.55; margin-left:6px;">
+      <div id="doomTargetLabel" class="doom-label">CROSSHAIR TARGET</div>
+      <div id="doomTargetVal" class="doom-val" style="color:#4fc3f7; font-size:0.86rem;">自由巡店中</div>
+    </div>
+  </div>
+</div>
+
+<!-- 手機版左下角虛擬十字方向鍵 -->
+<div id="mobileDpad" aria-label="虛擬方向鍵">
+  <div></div>
+  <div class="dpad-btn" data-dir="up" aria-label="前進/向上">▲</div>
+  <div></div>
+  <div class="dpad-btn" data-dir="left" aria-label="左轉/向左">◀</div>
+  <div class="dpad-center"></div>
+  <div class="dpad-btn" data-dir="right" aria-label="右轉/向右">▶</div>
+  <div></div>
+  <div class="dpad-btn" data-dir="down" aria-label="後退/向下">▼</div>
+  <div></div>
+</div>
+
+<div id="hotbar"></div>
+<div id="catalogModal"></div>
+<div id="dialogBox"></div>
+<div id="actionBtn" role="button" aria-label="調查"></div>
+
+<script>
+// ==========================================
+// 【資料庫與常數設定】
+// ==========================================
+const PRODUCT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=0&single=true&output=csv";
+const CUSTOM_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTC18jsseZH3TerLqZMzzkJc1uPjh2IVTktcs4DxiuEmpA_NRAnzKrgzZbV43FQtN8b7-vMlvv1BFGF/pub?gid=276757910&single=true&output=csv";
+
+const MAP_COLS = 24;
+const MAP_ROWS = 20;
+const TILE_SIZE = 64;
+const OCCUPIED_TILE = -999;
+
+// 完整保留原有圖片資產名稱
+const assetNames = [
+  'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
+  'blessing_lantern_wall',
+  'god1', 'god2', 'god3', 'god4', 'god5', 'god_main', 'god_small',
+  'cat_up2', 'cat_down', 'cat_left', 'cat_right', 'cat_down_idle', 'cat_sit',
+  'icon', 'npc_golden', 'npc_hairless',
+  'floor_night', 'scooter', 'fence', 'tree',
+  'stall_1', 'stall_2', 'stall_3', 'stall_4',
+  'npc_boss1', 'npc_boss2', 'npc_boss3', 'npc_boss4',
+  'npc_cus1', 'npc_cus2', 'robot',
+  'floor_hola', 'wall_hola',
+  'lazboy_chair', 'blue_chair',
+  'lazboy_chair2', 'lazboy_chair3',
+  'wooden_cabinet2', 'wooden_cabinet3',
+  'matchy_sofa2', 'matchy_sofa3',
+  'hola_bed2', 'hola_bed3',
+  'dining_table', 'xmas_tree', 'Kobe'
+];
+
+const images = {};
+const animatedAssets = {}; // 多幀 PNG 輪播設定：{ key: { frames: 4, fps: 6, frameKeys: [...] } }
+const procTextures = {};   // 程式繪製像素貼圖（櫃檯、收銀機、麥克風、智能選枕儀）
+
+let settledImages = 0;
+let sheetSettled = false;
+let customSheetSettled = false;
+let sheetStateText = "連線中";
+let customSheetStateText = "連線中";
+let inventoryData = [];
+let gameStarted = false;
+let bgmPlayed = false;
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const faceCanvas = document.getElementById('doomFaceCanvas');
+const faceCtx = faceCanvas.getContext('2d');
+const dialogBox = document.getElementById('dialogBox');
+const actionBtn = document.getElementById('actionBtn');
+const mobileDpad = document.getElementById('mobileDpad');
+const editBtn = document.getElementById('editBtn');
+const resetBtn = document.getElementById('resetBtn');
+const zoom2dBtn = document.getElementById('zoom2dBtn');
+const viewToggleBtn = document.getElementById('viewToggleBtn');
+const storeToggleBtn = document.getElementById('storeToggleBtn');
+const editModeUI = document.getElementById('editModeUI');
+const hotbar = document.getElementById('hotbar');
+const catalogModal = document.getElementById('catalogModal');
+const broadcastBar = document.getElementById('broadcastBar');
+const broadcastText = document.getElementById('broadcastText');
+const bgm = document.getElementById('bgm');
+
+// ==========================================
+// 【程式生成像素貼圖（無需額外 PNG 即可顯示）】
+// ==========================================
+function buildProceduralTextures() {
+  const makeTex = (id, drawFn) => {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    drawFn(g);
+    procTextures[id] = c;
+  };
+
+  // 210: HOLA 服務收銀櫃檯
+  makeTex(210, g => {
+    g.fillStyle = '#5d4037'; g.fillRect(0, 18, 64, 46);
+    g.fillStyle = '#8d6e63'; g.fillRect(0, 14, 64, 8);
+    g.fillStyle = '#d7ccc8'; g.fillRect(2, 26, 60, 32);
+    g.fillStyle = '#3e2723'; g.fillRect(6, 30, 52, 24);
+    g.fillStyle = '#ffcc00'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center';
+    g.fillText('HOLA', 32, 46);
+  });
+
+  // 211: POS 收銀結帳台
+  makeTex(211, g => {
+    g.fillStyle = '#4e342e'; g.fillRect(4, 34, 56, 30);
+    g.fillStyle = '#263238'; g.fillRect(14, 12, 36, 24);
+    g.fillStyle = '#00e676'; g.fillRect(18, 16, 28, 14);
+    g.fillStyle = '#cfd8dc'; g.fillRect(26, 36, 12, 6);
+    g.fillStyle = '#ffcc00'; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+    g.fillText('CASH', 32, 26);
+  });
+
+  // 212: 賣場臨時廣播麥克風
+  makeTex(212, g => {
+    g.fillStyle = '#37474f'; g.fillRect(20, 54, 24, 8);
+    g.fillStyle = '#90a4ae'; g.fillRect(30, 22, 4, 32);
+    g.fillStyle = '#ffcc00'; g.beginPath(); g.arc(32, 16, 9, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#ff5252'; g.lineWidth = 2;
+    g.beginPath(); g.arc(32, 16, 14, -0.6, 0.6); g.stroke();
+    g.beginPath(); g.arc(32, 16, 14, Math.PI - 0.6, Math.PI + 0.6); g.stroke();
+  });
+
+  // 213: 智能選枕檢測儀
+  makeTex(213, g => {
+    g.fillStyle = '#1e2736'; g.fillRect(10, 10, 44, 52);
+    g.strokeStyle = '#4fc3f7'; g.lineWidth = 2; g.strokeRect(10, 10, 44, 52);
+    g.fillStyle = '#0d47a1'; g.fillRect(15, 15, 34, 22);
+    g.fillStyle = '#00e5ff'; g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
+    g.fillText('AI選枕', 32, 29);
+    g.fillStyle = '#eceff1'; g.fillRect(16, 44, 32, 10);
+  });
+
+  // 214: 人體工學枕頭展示架 (2x1)
+  makeTex(214, g => {
+    g.fillStyle = '#6d4c41'; g.fillRect(2, 14, 60, 48);
+    g.fillStyle = '#fff8e1'; g.fillRect(6, 18, 24, 14); g.fillRect(34, 18, 24, 14);
+    g.fillStyle = '#e0f7fa'; g.fillRect(6, 38, 24, 14); g.fillRect(34, 38, 24, 14);
+  });
+}
+buildProceduralTextures();
+
+// ==========================================
+// 【物件尺寸、圖鑑與自訂素材註冊表】
+// ==========================================
+const itemDims = {
+  3: {w:2, h:1}, 201: {w:2, h:1},
+  4: {w:1, h:1}, 5: {w:1, h:1}, 6: {w:1, h:1}, 7: {w:1, h:1}, 8: {w:1, h:1},
+  9: {w:3, h:3}, 99: {w:1, h:1},
+  21: {w:2, h:2}, 22: {w:2, h:2}, 23: {w:2, h:2}, 24: {w:2, h:2},
+  31: {w:1, h:1}, 32: {w:1, h:1}, 33: {w:1, h:1},
+  41: {w:1, h:1}, 42: {w:1, h:1}, 43: {w:1, h:1}, 44: {w:1, h:1},
+  51: {w:1, h:1}, 52: {w:1, h:1},
+  61: {w:1, h:1},
+  110: {w:2, h:2}, 111: {w:2, h:2}, 112: {w:3, h:2}, 113: {w:2, h:2},
+  114: {w:2, h:2}, 115: {w:2, h:1}, 116: {w:2, h:2},
+  117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1},
+  121: {w:2, h:2},
+  210: {w:1, h:1}, 211: {w:1, h:1}, 212: {w:1, h:1}, 213: {w:1, h:1}, 214: {w:2, h:1}
+};
+
+const customItemMeta = {};
+const customDialogIndex = {};
+const builtInOverrides = {};
+
+const catalogItems = [
+  { tile: 112, cat: 'hola', name: '奧丁雙電動沙發', img: 'matchy_sofa2', size: '3×2' },
+  { tile: 113, cat: 'hola', name: '伊登麻吉兩人座', img: 'matchy_sofa3', size: '2×2' },
+  { tile: 110, cat: 'hola', name: '比佛利石墨烯床', img: 'hola_bed2', size: '2×2' },
+  { tile: 111, cat: 'hola', name: 'LADY抗菌床墊', img: 'hola_bed3', size: '2×2' },
+  { tile: 114, cat: 'hola', name: '克萊歐岩紋餐桌', img: 'dining_table', size: '2×2' },
+  { tile: 115, cat: 'hola', name: '艾禮思木藝邊櫃', img: 'wooden_cabinet2', size: '2×1' },
+  { tile: 116, cat: 'hola', name: '艾禮思二抽高櫃', img: 'wooden_cabinet3', size: '2×2' },
+  { tile: 117, cat: 'hola', name: 'La-Z-Boy 512', img: 'lazboy_chair', size: '1×1' },
+  { tile: 118, cat: 'hola', name: 'La-Z-Boy 765', img: 'lazboy_chair2', size: '1×1' },
+  { tile: 119, cat: 'hola', name: 'La-Z-Boy 521', img: 'lazboy_chair3', size: '1×1' },
+  { tile: 120, cat: 'hola', name: '紐約北歐休閒椅', img: 'blue_chair', size: '1×1' },
+  { tile: 121, cat: 'hola', name: '聖誕迎賓展示樹', img: 'xmas_tree', size: '2×2' },
+  { tile: 210, cat: 'props', name: '服務收銀櫃檯', img: 'proc_210', size: '1×1' },
+  { tile: 211, cat: 'props', name: '收銀結帳機', img: 'proc_211', size: '1×1' },
+  { tile: 212, cat: 'props', name: '賣場廣播麥克風', img: 'proc_212', size: '1×1' },
+  { tile: 213, cat: 'props', name: '智能選枕檢測儀', img: 'proc_213', size: '1×1' },
+  { tile: 214, cat: 'hola', name: '人體工學枕頭架', img: 'proc_214', size: '2×1' },
+  { tile: 6, cat: 'npc', name: '貓咪店員(查庫存)', img: 'npc_bluecat', size: '1×1' },
+  { tile: 61, cat: 'npc', name: 'Kobe專員(盲盒)', img: 'Kobe', size: '1×1' },
+  { tile: 7, cat: 'npc', name: '金漸層專員', img: 'npc_golden', size: '1×1' },
+  { tile: 8, cat: 'npc', name: '無毛貓顧問', img: 'npc_hairless', size: '1×1' },
+  { tile: 33, cat: 'props', name: '大墩變形金剛', img: 'robot', size: '1×1' }
+];
+
+function getItemPreviewSrc(tile, fallbackImg) {
+  if (procTextures[tile]) return procTextures[tile].toDataURL();
+  return fallbackImg ? (fallbackImg + '.png') : 'icon.png';
+}
+
+function getItemMeta(tile) {
+  if (customItemMeta[tile]) return customItemMeta[tile];
+  let ov = builtInOverrides[tile];
+  let found = catalogItems.find(i => i.tile === tile);
+  let dim = itemDims[tile] || { w: 1, h: 1 };
+  if (found) {
+    let defaultSrc = procTextures[tile] ? procTextures[tile].toDataURL() : (found.img + '.png');
+    return {
+      ...found,
+      name: (ov && ov.name) ? ov.name : found.name,
+      imgSrc: (ov && ov.imgSrc) ? ov.imgSrc : defaultSrc,
+      size: `${dim.w}×${dim.h}`
+    };
+  }
+  return {
+    tile,
+    name: (ov && ov.name) ? ov.name : `自訂物件 #${tile}`,
+    img: (ov && ov.imgKey) ? ov.imgKey : 'icon',
+    imgSrc: (ov && ov.imgSrc) ? ov.imgSrc : 'icon.png',
+    size: `${dim.w}×${dim.h}`
+  };
+}
+
+function getTransformConfig(tile) {
+  let src = customItemMeta[tile] || builtInOverrides[tile];
+  if (!src) return null;
+  let clicks = parseInt(src.clicks) || 0;
+  let targetId = parseInt(src.transformId);
+  if (clicks > 0 && !isNaN(targetId) && targetId !== 0 && targetId !== tile) {
+    return { clicks, targetId };
+  }
+  return null;
+}
+
+// ==========================================
+// 【HOLA 大墩店 24×20 地圖與存檔系統】
+// ==========================================
+let holaStoreMap = Array(MAP_ROWS).fill(0).map(() => Array(MAP_COLS).fill(0));
+let holaStoreFlip = Array(MAP_ROWS).fill(0).map(() => Array(MAP_COLS).fill(0));
+
+function buildDefaultHolaMap() {
+  let m = Array(MAP_ROWS).fill(0).map(() => Array(MAP_COLS).fill(0));
+  let f = Array(MAP_ROWS).fill(0).map(() => Array(MAP_COLS).fill(0));
+
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
+      if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) m[r][c] = 101;
+    }
+  }
+  // 下方正中央大門 (r=19, c=11..12)
+  m[19][11] = 201;
+  m[19][12] = 201;
+
+  const placeObj = (r, c, tile, flip = 0) => {
+    let dim = itemDims[tile] || { w: 1, h: 1 };
+    for (let dr = 0; dr < dim.h; dr++) {
+      for (let dc = 0; dc < dim.w; dc++) {
+        m[r + dr][c + dc] = (dr === 0 && dc === 0) ? tile : OCCUPIED_TILE;
+        f[r + dr][c + dc] = (dr === 0 && dc === 0) ? flip : 0;
+      }
+    }
+  };
+
+  // 【左上：智能選枕區 & 睡眠體驗區】
+  placeObj(2, 3, 213); // 智能選枕檢測儀
+  placeObj(2, 6, 214); // 人體工學枕頭架 (2x1)
+  placeObj(5, 2, 110); // 比佛利石墨烯床 (2x2)
+  placeObj(5, 6, 111); // LADY抗菌床墊 (2x2)
+
+  // 【右上：完整服務收銀櫃檯 & 賣場廣播】
+  placeObj(2, 14, 212); // 廣播麥克風
+  placeObj(2, 16, 6);   // 人員 A：貓咪店員（SKU庫存查詢）
+  placeObj(2, 18, 61);  // 人員 B：Kobe專員（60天盲盒鑄造器）
+  placeObj(2, 20, 211); // 收銀結帳機
+  for (let c = 15; c <= 21; c++) {
+    placeObj(3, c, 210); // 服務收銀櫃檯桌面（玩家與客人站 r=4 隔桌互動）
+  }
+
+  // 【中區：沙發與客廳體驗區】
+  placeObj(9, 10, 112);  // 奧丁雙電動沙發 (3x2)
+  placeObj(9, 15, 113);  // 伊登麻吉兩人座 (2x2)
+  placeObj(13, 10, 114); // 克萊歐岩紋餐桌 (2x2)
+  placeObj(13, 15, 115); // 艾禮思木藝邊櫃 (2x1)
+  placeObj(13, 19, 116); // 艾禮思二抽高櫃 (2x2)
+
+  // 【左側：La-Z-Boy 休閒椅專區】
+  placeObj(10, 2, 119);
+  placeObj(12, 2, 118);
+  placeObj(14, 2, 117);
+  placeObj(16, 2, 120);
+
+  // 【入口迎賓區】
+  placeObj(16, 15, 121); // 聖誕迎賓展示樹 (2x2)
+  placeObj(16, 7, 33);   // 大墩變形金剛
+
+  holaStoreMap = m;
+  holaStoreFlip = f;
+}
+
+function saveMaps() {
+  try {
+    localStorage.setItem('holaDadun_3d_map_v1', JSON.stringify(holaStoreMap));
+    localStorage.setItem('holaDadun_3d_flip_v1', JSON.stringify(holaStoreFlip));
+  } catch (e) {}
+}
+
+function loadMaps() {
+  buildDefaultHolaMap();
+  try {
+    let sm = localStorage.getItem('holaDadun_3d_map_v1');
+    let sf = localStorage.getItem('holaDadun_3d_flip_v1');
+    if (sm) {
+      let parsed = JSON.parse(sm);
+      if (parsed.length === MAP_ROWS && parsed[0].length === MAP_COLS) {
+        holaStoreMap = parsed;
+      }
+    }
+    if (sf) {
+      let parsedF = JSON.parse(sf);
+      if (parsedF.length === MAP_ROWS && parsedF[0].length === MAP_COLS) {
+        holaStoreFlip = parsedF;
+      }
+    }
+  } catch (e) {}
+}
+loadMaps();
+
+// ==========================================
+// 【玩家狀態（3D 第一人稱 & 2D 上帝視角共用座標）】
+// ==========================================
+const player = {
+  x: 11.5 * TILE_SIZE,
+  y: 16.5 * TILE_SIZE,
+  angle: -Math.PI / 2,
+  speed: 4.2,
+  rotSpeed: 0.045,
+  isInteracting: false
+};
+
+let viewMode = '3d'; // '3d' 類DOOM巡店 | '2d' 上帝俯視
+let zoom2dLevel = 0; // 0: 0.65x, 1: 1.0x, 2: 1.45x
+let isDecorating = false;
+let isBlindBoxOpen = false;
+let activeTransformState = null;
+
+function syncFloatingControlsVisibility() {
+  if (!gameStarted) return;
+  let hideControls = isDecorating || isBlindBoxOpen || (dialogBox.style.display === 'block');
+  mobileDpad.style.display = hideControls ? 'none' : 'grid';
+  actionBtn.style.display = hideControls ? 'none' : 'block';
+  if (hideControls) clearDpadState();
+}
+
+// ==========================================
+// 【《便利商店》營業循環與 AI 顧客系統】
+// ==========================================
+let isStoreOpen = true;
+let todayRevenue = 0;
+let todayVisitors = 0;
+let customers = [];
+let floatingTexts = [];
+let promoBuffUntil = 0;
+let lastBroadcastTime = 0;
+let doomFaceMood = 'normal';
+let doomFaceTimer = 0;
+
+const CUSTOMER_SPRITES = ['npc_cus1', 'npc_cus2', 'npc_golden', 'npc_hairless', 'npc_boss1', 'npc_boss2', 'npc_boss3', 'npc_boss4'];
+const DESIRE_TYPES = [
+  { key: 'bed', label: '🛏️ 找床墊', tiles: [110, 111], keywords: ['床', '獨立筒', '乳膠'] },
+  { key: 'sofa', label: '🛋️ 找沙發', tiles: [112, 113], keywords: ['沙發', '電動'] },
+  { key: 'chair', label: '💺 試坐休閒椅', tiles: [117, 118, 119, 120], keywords: ['椅', 'LA-Z-BOY', '休閒'] },
+  { key: 'pillow', label: '🧠 測智能選枕', tiles: [213, 214], keywords: ['枕', '舒眠'] },
+  { key: 'dining', label: '🪑 買餐桌櫃子', tiles: [114, 115, 116], keywords: ['桌', '櫃'] }
+];
+
+function triggerDoomFace(mood, durationMs = 3500) {
+  doomFaceMood = mood;
+  doomFaceTimer = Date.now() + durationMs;
+}
+
+function updateTopHud() {
+  document.getElementById('hudRevenue').innerText = '$' + todayRevenue.toLocaleString();
+  document.getElementById('hudVisitors').innerText = todayVisitors;
+  document.getElementById('doomRevVal').innerText = '$' + todayRevenue.toLocaleString();
+  let queuingCount = customers.filter(c => c.state === 'queuing').length;
+  document.getElementById('doomGuestVal').innerText = `${customers.length} 逛 / ${queuingCount} 排`;
+}
+
+function toggleStoreOpen() {
+  isStoreOpen = !isStoreOpen;
+  if (isStoreOpen) {
+    storeToggleBtn.innerText = '🟢 營業中';
+    storeToggleBtn.className = 'hud-pill hud-btn open-state';
+    triggerBroadcast(false);
+  } else {
+    storeToggleBtn.innerText = '🔴 打烊中';
+    storeToggleBtn.className = 'hud-pill hud-btn closed-state';
+  }
+}
+
+function toggleViewMode(forceMode = null) {
+  if (forceMode) viewMode = forceMode;
+  else viewMode = (viewMode === '3d') ? '2d' : '3d';
+
+  if (viewMode === '3d') {
+    viewToggleBtn.innerText = '👁️ 3D巡店';
+    viewToggleBtn.className = 'hud-pill hud-btn mode-3d';
+    zoom2dBtn.style.display = 'none';
+  } else {
+    viewToggleBtn.innerText = '🗺️ 2D俯視';
+    viewToggleBtn.className = 'hud-pill hud-btn';
+    zoom2dBtn.style.display = 'flex';
+  }
+}
+
+function cycle2DZoom() {
+  zoom2dLevel = (zoom2dLevel + 1) % 3;
+}
+
+function get2DScale() {
+  if (zoom2dLevel === 0) return 0.65;
+  if (zoom2dLevel === 1) return 1.0;
+  return 1.45;
+}
+
+// ==========================================
+// 【賣場臨時廣播（自動 50 秒 + 手動麥克風雙模式）】
+// ==========================================
+function getPromoCandidates() {
+  return inventoryData.filter(item => {
+    let promo = getBestPromoPrice(item);
+    let ddw = parseInt(item['HOLA630庫存']) || 0;
+    let dds = parseInt(item['HOLA630展示']) || 0;
+    let ym = parseInt(item['楊梅庫存']) || 0;
+    return promo && promo > 0 && (ddw > 0 || dds > 0 || ym > 0);
+  });
+}
+
+function triggerBroadcast(isManual = false) {
+  let candidates = getPromoCandidates();
+  let msg = '';
+  if (candidates.length > 0) {
+    let item = candidates[Math.floor(Math.random() * candidates.length)];
+    let promoPrice = getBestPromoPrice(item);
+    let origPrice = item['一般售價'] || promoPrice;
+    let ddw = parseInt(item['HOLA630庫存']) || 0;
+    let ym = parseInt(item['楊梅庫存']) || 0;
+    msg = `📢【大墩店限時廣播】${item['商品名稱']}（SKU:${normalizeSku9(item['SKU'])}）原價 $${origPrice} ➡️ 特惠價 $${promoPrice}！（大墩現貨 ${ddw} / 楊梅倉 ${ym}）全館購買率 UP！`;
+  } else {
+    msg = `📢【大墩店限時廣播】HOLA 大墩店全館沙發、床墊、La-Z-Boy 休閒椅限時體驗優惠中，歡迎洽詢服務櫃檯 Kobe 專員！`;
+  }
+
+  broadcastText.innerText = msg;
+  broadcastText.style.animation = 'none';
+  broadcastText.offsetHeight;
+  broadcastText.style.animation = 'marqueeScroll 14s linear infinite';
+
+  broadcastBar.classList.add('active');
+  promoBuffUntil = Date.now() + 30000;
+  lastBroadcastTime = Date.now();
+  triggerDoomFace('cool', 4500);
+
+  if (window.broadcastHideTimer) clearTimeout(window.broadcastHideTimer);
+  window.broadcastHideTimer = setTimeout(() => {
+    broadcastBar.classList.remove('active');
+  }, 14500);
+
+  if (isManual) {
+    showDialog(`<div style="text-align:center;"><b style="color:#ffcc00; font-size:1.1rem;">🎙️ 賣場廣播已發射！</b><br><br>${escapeHtml(msg)}<br><br><span style="color:#00e676; font-size:0.85rem;">✨ 接下來 30 秒內，場上顧客購買意願大幅提升！</span></div>`, 4200);
+  }
+}
+
+setInterval(() => {
+  if (!gameStarted || !isStoreOpen || isDecorating) return;
+  if (Date.now() - lastBroadcastTime >= 50000) {
+    triggerBroadcast(false);
+  }
+}, 2000);
+
+// ==========================================
+// 【A* 尋路引擎】
+// ==========================================
+function isCellWalkableForEntity(r, c) {
+  if (r < 0 || c < 0 || r >= MAP_ROWS || c >= MAP_COLS) return false;
+  let t = holaStoreMap[r][c];
+  return t === 0 || t === 201;
+}
+
+function findAStarPath(startR, startC, goalSet) {
+  let goalKeys = new Set(goalSet.map(g => `${g.r},${g.c}`));
+  if (goalKeys.size === 0) return null;
+  let startKey = `${startR},${startC}`;
+  if (goalKeys.has(startKey)) return [];
+
+  let open = [{ r: startR, c: startC, g: 0, f: 0 }];
+  let cameFrom = {};
+  let gScore = { [startKey]: 0 };
+  let closed = new Set();
+
+  const heuristic = (r, c) => {
+    let best = Infinity;
+    for (let g of goalSet) {
+      let d = Math.abs(r - g.r) + Math.abs(c - g.c);
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  const dirs = [{ dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }];
+
+  while (open.length > 0) {
+    open.sort((a, b) => a.f - b.f);
+    let curr = open.shift();
+    let cKey = `${curr.r},${curr.c}`;
+    if (closed.has(cKey)) continue;
+    closed.add(cKey);
+
+    if (goalKeys.has(cKey)) {
+      let path = [];
+      let trace = cKey;
+      while (trace && trace !== startKey) {
+        let [tr, tc] = trace.split(',').map(Number);
+        path.unshift({ r: tr, c: tc });
+        trace = cameFrom[trace];
+      }
+      return path;
+    }
+
+    for (let d of dirs) {
+      let nr = curr.r + d.dr, nc = curr.c + d.dc;
+      if (nr < 0 || nc < 0 || nr >= MAP_ROWS || nc >= MAP_COLS) continue;
+      let nKey = `${nr},${nc}`;
+      if (closed.has(nKey) || !isCellWalkableForEntity(nr, nc)) continue;
+      let tentativeG = curr.g + 1;
+      if (gScore[nKey] === undefined || tentativeG < gScore[nKey]) {
+        cameFrom[nKey] = cKey;
+        gScore[nKey] = tentativeG;
+        open.push({ r: nr, c: nc, g: tentativeG, f: tentativeG + heuristic(nr, nc) });
+      }
+    }
+  }
+  return null;
+}
+
+function getAdjacentGoalsForTarget(r0, c0) {
+  let tile = holaStoreMap[r0][c0];
+  let cells = [{ r: r0, c: c0 }];
+
+  if (tile === OCCUPIED_TILE) {
+    outerRoot: for (let dr = 0; dr >= -4; dr--) {
+      for (let dc = 0; dc >= -4; dc--) {
+        let rr = r0 + dr, cc = c0 + dc;
+        if (rr >= 0 && cc >= 0) {
+          let t = holaStoreMap[rr][cc];
+          let d = itemDims[t];
+          if (d && r0 < rr + d.h && c0 < cc + d.w) {
+            r0 = rr; c0 = cc; tile = t;
+            break outerRoot;
+          }
+        }
+      }
+    }
+  }
+
+  if (itemDims[tile] || (tile >= 501 && tile !== OCCUPIED_TILE)) {
+    let dim = itemDims[tile] || { w: 1, h: 1 };
+    cells = [];
+    for (let dr = 0; dr < dim.h; dr++) {
+      for (let dc = 0; dc < dim.w; dc++) cells.push({ r: r0 + dr, c: c0 + dc });
+    }
+  }
+
+  let neighborMap = new Map();
+  const dirs = [{ dr: -1, dc: 0 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: 0, dc: 1 }];
+  for (let cell of cells) {
+    for (let d of dirs) {
+      let nr = cell.r + d.dr, nc = cell.c + d.dc;
+      if (isCellWalkableForEntity(nr, nc)) {
+        neighborMap.set(`${nr},${nc}`, { r: nr, c: nc });
+      } else if (nr >= 0 && nc >= 0 && nr < MAP_ROWS && nc < MAP_COLS && holaStoreMap[nr][nc] === 210) {
+        let nr2 = nr + d.dr, nc2 = nc + d.dc;
+        if (isCellWalkableForEntity(nr2, nc2)) {
+          neighborMap.set(`${nr2},${nc2}`, { r: nr2, c: nc2 });
+        }
+      }
+    }
+  }
+  return Array.from(neighborMap.values());
+}
+
+// ==========================================
+// 【AI 顧客生成與自動購物循環】
+// ==========================================
+function pickProductForDesire(desire) {
+  if (inventoryData.length > 0) {
+    let matched = inventoryData.filter(row => {
+      let name = (row['商品名稱'] || '').toUpperCase();
+      return desire.keywords.some(kw => name.includes(kw));
+    });
+    let pool = matched.length > 0 ? matched : inventoryData;
+    let pick = pool[Math.floor(Math.random() * pool.length)];
+    let price = getBestPromoPrice(pick) || parseInt(pick['一般售價']) || 3980;
+    return { name: pick['商品名稱'] || '精選家具', price };
+  }
+  const fallbackPrices = { bed: 26800, sofa: 38900, chair: 19800, pillow: 3280, dining: 15800 };
+  return { name: desire.label.replace(/^[^\s]+\s/, ''), price: fallbackPrices[desire.key] || 4980 };
+}
+
+function findFurnitureTargets(tileList) {
+  let found = [];
+  for (let r = 1; r < MAP_ROWS - 1; r++) {
+    for (let c = 1; c < MAP_COLS - 1; c++) {
+      if (tileList.includes(holaStoreMap[r][c])) found.push({ r, c, tile: holaStoreMap[r][c] });
+    }
+  }
+  return found;
+}
+
+function findCashierQueueSlots() {
+  let slots = [];
+  for (let r = 1; r < MAP_ROWS - 1; r++) {
+    for (let c = 1; c < MAP_COLS - 1; c++) {
+      if (holaStoreMap[r][c] === 211) {
+        let goals = getAdjacentGoalsForTarget(r, c);
+        if (goals.length > 0) {
+          let base = goals[0];
+          for (let offset = 0; offset < 4; offset++) {
+            if (isCellWalkableForEntity(base.r + offset, base.c)) {
+              slots.push({ r: base.r + offset, c: base.c });
+            }
+          }
+        }
+      }
+    }
+  }
+  if (slots.length === 0) slots.push({ r: 4, c: 20 }, { r: 5, c: 20 }, { r: 6, c: 20 });
+  return slots;
+}
+
+function spawnCustomer() {
+  if (!isStoreOpen || isDecorating || customers.length >= 6) return;
+  let spawnC = Math.random() < 0.5 ? 11 : 12;
+  let spawnR = 18;
+  let desire = DESIRE_TYPES[Math.floor(Math.random() * DESIRE_TYPES.length)];
+  let targets = findFurnitureTargets(desire.tiles);
+  if (targets.length === 0) targets = findFurnitureTargets([110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 213, 214]);
+  if (targets.length === 0) return;
+
+  let target = targets[Math.floor(Math.random() * targets.length)];
+  let goals = getAdjacentGoalsForTarget(target.r, target.c);
+  let path = findAStarPath(spawnR, spawnC, goals);
+  if (!path) return;
+
+  todayVisitors++;
+  updateTopHud();
+
+  customers.push({
+    id: Date.now() + Math.random(),
+    sprite: CUSTOMER_SPRITES[Math.floor(Math.random() * CUSTOMER_SPRITES.length)],
+    x: spawnC * TILE_SIZE,
+    y: spawnR * TILE_SIZE,
+    speed: 2.1,
+    state: 'browsing',
+    desire,
+    path,
+    timer: 0,
+    checkoutProgress: 0,
+    itemToBuy: pickProductForDesire(desire),
+    bubble: desire.label
+  });
+}
+
+setInterval(() => {
+  if (gameStarted && isStoreOpen && !isDecorating) spawnCustomer();
+}, 6500);
+
+function completeCustomerCheckout(cust, bonusMultiplier = 1.0) {
+  if (cust.state === 'leaving') return;
+  let finalAmount = Math.round(cust.itemToBuy.price * bonusMultiplier);
+  todayRevenue += finalAmount;
+  updateTopHud();
+  triggerDoomFace(bonusMultiplier > 1 ? 'cool' : 'happy', 3200);
+
+  floatingTexts.push({
+    x: cust.x + TILE_SIZE / 2,
+    y: cust.y - 10,
+    text: `+$${finalAmount.toLocaleString()}`,
+    color: bonusMultiplier > 1 ? '#ffcc00' : '#00e676',
+    born: Date.now()
+  });
+
+  cust.state = 'leaving';
+  cust.bubble = bonusMultiplier > 1 ? '💖 謝謝店長！' : '🛍️ 買到好物！';
+  let exitPath = findAStarPath(Math.floor((cust.y + 32) / TILE_SIZE), Math.floor((cust.x + 32) / TILE_SIZE), [{ r: 18, c: 11 }, { r: 18, c: 12 }]);
+  cust.path = exitPath || [];
+}
+
+function updateCustomers() {
+  if (isDecorating) return;
+
+  let queueSlots = findCashierQueueSlots();
+  let queuingList = customers.filter(c => c.state === 'queuing');
+
+  for (let i = customers.length - 1; i >= 0; i--) {
+    let cust = customers[i];
+
+    if (cust.path && cust.path.length > 0) {
+      let wp = cust.path[0];
+      if (!isCellWalkableForEntity(wp.r, wp.c)) {
+        cust.path = [];
+        continue;
+      }
+      let tx = wp.c * TILE_SIZE;
+      let ty = wp.r * TILE_SIZE;
+      let dx = tx - cust.x;
+      let dy = ty - cust.y;
+      if (Math.abs(dx) <= cust.speed && Math.abs(dy) <= cust.speed) {
+        cust.x = tx;
+        cust.y = ty;
+        cust.path.shift();
+      } else {
+        if (Math.abs(dx) > Math.abs(dy)) cust.x += Math.sign(dx) * cust.speed;
+        else cust.y += Math.sign(dy) * cust.speed;
+      }
+      continue;
+    }
+
+    if (cust.state === 'browsing') {
+      cust.state = 'experiencing';
+      cust.timer = Date.now() + 3600;
+      cust.bubble = cust.desire.key === 'pillow' ? '🧠 檢測肩頸曲線...' : '✨ 體驗質感中...';
+    } else if (cust.state === 'experiencing') {
+      if (Date.now() >= cust.timer) {
+        let baseRate = isStoreOpen ? 0.68 : 0.25;
+        if (Date.now() < promoBuffUntil) baseRate = 0.92;
+        if (Math.random() < baseRate) {
+          cust.state = 'to_cashier';
+          cust.bubble = '💳 決定購買！去結帳';
+          let slotIdx = Math.min(queuingList.length, queueSlots.length - 1);
+          let slot = queueSlots[slotIdx];
+          let cR = Math.floor((cust.y + 32) / TILE_SIZE);
+          let cC = Math.floor((cust.x + 32) / TILE_SIZE);
+          cust.path = findAStarPath(cR, cC, [slot]) || [];
+        } else {
+          cust.state = 'leaving';
+          cust.bubble = '👀 再考慮看看～';
+          let cR = Math.floor((cust.y + 32) / TILE_SIZE);
+          let cC = Math.floor((cust.x + 32) / TILE_SIZE);
+          cust.path = findAStarPath(cR, cC, [{ r: 18, c: 11 }, { r: 18, c: 12 }]) || [];
+        }
+      }
+    } else if (cust.state === 'to_cashier') {
+      cust.state = 'queuing';
+      cust.checkoutProgress = 0;
+      cust.bubble = '🧾 排隊結帳中...';
+      triggerDoomFace('busy', 2500);
+    } else if (cust.state === 'queuing') {
+      let rank = queuingList.indexOf(cust);
+      if (rank <= 0) {
+        cust.checkoutProgress += 0.45;
+        if (cust.checkoutProgress >= 100) {
+          completeCustomerCheckout(cust, 1.0);
+        }
+      }
+    } else if (cust.state === 'leaving') {
+      customers.splice(i, 1);
+      updateTopHud();
+    }
+  }
+}
+
+// ==========================================
+// 【服務櫃檯三大功能 ＋ 智能選枕區 ＋ 變身按鈕】
+// ==========================================
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function normalizeSku9(rawSku) {
+  let clean = String(rawSku || '').trim().toUpperCase();
+  if (/^\d{8}$/.test(clean)) clean = '0' + clean;
+  return clean;
+}
+
+function getBestPromoPrice(item) {
+  let priceStr = item['促銷售價'] || "";
+  let dateStr = item['促銷期間'] || "";
+  if (!priceStr) return null;
+  if (!priceStr.includes('|')) return parseInt(priceStr) || null;
+  let prices = priceStr.split('|').map(p => parseInt(p.trim()));
+  let dates = dateStr.split('|').map(d => d.trim());
+  let today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let validPromos = [];
+  for (let i = 0; i < prices.length; i++) {
+    if (!dates[i] || !dates[i].includes('~')) continue;
+    let [startStr, endStr] = dates[i].split('~');
+    let start = new Date(startStr.trim());
+    let end = new Date(endStr.trim());
+    end.setHours(23, 59, 59, 999);
+    if (today >= start && today <= end) {
+      validPromos.push({ price: prices[i], days: end - start });
+    }
+  }
+  if (validPromos.length === 0) return null;
+  validPromos.sort((a, b) => a.days - b.days);
+  return validPromos[0].price;
+}
+
+// 對話框內建「㊙️切換外觀」按鈕
+function handleTransformBtnClick(event) {
+  if (event) event.stopPropagation();
+  if (!activeTransformState) return;
+  activeTransformState.count++;
+
+  if (activeTransformState.count < activeTransformState.required) {
+    let btn = document.getElementById('transformActionBtn');
+    if (btn) btn.innerText = `㊙️切換外觀 (${activeTransformState.count}/${activeTransformState.required})`;
+    if (window.dialogTimeout) {
+      clearTimeout(window.dialogTimeout);
+      window.dialogTimeout = setTimeout(() => closeDialog(), 8000);
+    }
+    return;
+  }
+
+  let { r: rootR, c: rootC, tile: oldTile, targetId } = activeTransformState;
+  if (holaStoreMap[rootR][rootC] !== oldTile) {
+    closeDialog();
+    return;
+  }
+
+  let oldDim = itemDims[oldTile] || { w: 1, h: 1 };
+  let newDim = itemDims[targetId] || { w: 1, h: 1 };
+  let pR = Math.floor((player.y + 32) / TILE_SIZE);
+  let pC = Math.floor((player.x + 32) / TILE_SIZE);
+
+  let canFit = true;
+  for (let dr = 0; dr < newDim.h; dr++) {
+    for (let dc = 0; dc < newDim.w; dc++) {
+      let rr = rootR + dr, cc = rootC + dc;
+      if (rr < 1 || cc < 1 || rr >= MAP_ROWS - 1 || cc >= MAP_COLS - 1) { canFit = false; break; }
+      let isOwnOld = (dr < oldDim.h && dc < oldDim.w);
+      if (!isOwnOld) {
+        if (holaStoreMap[rr][cc] !== 0) { canFit = false; break; }
+        if (rr === pR && cc === pC) { canFit = false; break; }
+      }
+    }
+    if (!canFit) break;
+  }
+
+  if (!canFit) {
+    activeTransformState.count = 0;
+    showDialog(`<div style="text-align:center;">⚠️ <b>空間不足！</b><br>周圍被牆壁、店長或家具擋住，無法切換外觀。</div>`, 2600);
+    return;
+  }
+
+  let wasFlipped = holaStoreFlip[rootR][rootC] || 0;
+  for (let dr = 0; dr < oldDim.h; dr++) {
+    for (let dc = 0; dc < oldDim.w; dc++) {
+      holaStoreMap[rootR + dr][rootC + dc] = 0;
+      holaStoreFlip[rootR + dr][rootC + dc] = 0;
+    }
+  }
+  for (let dr = 0; dr < newDim.h; dr++) {
+    for (let dc = 0; dc < newDim.w; dc++) {
+      holaStoreMap[rootR + dr][rootC + dc] = (dr === 0 && dc === 0) ? targetId : OCCUPIED_TILE;
+      holaStoreFlip[rootR + dr][rootC + dc] = (dr === 0 && dc === 0 && wasFlipped) ? 1 : 0;
+    }
+  }
+
+  saveMaps();
+  closeDialog();
+  canvas.classList.add('shake-active');
+  setTimeout(() => canvas.classList.remove('shake-active'), 450);
+}
+
+function buildTransformButtonHtml(rootR, rootC, tile) {
+  let tfCfg = getTransformConfig(tile);
+  if (!tfCfg) {
+    activeTransformState = null;
+    return '';
+  }
+  activeTransformState = {
+    r: rootR,
+    c: rootC,
+    tile,
+    count: 0,
+    required: tfCfg.clicks,
+    targetId: tfCfg.targetId
+  };
+  let label = tfCfg.clicks > 1 ? `㊙️切換外觀 (0/${tfCfg.clicks})` : `㊙️切換外觀`;
+  return `<div style="text-align:center;"><button id="transformActionBtn" class="transform-btn" onclick="handleTransformBtnClick(event)">${label}</button></div>`;
+}
+
+// 【功能 1：人員 A（貓咪店員）→ SKU 庫存查詢】
+function openSkuLookupUI(prefill = '') {
+  if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+  player.isInteracting = true;
+  isBlindBoxOpen = true;
+  syncFloatingControlsVisibility();
+
+  dialogBox.innerHTML = `
+    <div>
+      <div class="modal-title">🐱 服務櫃檯 · SKU 庫存查詢</div>
+      <div style="font-size:0.84rem; color:#ccc; margin-bottom:8px; text-align:center;">
+        輸入 8～9 碼貨號或商品關鍵字，即時連線《商品全資料》：
+      </div>
+      <input type="text" id="skuSearchInput" class="ui-input" placeholder="輸入 SKU 或品名關鍵字" value="${escapeHtml(prefill)}"
+        onkeydown="if(event.key==='Enter'){ event.preventDefault(); executeSkuLookup(); }" />
+      <button class="menu-btn" style="background:#00e676; color:#000; margin-top:8px;" onclick="executeSkuLookup()">
+        🔍 查詢庫存與促銷檔期
+      </button>
+      <div id="skuLookupResult"></div>
+      <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">離開櫃檯</button>
+    </div>
+  `;
+  dialogBox.style.display = 'block';
+  setTimeout(() => {
+    let inp = document.getElementById('skuSearchInput');
+    if (inp) { inp.focus(); if (prefill) executeSkuLookup(); }
+  }, 60);
+}
+
+function executeSkuLookup() {
+  let inp = document.getElementById('skuSearchInput');
+  let resBox = document.getElementById('skuLookupResult');
+  if (!inp || !resBox) return;
+
+  let q = inp.value.trim().toUpperCase();
+  if (!q) {
+    resBox.innerHTML = `<div style="color:#ff5252; text-align:center; margin-top:8px;">請輸入貨號或商品關鍵字！</div>`;
+    return;
+  }
+  if (inventoryData.length === 0) {
+    resBox.innerHTML = `<div style="color:#ff5252; text-align:center; margin-top:8px;">⚠️ 試算表資料尚未連線或離線中。</div>`;
+    return;
+  }
+
+  let q9 = normalizeSku9(q);
+  let matches = inventoryData.filter(row => {
+    let rSku = normalizeSku9(row['SKU'] || '');
+    let rName = (row['商品名稱'] || '').toUpperCase();
+    return rSku.includes(q9) || rSku.includes(q) || rName.includes(q);
+  }).slice(0, 5);
+
+  if (matches.length === 0) {
+    resBox.innerHTML = `<div style="color:#ff8a80; text-align:center; margin-top:10px;">查無符合「${escapeHtml(q)}」的商品資料。</div>`;
+    return;
+  }
+
+  resBox.innerHTML = matches.map(item => {
+    let sku9 = normalizeSku9(item['SKU']);
+    let bestPromo = getBestPromoPrice(item);
+    let regPrice = item['一般售價'] || '-';
+    let promoRaw = item['促銷售價'] || '無';
+    let promoPeriod = item['促銷期間'] || '無檔期';
+    let ddw = parseInt(item['HOLA630庫存']) || 0;
+    let dds = parseInt(item['HOLA630展示']) || 0;
+    let ym = parseInt(item['楊梅庫存']) || 0;
+
+    return `
+      <div class="sku-card">
+        <div style="font-size:0.78rem; color:#4fc3f7;">SKU：<b>${escapeHtml(sku9)}</b></div>
+        <div style="font-weight:bold; color:#ffcc00; font-size:0.96rem; margin:2px 0;">${escapeHtml(item['商品名稱'])}</div>
+        <div>一般售價：<b>$${escapeHtml(regPrice)}</b> ｜ 當前促銷：<b style="color:#ff5252;">${bestPromo ? '$' + bestPromo : '無'}</b></div>
+        <div style="font-size:0.78rem; color:#bbb;">促銷表列：${escapeHtml(promoRaw)}（期間：${escapeHtml(promoPeriod)}）</div>
+        <hr style="border:0; border-top:1px dashed #444; margin:6px 0;">
+        <div>🏪 HOLA630 庫存：<b style="color:#00e676;">${ddw}</b>（展示：<b>${dds}</b>）｜ 🏭 楊梅庫存：<b style="color:#4fc3f7;">${ym}</b></div>
+        <button class="menu-btn" style="background:#2b3040; color:#ffe082; border:1px solid #d4af37; padding:6px; font-size:0.82rem; margin-top:6px; margin-bottom:0;"
+          onclick="openBlessingBlindBoxUI('${escapeHtml(sku9)}')">
+          🧧 轉交 Kobe 鑄造 60 天盲盒網址
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+// 【功能 2：人員 B（Kobe 專員）→ 60 天盲盒網址鑄造器】
+function openBlessingBlindBoxUI(prefillSku = '', errorMsg = '') {
+  if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+  player.isInteracting = true;
+  isBlindBoxOpen = true;
+  syncFloatingControlsVisibility();
+
+  dialogBox.innerHTML = `
+    <div>
+      <div class="modal-title">😎 Kobe 專員 · 60 天盲盒網址鑄造器</div>
+      <div style="font-size:0.86rem; color:#e0e0e0; margin-bottom:10px;">
+        輸入 8～9 碼商品 SKU（8 碼自動前方補零），為客人產生 60 天有效的專屬 VIP 價格與庫存查詢網址：
+      </div>
+      <input type="text" id="blindBoxSkuInput" class="ui-input" inputmode="numeric" maxlength="12"
+        placeholder="請輸入 8～9 碼商品 SKU" value="${escapeHtml(prefillSku)}"
+        onkeydown="if(event.key==='Enter'){ event.preventDefault(); castBlindBoxLink(); }" />
+      <div id="blindBoxStatusMsg" style="font-size:0.84rem; color:#ff5252; margin-top:6px; text-align:center; min-height:1.2em;">
+        ${escapeHtml(errorMsg)}
+      </div>
+      <button class="menu-btn" style="background:linear-gradient(135deg, #ffd54f 0%, #ff9800 100%); color:#111; font-weight:900;" onclick="castBlindBoxLink()">
+        🧧 立即鑄造 60 天盲盒網址
+      </button>
+      <a href="https://line.me/ti/p/v-9_IDIeyw" target="_blank" class="menu-btn" style="background:#00c300; color:#fff; text-decoration:none;">
+        👉 加 KOBE 專員 LINE 諮詢
+      </a>
+      <div class="notice-box">
+        ⚠️ <b>溫馨提醒</b>：查詢結果僅供參考，實際價格與庫存數量仍以賣場現場為準；本系統為業務自行維護製作，業務休假期間資料庫將不會即時更新。
+      </div>
+      <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">離開</button>
+    </div>
+  `;
+  dialogBox.style.display = 'block';
+  setTimeout(() => {
+    let inp = document.getElementById('blindBoxSkuInput');
+    if (inp) inp.focus();
+  }, 60);
+}
+
+async function castBlindBoxLink() {
+  let inp = document.getElementById('blindBoxSkuInput');
+  let statusEl = document.getElementById('blindBoxStatusMsg');
+  if (!inp) return;
+
+  let rawInput = inp.value.trim();
+  if (!rawInput) {
+    statusEl.innerText = "請先輸入商品貨號 (SKU)！";
+    inp.focus();
+    return;
+  }
+
+  let sku = normalizeSku9(rawInput);
+  inp.value = sku;
+
+  if (inventoryData.length === 0) {
+    statusEl.style.color = "#4fc3f7";
+    statusEl.innerText = "⏳ 正在連線《商品全資料》核對貨號...";
+    try {
+      const res = await fetch(PRODUCT_SHEET_URL);
+      if (res.ok) inventoryData = parseCSVText(await res.text());
+    } catch (e) {}
+  }
+
+  let matchedItem = inventoryData.find(row => {
+    let rowSku = normalizeSku9(row['SKU'] || '');
+    return rowSku !== '' && rowSku === sku;
+  });
+
+  if (!matchedItem && inventoryData.length > 0) {
+    statusEl.style.color = "#ff5252";
+    statusEl.innerText = "此商品查無資料，請確認 8～9 碼貨號是否正確！";
+    inp.focus();
+    inp.select();
+    return;
+  }
+
+  let productName = matchedItem ? (matchedItem['商品名稱'] || sku).trim() : sku;
+  const now = new Date();
+  const dateStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+  const encoded = btoa(encodeURIComponent(`${sku}|${dateStr}`));
+  const blindBoxUrl = `https://satanhotdog.github.io/vip-check/?c=${encoded}`;
+
+  dialogBox.innerHTML = `
+    <div>
+      <div class="modal-title">😎 60 天專屬盲盒已鑄造完成！</div>
+      <div style="background:rgba(0,230,118,0.12); border:1px solid #00e676; border-radius:8px; padding:10px; font-size:0.88rem; margin-bottom:8px;">
+        商品：<b style="color:#ffcc00;">${escapeHtml(productName)}</b><br>
+        貨號：<b>${escapeHtml(sku)}</b>（有效期限：鑄造日起 60 天）
+      </div>
+      <textarea id="blindBoxUrlBox" class="code-box" readonly>${escapeHtml(blindBoxUrl)}</textarea>
+      <button id="copyBlindBoxBtn" class="menu-btn" style="background:#00e676; color:#000;" onclick="copyBlindBoxUrl()">
+        📋 一鍵複製盲盒網址
+      </button>
+      <a href="https://line.me/ti/p/v-9_IDIeyw" target="_blank" class="menu-btn" style="background:#00c300; color:#fff; text-decoration:none;">
+        👉 點擊加 KOBE 的 LINE 傳送
+      </a>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="menu-btn" style="background:#2e3244; color:#ffe082; border:1px solid #d4af37; margin:0; flex:1;" onclick="openBlessingBlindBoxUI()">
+          🔄 再鑄一筆
+        </button>
+        <button class="menu-btn" style="background:#444; color:#fff; margin:0; flex:1;" onclick="closeDialog()">
+          離開
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function copyBlindBoxUrl() {
+  let box = document.getElementById('blindBoxUrlBox');
+  let btn = document.getElementById('copyBlindBoxBtn');
+  if (!box) return;
+  box.select();
+  box.setSelectionRange(0, 99999);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(box.value).catch(() => document.execCommand('copy'));
+  } else {
+    document.execCommand('copy');
+  }
+  if (btn) {
+    btn.innerText = "✅ 已複製！可直接貼上到 LINE 分享";
+    btn.style.background = "#ffcc00";
+  }
+}
+
+// 【功能 3：智能選枕檢測儀互動】
+function openSmartPillowUI() {
+  let pillowItems = inventoryData.filter(r => (r['商品名稱'] || '').includes('枕'));
+  let recHtml = '';
+  if (pillowItems.length > 0) {
+    let pick = pillowItems[Math.floor(Math.random() * pillowItems.length)];
+    let price = getBestPromoPrice(pick) || pick['一般售價'];
+    recHtml = `<div class="sku-card">推薦試躺：<b style="color:#ffcc00;">${escapeHtml(pick['商品名稱'])}</b><br>貨號：${escapeHtml(normalizeSku9(pick['SKU']))} ｜ 參考價：<b style="color:#00e676;">$${price}</b></div>`;
+  } else {
+    recHtml = `<div class="sku-card">推薦試躺：<b style="color:#ffcc00;">HOLA 智能釋壓記憶枕（中低枕高 9.5cm）</b></div>`;
+  }
+
+  showDialog(`
+    <div style="text-align:center;">
+      <div class="modal-title">🧠 HOLA 智能選枕科學檢測區</div>
+      <div style="font-size:0.9rem; color:#ddd;">
+        已為您掃描肩寬、頸椎弧度與正側睡習慣！<br>
+        建議搭配獨立筒床墊試躺 5 分鐘感受支撐度：
+      </div>
+      ${recHtml}
+    </div>
+  `, 7000);
+}
+
+const furnitureDialogues = {
+  110: "「比佛利石墨烯恆溫乳膠獨立筒。躺上去體溫跟智商都會跟著恆定，強烈建議買回去要設十個鬧鐘，免得睡到賣場打烊。」",
+  111: "「LADY 銅離子抗菌乳膠獨立筒。加了蠶絲冬暖夏涼，連床都比人的抵抗力還強。」",
+  112: "「奧丁雙電動零重力三人沙發。可以直接躺平到 180 度，跟另一半吵架睡客廳比睡主臥還舒服。」",
+  113: "「伊登麻吉模組沙發兩人座。Q彈模組化設計，像坐在一個巨大的發福史萊姆上。」",
+  114: "「克萊歐岩紋餐桌。打翻排骨酥湯抹布一嚕就乾淨，吃泡麵都能吃出米其林錯覺。」",
+  115: "「艾禮思木藝邊櫃。只要拉門一關，裡面塞滿帳單外面看起來依然是個品味中產階級。」",
+  116: "「艾禮思木藝二抽高櫃。充滿復古木藝質感，擺在餐廳瞬間提升居家儀式感。」",
+  117: "「La-Z-Boy 512 手動經典搖椅。腰部支撐力比你的自尊心還要堅強。」",
+  118: "「La-Z-Boy 765 雙電動牛皮椅。按下遙控器電視還沒亮，人已經在夢裡打麻將了。」",
+  119: "「La-Z-Boy 521 雙電動按摩牛皮椅。多段震動加溫熱功能，合法的居家復健中心。」",
+  120: "「La-Z-Boy 紐約北歐式休閒椅。坐上去彷彿自帶精品手沖咖啡濾鏡。」",
+  121: "「聖誕檔期限定展示樹。提醒你趁檔期趕快買張大邊櫃把客廳網購紙箱收進去。」",
+  33: "「大墩店變形金剛：為您服務。但我現在正在值班巡邏中。」"
+};
+
+function showDialog(html, duration = 5000) {
+  isBlindBoxOpen = false;
+  dialogBox.innerHTML = html;
+  dialogBox.style.display = 'block';
+  player.isInteracting = true;
+  syncFloatingControlsVisibility();
+  if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+  window.dialogTimeout = setTimeout(() => closeDialog(), duration);
+}
+
+function closeDialog() {
+  if (window.dialogTimeout) clearTimeout(window.dialogTimeout);
+  dialogBox.style.display = 'none';
+  player.isInteracting = false;
+  isBlindBoxOpen = false;
+  activeTransformState = null;
+  syncFloatingControlsVisibility();
+}
+
+// ==========================================
+// 【統一互動處理（支援隔桌 2 格互動＋排隊秒結帳）】
+// ==========================================
+function interactWithTarget(targetInfo) {
+  if (!targetInfo || isDecorating) return;
+
+  if (targetInfo.type === 'customer') {
+    let cust = targetInfo.customer;
+    if (cust.state === 'queuing' || cust.state === 'to_cashier') {
+      completeCustomerCheckout(cust, 1.1);
+    } else {
+      showDialog(`<div style="text-align:center;">🛍️ <b>賣場顧客</b><br><br>「我正在${escapeHtml(cust.desire.label)}，等等再去櫃檯結帳！」</div>`, 3000);
+    }
+    return;
+  }
+
+  let { r, c, tile } = targetInfo;
+  if (tile === OCCUPIED_TILE) {
+    outerRoot: for (let dr = 0; dr >= -4; dr--) {
+      for (let dc = 0; dc >= -4; dc--) {
+        let rr = r + dr, cc = c + dc;
+        if (rr >= 0 && cc >= 0) {
+          let t = holaStoreMap[rr][cc];
+          let d = itemDims[t];
+          if (d && r < rr + d.h && c < cc + d.w) {
+            r = rr; c = cc; tile = t;
+            break outerRoot;
+          }
+        }
+      }
+    }
+  }
+
+  if (tile === 6) { openSkuLookupUI(); return; }
+  if (tile === 61) { openBlessingBlindBoxUI(); return; }
+  if (tile === 212) { triggerBroadcast(true); return; }
+  if (tile === 213 || tile === 214) { openSmartPillowUI(); return; }
+  if (tile === 211) {
+    let queuing = customers.find(cust => cust.state === 'queuing');
+    if (queuing) {
+      completeCustomerCheckout(queuing, 1.1);
+    } else {
+      showDialog(`<div style="text-align:center;">🧾 <b>POS 收銀結帳台</b><br><br>目前沒有客人在排隊結帳，去賣場巡巡看吧！</div>`, 2800);
+    }
+    return;
+  }
+  if (tile === 210) {
+    showDialog(`<div style="text-align:center;">🏪 <b>HOLA 大墩店服務櫃檯</b><br><br>• 左側 <b>貓咪店員</b>：查詢商品 SKU 庫存與促銷<br>• 右側 <b>Kobe 專員</b>：鑄造 60 天 VIP 盲盒網址<br>• 最右側 <b>收銀台</b>：顧客結帳區</div>`, 5000);
+    return;
+  }
+
+  let tfBtnHtml = buildTransformButtonHtml(r, c, tile);
+  let meta = customItemMeta[tile];
+  let ov = builtInOverrides[tile];
+
+  if (meta) {
+    let lines = (meta.dialogs && meta.dialogs.length > 0) ? meta.dialogs : [`「歡迎體驗【${meta.name}】！」`];
+    let idx = customDialogIndex[tile] || 0;
+    let line = lines[idx % lines.length];
+    customDialogIndex[tile] = (idx + 1) % lines.length;
+    let lineBtn = meta.lineBtn ? `<a href="https://line.me/ti/p/v-9_IDIeyw" target="_blank" class="menu-btn" style="background:#00c300; color:#fff; text-decoration:none;">👉 加 KOBE 專員 LINE</a>` : '';
+    showDialog(`<div style="text-align:center;"><b style="color:#ffcc00;">${escapeHtml(meta.name)}</b><br><br>${escapeHtml(line)}${lineBtn}${tfBtnHtml}</div>`, 7500);
+    return;
+  }
+
+  if (ov && ov.dialogs && ov.dialogs.length > 0) {
+    let line = ov.dialogs[ov.dialogIdx % ov.dialogs.length];
+    ov.dialogIdx = (ov.dialogIdx + 1) % ov.dialogs.length;
+    let lineBtn = ov.lineBtn ? `<a href="https://line.me/ti/p/v-9_IDIeyw" target="_blank" class="menu-btn" style="background:#00c300; color:#fff; text-decoration:none;">👉 加 KOBE 專員 LINE</a>` : '';
+    showDialog(`<div style="text-align:center;"><b style="color:#ffcc00;">${escapeHtml(getItemMeta(tile).name)}</b><br><br>${escapeHtml(line)}${lineBtn}${tfBtnHtml}</div>`, 7500);
+    return;
+  }
+
+  if (furnitureDialogues[tile]) {
+    let name = getItemMeta(tile).name;
+    showDialog(`<div style="text-align:center;"><b style="color:#ffcc00;">🪑 ${escapeHtml(name)}</b><br><br>${escapeHtml(furnitureDialogues[tile])}${tfBtnHtml}</div>`, 7500);
+  }
+}
+
+function getCrosshairTarget() {
+  let px = (player.x + TILE_SIZE / 2) / TILE_SIZE;
+  let py = (player.y + TILE_SIZE / 2) / TILE_SIZE;
+  let dx = Math.cos(player.angle);
+  let dy = Math.sin(player.angle);
+
+  for (let dist = 0.4; dist <= 2.4; dist += 0.15) {
+    let tx = (px + dx * dist) * TILE_SIZE;
+    let ty = (py + dy * dist) * TILE_SIZE;
+    for (let cust of customers) {
+      if (Math.hypot((cust.x + 32) - tx, (cust.y + 32) - ty) < 34) {
+        return { type: 'customer', customer: cust, label: cust.state === 'queuing' ? '⚡ 秒結帳 (+10%)' : cust.bubble };
+      }
+    }
+  }
+
+  let sawCounter = null;
+  for (let dist = 0.45; dist <= 2.6; dist += 0.12) {
+    let c = Math.floor(px + dx * dist);
+    let r = Math.floor(py + dy * dist);
+    if (r < 0 || c < 0 || r >= MAP_ROWS || c >= MAP_COLS) break;
+    let tile = holaStoreMap[r][c];
+    if (tile === 101 || tile === 201) break;
+    if (tile === 210) {
+      if (!sawCounter) sawCounter = { type: 'tile', r, c, tile: 210, label: '🏪 服務收銀櫃檯' };
+      continue;
+    }
+    if (tile !== 0) {
+      let resolvedTile = tile;
+      if (tile === OCCUPIED_TILE) {
+        outerR: for (let dr = 0; dr >= -4; dr--) {
+          for (let dc = 0; dc >= -4; dc--) {
+            let rr = r + dr, cc = c + dc;
+            if (rr >= 0 && cc >= 0 && itemDims[holaStoreMap[rr][cc]]) {
+              resolvedTile = holaStoreMap[rr][cc];
+              break outerR;
+            }
+          }
+        }
+      }
+      let meta = getItemMeta(resolvedTile);
+      let hint = meta.name;
+      if (resolvedTile === 6) hint = '🐱 貓咪店員 · 查SKU庫存';
+      else if (resolvedTile === 61) hint = '😎 Kobe · 60天盲盒網址';
+      else if (resolvedTile === 212) hint = '🎙️ 麥克風 · 發送特價廣播';
+      else if (resolvedTile === 213 || resolvedTile === 214) hint = '🧠 智能選枕檢測區';
+      return { type: 'tile', r, c, tile: resolvedTile, label: hint };
+    }
+  }
+  return sawCounter;
+}
+
+// ==========================================
+// 【3D 類 DOOM Raycasting 渲染引擎（完整支援多幀 PNG 輪播）】
+// ==========================================
+let screenSprites = [];
+
+function drawSafeRoundRect(context, x, y, w, h, r) {
+  context.beginPath();
+  if (typeof context.roundRect === 'function') {
+    context.roundRect(x, y, w, h, r);
+  } else {
+    context.rect(x, y, w, h);
+  }
+}
+
+function getSpriteDrawable(tile) {
+  const resolveAnimImage = (key) => {
+    let anim = animatedAssets[key];
+    if (anim) {
+      if (anim.frameKeys && anim.frameKeys.length > 1) {
+        let idx = Math.floor((Date.now() / 1000) * (anim.fps || 6)) % anim.frameKeys.length;
+        let fk = anim.frameKeys[idx];
+        if (images[fk] && images[fk].complete && images[fk].naturalWidth > 0) {
+          return { img: images[fk], frames: 1, fps: anim.fps || 6 };
+        }
+      }
+      if (anim.frames > 1 && images[key] && images[key].complete && images[key].naturalWidth > 0) {
+        return { img: images[key], frames: anim.frames, fps: anim.fps || 6 };
+      }
+    }
+    if (images[key] && images[key].complete && images[key].naturalWidth > 0) {
+      return { img: images[key], frames: 1, fps: 6 };
+    }
+    return null;
+  };
+
+  let ov = builtInOverrides[tile];
+  if (ov && ov.imgKey) {
+    let res = resolveAnimImage(ov.imgKey);
+    if (res) return res;
+  }
+  if (customItemMeta[tile]) {
+    let res = resolveAnimImage(customItemMeta[tile].img);
+    if (res) return res;
+  }
+  if (procTextures[tile]) return { img: procTextures[tile], frames: 1, fps: 6 };
+
+  const tileToAsset = {
+    6: 'npc_bluecat', 7: 'npc_golden', 8: 'npc_hairless', 61: 'Kobe', 33: 'robot',
+    110: 'hola_bed2', 111: 'hola_bed3', 112: 'matchy_sofa2', 113: 'matchy_sofa3',
+    114: 'dining_table', 115: 'wooden_cabinet2', 116: 'wooden_cabinet3',
+    117: 'lazboy_chair', 118: 'lazboy_chair2', 119: 'lazboy_chair3', 120: 'blue_chair',
+    121: 'xmas_tree'
+  };
+  let assetKey = tileToAsset[tile];
+  if (assetKey && images[assetKey] && images[assetKey].complete && images[assetKey].naturalWidth > 0) {
+    return { img: images[assetKey], frames: 1, fps: 6 };
+  }
+  return null;
+}
+
+function draw3DView() {
+  const W = canvas.width;
+  const H = canvas.height;
+  screenSprites = [];
+
+  let ceilGrad = ctx.createLinearGradient(0, 0, 0, H / 2);
+  ceilGrad.addColorStop(0, '#1e222b');
+  ceilGrad.addColorStop(1, '#363b47');
+  ctx.fillStyle = ceilGrad;
+  ctx.fillRect(0, 0, W, H / 2);
+
+  let floorGrad = ctx.createLinearGradient(0, H / 2, 0, H);
+  floorGrad.addColorStop(0, '#4a3b2c');
+  floorGrad.addColorStop(1, '#8c6d4f');
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(0, H / 2, W, H / 2);
+
+  const FOV = Math.PI / 3;
+  const numRays = 320;
+  const stripW = W / numRays;
+  const zBuffer = new Array(numRays).fill(Infinity);
+
+  const px = (player.x + TILE_SIZE / 2) / TILE_SIZE;
+  const py = (player.y + TILE_SIZE / 2) / TILE_SIZE;
+  const wallImg = images['wall_hola'];
+  const gateImg = images['gate'];
+
+  for (let i = 0; i < numRays; i++) {
+    let rayAngle = (player.angle - FOV / 2) + (i / numRays) * FOV;
+    let rayDirX = Math.cos(rayAngle);
+    let rayDirY = Math.sin(rayAngle);
+
+    let mapX = Math.floor(px);
+    let mapY = Math.floor(py);
+    let deltaDistX = Math.abs(1 / (rayDirX || 1e-6));
+    let deltaDistY = Math.abs(1 / (rayDirY || 1e-6));
+
+    let stepX, sideDistX, stepY, sideDistY;
+    if (rayDirX < 0) { stepX = -1; sideDistX = (px - mapX) * deltaDistX; }
+    else { stepX = 1; sideDistX = (mapX + 1.0 - px) * deltaDistX; }
+    if (rayDirY < 0) { stepY = -1; sideDistY = (py - mapY) * deltaDistY; }
+    else { stepY = 1; sideDistY = (mapY + 1.0 - py) * deltaDistY; }
+
+    let hitTile = 0;
+    let side = 0;
+    let safety = 0;
+    while (hitTile === 0 && safety++ < 48) {
+      if (sideDistX < sideDistY) {
+        sideDistX += deltaDistX;
+        mapX += stepX;
+        side = 0;
+      } else {
+        sideDistY += deltaDistY;
+        mapY += stepY;
+        side = 1;
+      }
+      if (mapY < 0 || mapX < 0 || mapY >= MAP_ROWS || mapX >= MAP_COLS) {
+        hitTile = 101;
+        break;
+      }
+      let t = holaStoreMap[mapY][mapX];
+      if (t === 101 || t === 201) hitTile = t;
+    }
+
+    let perpWallDist = (side === 0) ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+    perpWallDist = Math.max(0.15, perpWallDist);
+    let correctedDist = perpWallDist * Math.cos(rayAngle - player.angle);
+    zBuffer[i] = correctedDist;
+
+    let wallHeight = H / correctedDist;
+    let wallTop = (H - wallHeight) / 2;
+
+    let wallX = (side === 0) ? (py + perpWallDist * rayDirY) : (px + perpWallDist * rayDirX);
+    wallX -= Math.floor(wallX);
+
+    let texImg = (hitTile === 201 && gateImg && gateImg.complete && gateImg.naturalWidth > 0) ? gateImg : wallImg;
+    if (texImg && texImg.complete && texImg.naturalWidth > 0) {
+      let texX = Math.floor(wallX * texImg.naturalWidth);
+      ctx.drawImage(texImg, texX, 0, 1, texImg.naturalHeight, i * stripW, wallTop, stripW + 0.6, wallHeight);
+    } else {
+      ctx.fillStyle = hitTile === 201 ? '#1e88e5' : '#607d8b';
+      ctx.fillRect(i * stripW, wallTop, stripW + 0.6, wallHeight);
+    }
+
+    let shade = Math.min(0.78, correctedDist * 0.042 + (side === 1 ? 0.14 : 0));
+    if (shade > 0.02) {
+      ctx.fillStyle = `rgba(10, 12, 18, ${shade.toFixed(2)})`;
+      ctx.fillRect(i * stripW, wallTop, stripW + 0.6, wallHeight);
+    }
+  }
+
+  let sprites = [];
+
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
+      let tile = holaStoreMap[r][c];
+      if (tile === 0 || tile === 101 || tile === 201 || tile === OCCUPIED_TILE) continue;
+      let dim = itemDims[tile] || { w: 1, h: 1 };
+      let drawable = getSpriteDrawable(tile);
+      if (!drawable) continue;
+
+      let centerX = c + dim.w / 2;
+      let centerY = r + dim.h / 2;
+      let dist = Math.hypot(centerX - px, centerY - py);
+      let scaleFactor = Math.min(1.65, Math.max(0.75, Math.max(dim.w, dim.h) * 0.72));
+      if (tile === 210) scaleFactor = 0.78;
+
+      let tag = '';
+      if (tile === 6) tag = '🐱 查庫存';
+      else if (tile === 61) tag = '😎 KOBE盲盒';
+      else if (tile === 212) tag = '🎙️ 廣播';
+      else if (tile === 213) tag = '🧠 智能選枕';
+
+      sprites.push({
+        x: centerX,
+        y: centerY,
+        dist,
+        img: drawable.img,
+        frames: drawable.frames,
+        fps: drawable.fps,
+        scale: scaleFactor,
+        tag,
+        targetInfo: { type: 'tile', r, c, tile }
+      });
+    }
+  }
+
+  for (let cust of customers) {
+    let cx = (cust.x + TILE_SIZE / 2) / TILE_SIZE;
+    let cy = (cust.y + TILE_SIZE / 2) / TILE_SIZE;
+    let cImg = images[cust.sprite];
+    if (cImg && cImg.complete && cImg.naturalWidth > 0) {
+      sprites.push({
+        x: cx,
+        y: cy,
+        dist: Math.hypot(cx - px, cy - py),
+        img: cImg,
+        frames: 1,
+        fps: 6,
+        scale: 0.76,
+        tag: cust.bubble,
+        targetInfo: { type: 'customer', customer: cust }
+      });
+    }
+  }
+
+  sprites.sort((a, b) => b.dist - a.dist);
+
+  const dirX = Math.cos(player.angle);
+  const dirY = Math.sin(player.angle);
+  const planeScale = Math.tan(FOV / 2);
+  const planeX = -dirY * planeScale;
+  const planeY = dirX * planeScale;
+
+  for (let sp of sprites) {
+    let relX = sp.x - px;
+    let relY = sp.y - py;
+    let invDet = 1.0 / (planeX * dirY - dirX * planeY);
+    let transformX = invDet * (dirY * relX - dirX * relY);
+    let transformY = invDet * (-planeY * relX + planeX * relY);
+
+    if (transformY <= 0.22) continue;
+
+    let spriteScreenX = Math.floor((W / 2) * (1 + transformX / transformY));
+    let spriteHeight = Math.abs(Math.floor((H / transformY) * sp.scale));
+    let spriteWidth = spriteHeight;
+    let floorAnchorY = H / 2 + (H / transformY) * 0.5;
+    let drawTopY = floorAnchorY - spriteHeight;
+    let drawStartX = Math.floor(spriteScreenX - spriteWidth / 2);
+    let drawEndX = drawStartX + spriteWidth;
+
+    if (drawEndX < 0 || drawStartX >= W) continue;
+
+    let frameCount = sp.frames > 1 ? sp.frames : 1;
+    let frameIdx = frameCount > 1 ? (Math.floor((Date.now() / 1000) * (sp.fps || 6)) % frameCount) : 0;
+    let srcFrameW = sp.img.naturalWidth / frameCount;
+    let srcFrameX = frameIdx * srcFrameW;
+
+    let visibleStrips = 0;
+    for (let sx = Math.max(0, drawStartX); sx < Math.min(W, drawEndX); sx += 3) {
+      let rayIdx = Math.min(numRays - 1, Math.floor((sx / W) * numRays));
+      if (transformY < zBuffer[rayIdx]) {
+        visibleStrips++;
+        let u = (sx - drawStartX) / spriteWidth;
+        let texX = srcFrameX + u * srcFrameW;
+        ctx.drawImage(sp.img, texX, 0, Math.max(1, srcFrameW / spriteWidth * 3), sp.img.naturalHeight, sx, drawTopY, 3.2, spriteHeight);
+      }
+    }
+
+    if (visibleStrips > 0) {
+      screenSprites.push({
+        x1: drawStartX,
+        y1: drawTopY,
+        x2: drawEndX,
+        y2: floorAnchorY,
+        dist: transformY,
+        targetInfo: sp.targetInfo
+      });
+
+      if (sp.tag && transformY < 9.5) {
+        ctx.save();
+        ctx.font = 'bold 13px "Microsoft JhengHei", sans-serif';
+        let tw = ctx.measureText(sp.tag).width + 14;
+        let bx = spriteScreenX - tw / 2;
+        let by = Math.max(12, drawTopY - 24);
+        ctx.fillStyle = 'rgba(12, 15, 22, 0.85)';
+        ctx.strokeStyle = '#ffcc00';
+        ctx.lineWidth = 1.5;
+        drawSafeRoundRect(ctx, bx, by, tw, 20, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(sp.tag, spriteScreenX, by + 14);
+        ctx.restore();
+      }
+    }
+  }
+
+  // 畫面中央準心 (Crosshair)
+  let target = getCrosshairTarget();
+  document.getElementById('doomTargetVal').innerText = target ? `[調查] ${target.label}` : '自由巡店中';
+
+  ctx.save();
+  ctx.strokeStyle = target ? '#00e676' : 'rgba(255, 255, 255, 0.72)';
+  ctx.lineWidth = 2.5;
+  let cx = W / 2, cy = H / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 12, cy); ctx.lineTo(cx - 4, cy);
+  ctx.moveTo(cx + 4, cy); ctx.lineTo(cx + 12, cy);
+  ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy - 4);
+  ctx.moveTo(cx, cy + 4); ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
+  if (target) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  drawMiniMap();
+}
+
+function drawMiniMap() {
+  const cell = 5;
+  const mw = MAP_COLS * cell;
+  const mh = MAP_ROWS * cell;
+  const ox = canvas.width - mw - 14;
+  const oy = 56;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(10, 12, 18, 0.78)';
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(ox - 3, oy - 3, mw + 6, mh + 6);
+  ctx.strokeRect(ox - 3, oy - 3, mw + 6, mh + 6);
+
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
+      let t = holaStoreMap[r][c];
+      if (t === 101) ctx.fillStyle = '#607d8b';
+      else if (t === 201) ctx.fillStyle = '#00e676';
+      else if (t === 210 || t === 211) ctx.fillStyle = '#ff9800';
+      else if (t === 6 || t === 61) ctx.fillStyle = '#4fc3f7';
+      else if (t !== 0) ctx.fillStyle = '#8d6e63';
+      else continue;
+      ctx.fillRect(ox + c * cell, oy + r * cell, cell, cell);
+    }
+  }
+
+  ctx.fillStyle = '#ff5252';
+  for (let cust of customers) {
+    let cc = (cust.x + 32) / TILE_SIZE;
+    let cr = (cust.y + 32) / TILE_SIZE;
+    ctx.fillRect(ox + cc * cell - 1.5, oy + cr * cell - 1.5, 3, 3);
+  }
+
+  let px = (player.x + 32) / TILE_SIZE;
+  let py = (player.y + 32) / TILE_SIZE;
+  ctx.fillStyle = '#ffcc00';
+  ctx.beginPath();
+  ctx.arc(ox + px * cell, oy + py * cell, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffcc00';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(ox + px * cell, oy + py * cell);
+  ctx.lineTo(ox + (px + Math.cos(player.angle) * 2.2) * cell, oy + (py + Math.sin(player.angle) * 2.2) * cell);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ==========================================
+// 【2D 上帝俯視 ＋ 麥塊創造模式渲染】
+// ==========================================
+function drawItemTile2D(tile, posX, posY, flipped = false) {
+  let dim = itemDims[tile] || { w: 1, h: 1 };
+  let drawable = getSpriteDrawable(tile);
+
+  if (flipped) {
+    let pivotX = posX + (dim.w * TILE_SIZE) / 2;
+    ctx.save();
+    ctx.translate(pivotX, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-pivotX, 0);
+  }
+
+  if (drawable && drawable.img) {
+    let frames = drawable.frames > 1 ? drawable.frames : 1;
+    let fIdx = frames > 1 ? (Math.floor((Date.now() / 1000) * (drawable.fps || 6)) % frames) : 0;
+    let fw = drawable.img.naturalWidth / frames;
+    let fh = drawable.img.naturalHeight;
+    ctx.drawImage(drawable.img, fIdx * fw, 0, fw, fh, posX, posY, dim.w * TILE_SIZE, dim.h * TILE_SIZE);
+  } else {
+    ctx.fillStyle = 'rgba(0, 230, 118, 0.35)';
+    ctx.fillRect(posX + 4, posY + 4, dim.w * TILE_SIZE - 8, dim.h * TILE_SIZE - 8);
+  }
+
+  if (flipped) ctx.restore();
+}
+
+function draw2DView() {
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.fillStyle = '#14161d';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  let scale = get2DScale();
+  let focusX = player.x + TILE_SIZE / 2;
+  let focusY = player.y + TILE_SIZE / 2;
+  let camX = focusX * scale - W / 2;
+  let camY = focusY * scale - H / 2;
+  let maxCamX = Math.max(0, MAP_COLS * TILE_SIZE * scale - W);
+  let maxCamY = Math.max(0, MAP_ROWS * TILE_SIZE * scale - H);
+  camX = Math.max(0, Math.min(maxCamX, camX));
+  camY = Math.max(0, Math.min(maxCamY, camY));
+
+  ctx.translate(-camX, -camY);
+  ctx.scale(scale, scale);
+
+  let floorImg = images['floor_hola'];
+  let wallImg = images['wall_hola'];
+  let gateImg = images['gate'];
+
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
+      let px = c * TILE_SIZE, py = r * TILE_SIZE;
+      if (floorImg && floorImg.complete && floorImg.naturalWidth > 0) {
+        ctx.drawImage(floorImg, px, py, TILE_SIZE, TILE_SIZE);
+      } else {
+        ctx.fillStyle = (r + c) % 2 === 0 ? '#cbb69d' : '#bfa78a';
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      }
+    }
+  }
+
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
+      let tile = holaStoreMap[r][c];
+      let px = c * TILE_SIZE, py = r * TILE_SIZE;
+      if (tile === 101) {
+        if (wallImg && wallImg.complete && wallImg.naturalWidth > 0) ctx.drawImage(wallImg, px, py, TILE_SIZE, TILE_SIZE);
+        else { ctx.fillStyle = '#455a64'; ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE); }
+      } else if (tile === 201 && c === 11) {
+        if (gateImg && gateImg.complete && gateImg.naturalWidth > 0) ctx.drawImage(gateImg, px, py - 24, TILE_SIZE * 2, TILE_SIZE + 24);
+      } else if (tile !== 0 && tile !== 201 && tile !== OCCUPIED_TILE) {
+        drawItemTile2D(tile, px, py, holaStoreFlip[r][c] === 1);
+      }
+    }
+  }
+
+  for (let cust of customers) {
+    let cImg = images[cust.sprite];
+    if (cImg && cImg.complete && cImg.naturalWidth > 0) {
+      ctx.drawImage(cImg, cust.x, cust.y - 8, TILE_SIZE, TILE_SIZE + 8);
+    }
+    ctx.font = 'bold 12px "Microsoft JhengHei", sans-serif';
+    let tw = ctx.measureText(cust.bubble).width + 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.82)';
+    ctx.fillRect(cust.x + 32 - tw / 2, cust.y - 28, tw, 19);
+    ctx.fillStyle = '#ffcc00';
+    ctx.textAlign = 'center';
+    ctx.fillText(cust.bubble, cust.x + 32, cust.y - 14);
+  }
+
+  let catImg = images['cat_down_idle'] || images['npc_bluecat'];
+  if (catImg && catImg.complete && catImg.naturalWidth > 0) {
+    ctx.drawImage(catImg, player.x, player.y - 8, TILE_SIZE, TILE_SIZE + 8);
+  }
+  ctx.strokeStyle = '#00e676';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(player.x + 32, player.y + 32);
+  ctx.lineTo(player.x + 32 + Math.cos(player.angle) * 42, player.y + 32 + Math.sin(player.angle) * 42);
+  ctx.stroke();
+
+  if (isDecorating) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1.5;
+    for (let r = 0; r < MAP_ROWS; r++) {
+      for (let c = 0; c < MAP_COLS; c++) ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+    if (hasHoveredGrid && creativeMode === 'remove') {
+      ctx.fillStyle = 'rgba(255, 82, 82, 0.38)';
+      ctx.fillRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    } else if (hasHoveredGrid && creativeMode === 'place' && activeSlot >= 0) {
+      let t = hotbarItems[activeSlot];
+      let dim = itemDims[t] || { w: 1, h: 1 };
+      let ok = isPlacementValid(cursorR, cursorC, dim);
+      ctx.fillStyle = ok ? 'rgba(0, 230, 118, 0.35)' : 'rgba(255, 82, 82, 0.35)';
+      ctx.fillRect(cursorC * TILE_SIZE, cursorR * TILE_SIZE, dim.w * TILE_SIZE, dim.h * TILE_SIZE);
+      ctx.globalAlpha = 0.72;
+      drawItemTile2D(t, cursorC * TILE_SIZE, cursorR * TILE_SIZE, heldFlipped);
+      ctx.globalAlpha = 1.0;
+    }
+  }
+
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    let ft = floatingTexts[i];
+    let age = (Date.now() - ft.born) / 1000;
+    if (age > 1.8) { floatingTexts.splice(i, 1); continue; }
+    ctx.font = '900 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = ft.color;
+    ctx.fillText(ft.text, ft.x, ft.y - age * 26);
+  }
+
+  ctx.restore();
+}
+
+// ==========================================
+// 【DOOM 經典底部貓咪店長動態大頭貼 HUD】
+// ==========================================
+function drawDoomCatFace() {
+  faceCtx.clearRect(0, 0, 60, 60);
+  faceCtx.fillStyle = '#151822';
+  faceCtx.fillRect(0, 0, 60, 60);
+
+  if (doomFaceMood !== 'normal' && Date.now() > doomFaceTimer) {
+    doomFaceMood = 'normal';
+  }
+
+  let baseImg = images['cat_down_idle'] || images['npc_bluecat'];
+  let lookOffsetX = Math.sin(Date.now() / 700) * 3;
+  if (baseImg && baseImg.complete && baseImg.naturalWidth > 0) {
+    faceCtx.drawImage(baseImg, 4 + lookOffsetX, 4, 52, 54);
+  }
+
+  if (doomFaceMood === 'cool') {
+    faceCtx.fillStyle = '#000';
+    faceCtx.fillRect(14 + lookOffsetX, 22, 13, 7);
+    faceCtx.fillRect(32 + lookOffsetX, 22, 13, 7);
+    faceCtx.fillRect(27 + lookOffsetX, 24, 5, 2);
+    faceCtx.fillStyle = '#00e676';
+    faceCtx.fillRect(16 + lookOffsetX, 23, 4, 2);
+    faceCtx.fillRect(34 + lookOffsetX, 23, 4, 2);
+  } else if (doomFaceMood === 'happy') {
+    faceCtx.fillStyle = '#ffcc00';
+    faceCtx.font = 'bold 12px sans-serif';
+    faceCtx.fillText('$$', 22 + lookOffsetX, 16);
+  } else if (doomFaceMood === 'busy') {
+    faceCtx.fillStyle = '#ff5252';
+    faceCtx.font = 'bold 14px sans-serif';
+    faceCtx.fillText('!', 46, 18);
+  }
+}
+
+// ==========================================
+// 【玩家移動、左下角虛擬方向鍵、鍵盤與觸控】
+// ==========================================
+const keys = {};
+const dpadState = { up: false, down: false, left: false, right: false };
+
+function clearDpadState() {
+  dpadState.up = false;
+  dpadState.down = false;
+  dpadState.left = false;
+  dpadState.right = false;
+  document.querySelectorAll('.dpad-btn').forEach(b => b.classList.remove('pressed'));
+}
+
+document.querySelectorAll('.dpad-btn').forEach(btn => {
+  const dir = btn.getAttribute('data-dir');
+  const press = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    tryPlayBGM();
+    if (isDecorating || isBlindBoxOpen) return;
+    dpadState[dir] = true;
+    btn.classList.add('pressed');
+  };
+  const release = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    dpadState[dir] = false;
+    btn.classList.remove('pressed');
+  };
+  btn.addEventListener('touchstart', press, { passive: false });
+  btn.addEventListener('touchend', release, { passive: false });
+  btn.addEventListener('touchcancel', release, { passive: false });
+  btn.addEventListener('mousedown', press);
+  btn.addEventListener('mouseup', release);
+  btn.addEventListener('mouseleave', release);
+});
+window.addEventListener('touchend', () => clearDpadState());
+
+window.addEventListener('keydown', e => {
+  tryPlayBGM();
+  if (isBlindBoxOpen) {
+    if (e.key === 'Escape') closeDialog();
+    return;
+  }
+  if (isDecorating) return;
+  keys[e.key.toLowerCase()] = true;
+  keys[e.key] = true;
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    if (dialogBox.style.display === 'block') closeDialog();
+    else interactWithTarget(getCrosshairTarget());
+  }
+});
+window.addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+  keys[e.key] = false;
+});
+
+function isPlayerWalkable(nx, ny) {
+  let pad = 16;
+  let pts = [
+    [nx + pad, ny + pad],
+    [nx + TILE_SIZE - pad, ny + pad],
+    [nx + pad, ny + TILE_SIZE - pad],
+    [nx + TILE_SIZE - pad, ny + TILE_SIZE - pad]
+  ];
+  for (let [x, y] of pts) {
+    let c = Math.floor(x / TILE_SIZE);
+    let r = Math.floor(y / TILE_SIZE);
+    if (r < 0 || c < 0 || r >= MAP_ROWS || c >= MAP_COLS) return false;
+    let t = holaStoreMap[r][c];
+    if (t !== 0 && t !== 201) return false;
+  }
+  return true;
+}
+
+function updatePlayer() {
+  if (player.isInteracting || isDecorating || isBlindBoxOpen) return;
+
+  let upPressed = keys['w'] || keys['ArrowUp'] || dpadState.up;
+  let downPressed = keys['s'] || keys['ArrowDown'] || dpadState.down;
+  let leftPressed = keys['a'] || keys['ArrowLeft'] || dpadState.left;
+  let rightPressed = keys['d'] || keys['ArrowRight'] || dpadState.right;
+
+  if (viewMode === '2d') {
+    let dx = 0, dy = 0;
+    if (upPressed) { dy -= player.speed; player.angle = -Math.PI / 2; }
+    if (downPressed) { dy += player.speed; player.angle = Math.PI / 2; }
+    if (leftPressed) { dx -= player.speed; player.angle = Math.PI; }
+    if (rightPressed) { dx += player.speed; player.angle = 0; }
+    if (dx !== 0 && isPlayerWalkable(player.x + dx, player.y)) player.x += dx;
+    if (dy !== 0 && isPlayerWalkable(player.x, player.y + dy)) player.y += dy;
+    return;
+  }
+
+  let moveForward = (upPressed ? 1 : 0) - (downPressed ? 1 : 0);
+  let turn = (rightPressed ? 1 : 0) - (leftPressed ? 1 : 0);
+  let strafe = (keys['e'] ? 1 : 0) - (keys['q'] ? 1 : 0);
+
+  if (turn !== 0) player.angle += turn * player.rotSpeed;
+
+  let vx = (Math.cos(player.angle) * moveForward - Math.sin(player.angle) * strafe) * player.speed;
+  let vy = (Math.sin(player.angle) * moveForward + Math.cos(player.angle) * strafe) * player.speed;
+
+  if (vx !== 0 && isPlayerWalkable(player.x + vx, player.y)) player.x += vx;
+  if (vy !== 0 && isPlayerWalkable(player.x, player.y + vy)) player.y += vy;
+}
+
+function handleCanvasClick(clientX, clientY) {
+  tryPlayBGM();
+  if (isDecorating) {
+    handleEditInteraction(clientX, clientY);
+    return;
+  }
+  if (dialogBox.style.display === 'block') {
+    closeDialog();
+    return;
+  }
+
+  let rect = canvas.getBoundingClientRect();
+  let cx = ((clientX - rect.left) / rect.width) * canvas.width;
+  let cy = ((clientY - rect.top) / rect.height) * canvas.height;
+
+  if (viewMode === '3d') {
+    let sorted = [...screenSprites].sort((a, b) => a.dist - b.dist);
+    for (let sp of sorted) {
+      if (sp.dist <= 3.6 && cx >= sp.x1 && cx <= sp.x2 && cy >= sp.y1 && cy <= sp.y2) {
+        interactWithTarget(sp.targetInfo);
+        return;
+      }
+    }
+    interactWithTarget(getCrosshairTarget());
+  } else {
+    let pos = get2DGridPos(clientX, clientY);
+    if (pos.r >= 0 && pos.r < MAP_ROWS && pos.c >= 0 && pos.c < MAP_COLS) {
+      let tile = holaStoreMap[pos.r][pos.c];
+      if (tile !== 0 && tile !== 101 && tile !== 201) {
+        interactWithTarget({ type: 'tile', r: pos.r, c: pos.c, tile });
+      }
+    }
+  }
+}
+
+let touchStartX = 0, touchStartY = 0, touchMoved = false;
+canvas.addEventListener('touchstart', e => {
+  if (isDecorating) {
+    e.preventDefault();
+    handleEditInteraction(e.touches[0].clientX, e.touches[0].clientY);
+    return;
+  }
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchMoved = false;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  if (isDecorating) {
+    e.preventDefault();
+    let pos = get2DGridPos(e.touches[0].clientX, e.touches[0].clientY);
+    cursorR = pos.r; cursorC = pos.c; hasHoveredGrid = true;
+    return;
+  }
+  e.preventDefault();
+  let dx = e.touches[0].clientX - touchStartX;
+  let dy = e.touches[0].clientY - touchStartY;
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    touchMoved = true;
+    if (viewMode === '3d') {
+      player.angle += dx * 0.0022;
+      let step = -dy * 0.14;
+      let vx = Math.cos(player.angle) * step;
+      let vy = Math.sin(player.angle) * step;
+      if (isPlayerWalkable(player.x + vx, player.y)) player.x += vx;
+      if (isPlayerWalkable(player.x, player.y + vy)) player.y += vy;
+    } else {
+      let vx = dx * 0.16, vy = dy * 0.16;
+      if (isPlayerWalkable(player.x + vx, player.y)) player.x += vx;
+      if (isPlayerWalkable(player.x, player.y + vy)) player.y += vy;
+    }
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  if (!isDecorating && !touchMoved) {
+    handleCanvasClick(touchStartX, touchStartY);
+  }
+});
+
+canvas.addEventListener('mousedown', e => handleCanvasClick(e.clientX, e.clientY));
+canvas.addEventListener('mousemove', e => {
+  if (isDecorating) {
+    let pos = get2DGridPos(e.clientX, e.clientY);
+    cursorR = pos.r; cursorC = pos.c; hasHoveredGrid = true;
+  }
+});
+
+actionBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  tryPlayBGM();
+  if (!isDecorating && !isBlindBoxOpen) interactWithTarget(getCrosshairTarget());
+});
+actionBtn.addEventListener('touchstart', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  tryPlayBGM();
+  if (!isDecorating && !isBlindBoxOpen) interactWithTarget(getCrosshairTarget());
+}, { passive: false });
+
+// ==========================================
+// 【麥塊創造模式（自動切 2D 網格並暫停進客）】
+// ==========================================
+let creativeMode = 'none';
+let hotbarItems = [112, 119, 121, 61, 210];
+let activeSlot = -1;
+let heldFlipped = false;
+let currentCatalogTab = 'hola';
+let cursorR = 5, cursorC = 5, hasHoveredGrid = false;
+let prevViewBeforeEdit = '3d';
+
+function get2DGridPos(clientX, clientY) {
+  let rect = canvas.getBoundingClientRect();
+  let scale = get2DScale();
+  let focusX = player.x + TILE_SIZE / 2;
+  let focusY = player.y + TILE_SIZE / 2;
+  let camX = Math.max(0, Math.min(Math.max(0, MAP_COLS * TILE_SIZE * scale - canvas.width), focusX * scale - canvas.width / 2));
+  let camY = Math.max(0, Math.min(Math.max(0, MAP_ROWS * TILE_SIZE * scale - canvas.height), focusY * scale - canvas.height / 2));
+
+  let canvasX = ((clientX - rect.left) / rect.width) * canvas.width;
+  let canvasY = ((clientY - rect.top) / rect.height) * canvas.height;
+  return {
+    c: Math.floor((canvasX + camX) / scale / TILE_SIZE),
+    r: Math.floor((canvasY + camY) / scale / TILE_SIZE)
+  };
+}
+
+function toggleEditMode() {
+  isDecorating = !isDecorating;
+  closeDialog();
+  catalogModal.style.display = 'none';
+  editModeUI.style.display = isDecorating ? 'block' : 'none';
+  resetBtn.style.display = isDecorating ? 'flex' : 'none';
+  hotbar.style.display = isDecorating ? 'flex' : 'none';
+  syncFloatingControlsVisibility();
+
+  if (isDecorating) {
+    prevViewBeforeEdit = viewMode;
+    toggleViewMode('2d');
+    editBtn.classList.add('edit-active');
+    creativeMode = 'none';
+    activeSlot = -1;
+    renderHotbar();
+  } else {
+    editBtn.classList.remove('edit-active');
+    toggleViewMode(prevViewBeforeEdit);
+  }
+}
+
+function renderHotbar() {
+  let html = `
+    <div class="hb-slot ${creativeMode === 'remove' ? 'active' : ''}" onclick="selectRemoveTool()">⛏️<span class="hb-label">收起</span></div>
+    <div class="hb-divider"></div>
+  `;
+  for (let i = 0; i < 5; i++) {
+    let tile = hotbarItems[i];
+    let meta = getItemMeta(tile);
+    let isActive = (creativeMode === 'place' && activeSlot === i);
+    html += `
+      <div class="hb-slot ${isActive ? 'active' : ''}" onclick="selectHotbarSlot(${i})" title="${meta.name}">
+        <img src="${meta.imgSrc}" class="${isActive && heldFlipped ? 'flipped' : ''}" onerror="this.src='icon.png'">
+        <span class="hb-label">${meta.size}</span>
+      </div>
+    `;
+  }
+  html += `
+    <div class="hb-divider"></div>
+    <div class="hb-slot ${heldFlipped ? 'active' : ''}" onclick="toggleFlipBrush()">🔃<span class="hb-label">鏡像</span></div>
+    <div class="hb-slot" onclick="openCatalogModal()">🎒<span class="hb-label">圖鑑</span></div>
+  `;
+  hotbar.innerHTML = html;
+}
+
+function selectRemoveTool() {
+  creativeMode = 'remove'; activeSlot = -1;
+  editModeUI.innerText = "⛏️ 收起模式：點擊場上家具或人員即可移除";
+  renderHotbar();
+}
+
+function selectHotbarSlot(idx) {
+  creativeMode = 'place'; activeSlot = idx;
+  let meta = getItemMeta(hotbarItems[idx]);
+  editModeUI.innerText = `🧱 已選取【${meta.name} (${meta.size})】點空地放置`;
+  renderHotbar();
+}
+
+function toggleFlipBrush() {
+  heldFlipped = !heldFlipped;
+  if (creativeMode !== 'place' || activeSlot < 0) { creativeMode = 'place'; activeSlot = 0; }
+  renderHotbar();
+}
+
+function openCatalogModal() {
+  let html = `
+    <div class="cat-header">
+      <b style="color:#ffcc00;">🎒 HOLA 賣場全圖鑑背包</b>
+      <button onclick="catalogModal.style.display='none'" style="background:#444; color:#fff; border:none; border-radius:6px; padding:4px 10px; cursor:pointer;">✖️</button>
+    </div>
+    <div class="cat-tabs">
+      <div class="cat-tab ${currentCatalogTab === 'hola' ? 'active' : ''}" onclick="currentCatalogTab='hola';openCatalogModal()">🛋️ 賣場家具</div>
+      <div class="cat-tab ${currentCatalogTab === 'npc' ? 'active' : ''}" onclick="currentCatalogTab='npc';openCatalogModal()">🐱 專員人物</div>
+      <div class="cat-tab ${currentCatalogTab === 'props' ? 'active' : ''}" onclick="currentCatalogTab='props';openCatalogModal()">🏪 櫃檯設備</div>
+    </div>
+    <div class="cat-grid">
+  `;
+  catalogItems.filter(i => i.cat === currentCatalogTab).forEach(item => {
+    let src = item.imgSrc || getItemPreviewSrc(item.tile, item.img);
+    html += `
+      <div class="cat-card" onclick="pickCatalogItem(${item.tile})">
+        ${item.isCustom ? '<span class="cat-badge-custom">自訂</span>' : ''}
+        <img src="${src}" onerror="this.src='icon.png'">
+        <div class="cat-card-name">${item.name}</div>
+        <div class="cat-card-size">${item.size} 格</div>
+      </div>
+    `;
+  });
+  html += `</div>`;
+  catalogModal.innerHTML = html;
+  catalogModal.style.display = 'flex';
+}
+
+function pickCatalogItem(tile) {
+  let idx = hotbarItems.indexOf(tile);
+  if (idx !== -1) activeSlot = idx;
+  else {
+    let target = activeSlot >= 0 ? activeSlot : 0;
+    hotbarItems[target] = tile;
+    activeSlot = target;
+  }
+  creativeMode = 'place';
+  catalogModal.style.display = 'none';
+  renderHotbar();
+}
+
+function isPlacementValid(r0, c0, dim) {
+  let pR = Math.floor((player.y + 32) / TILE_SIZE);
+  let pC = Math.floor((player.x + 32) / TILE_SIZE);
+  for (let dr = 0; dr < dim.h; dr++) {
+    for (let dc = 0; dc < dim.w; dc++) {
+      let r = r0 + dr, c = c0 + dc;
+      if (r < 1 || c < 1 || r >= MAP_ROWS - 1 || c >= MAP_COLS - 1) return false;
+      if (holaStoreMap[r][c] !== 0) return false;
+      if (r === pR && c === pC) return false;
+    }
+  }
+  return true;
+}
+
+function handleEditInteraction(clientX, clientY) {
+  let pos = get2DGridPos(clientX, clientY);
+  cursorR = pos.r; cursorC = pos.c; hasHoveredGrid = true;
+  if (pos.r < 1 || pos.c < 1 || pos.r >= MAP_ROWS - 1 || pos.c >= MAP_COLS - 1) return;
+
+  if (creativeMode === 'remove') {
+    let tile = holaStoreMap[pos.r][pos.c];
+    let rootR = pos.r, rootC = pos.c, rootTile = tile;
+    if (tile === OCCUPIED_TILE) {
+      outerF: for (let dr = 0; dr >= -4; dr--) {
+        for (let dc = 0; dc >= -4; dc--) {
+          let rr = pos.r + dr, cc = pos.c + dc;
+          if (rr >= 0 && cc >= 0 && itemDims[holaStoreMap[rr][cc]]) {
+            rootR = rr; rootC = cc; rootTile = holaStoreMap[rr][cc];
+            break outerF;
+          }
+        }
+      }
+    }
+    if (rootTile !== 0 && rootTile !== 101 && rootTile !== 201) {
+      let dim = itemDims[rootTile] || { w: 1, h: 1 };
+      for (let dr = 0; dr < dim.h; dr++) {
+        for (let dc = 0; dc < dim.w; dc++) {
+          holaStoreMap[rootR + dr][rootC + dc] = 0;
+          holaStoreFlip[rootR + dr][rootC + dc] = 0;
+        }
+      }
+      saveMaps();
+      editModeUI.innerText = `⛏️ 已收起【${getItemMeta(rootTile).name}】`;
+    }
+  } else if (creativeMode === 'place' && activeSlot >= 0) {
+    let activeTile = hotbarItems[activeSlot];
+    let dim = itemDims[activeTile] || { w: 1, h: 1 };
+    if (isPlacementValid(pos.r, pos.c, dim)) {
+      for (let dr = 0; dr < dim.h; dr++) {
+        for (let dc = 0; dc < dim.w; dc++) {
+          holaStoreMap[pos.r + dr][pos.c + dc] = (dr === 0 && dc === 0) ? activeTile : OCCUPIED_TILE;
+          holaStoreFlip[pos.r + dr][pos.c + dc] = (dr === 0 && dc === 0 && heldFlipped) ? 1 : 0;
+        }
+      }
+      saveMaps();
+      editModeUI.innerText = `✅ 已放置【${getItemMeta(activeTile).name}】`;
+    } else {
+      editModeUI.innerText = "❌ 位置被佔用或超出邊界！";
+    }
+  }
+}
+
+// ==========================================
+// 【裝潢代碼匯出/匯入、清空與還原預設】
+// ==========================================
+function encodeGridRLE(grid) {
+  let flat = grid.flat();
+  let runs = [], i = 0;
+  while (i < flat.length) {
+    let v = flat[i], cnt = 1;
+    while (i + cnt < flat.length && flat[i + cnt] === v) cnt++;
+    runs.push(cnt > 1 ? `${v}*${cnt}` : `${v}`);
+    i += cnt;
+  }
+  return runs.join(',');
+}
+
+function decodeGridRLE(str, rows, cols) {
+  if (!str) return null;
+  let flat = [];
+  for (let p of str.split(',')) {
+    if (p.includes('*')) {
+      let [v, c] = p.split('*').map(Number);
+      if (isNaN(v) || isNaN(c) || c <= 0) return null;
+      for (let k = 0; k < c; k++) flat.push(v);
+    } else {
+      let v = Number(p);
+      if (isNaN(v)) return null;
+      flat.push(v);
+    }
+  }
+  if (flat.length !== rows * cols) return null;
+  let grid = [];
+  for (let r = 0; r < rows; r++) grid.push(flat.slice(r * cols, (r + 1) * cols));
+  return grid;
+}
+
+function openResetMenu() {
+  let code = 'HOLA1:' + btoa(JSON.stringify({ m: encodeGridRLE(holaStoreMap), f: encodeGridRLE(holaStoreFlip) }));
+  isBlindBoxOpen = true;
+  syncFloatingControlsVisibility();
+  dialogBox.innerHTML = `
+    <div>
+      <div class="modal-title">🔄 賣場配置分享與重置選項</div>
+      <div style="font-size:0.82rem; color:#bbb;">目前大墩店裝潢代碼（複製即可分享）：</div>
+      <textarea id="exportCodeArea" class="code-box" readonly>${code}</textarea>
+      <button class="menu-btn" style="background:#00e676; color:#000;" onclick="navigator.clipboard?.writeText(document.getElementById('exportCodeArea').value); this.innerText='✅ 已複製代碼！'">
+        📋 一鍵複製裝潢代碼
+      </button>
+      <textarea id="importCodeArea" class="code-box" placeholder="在此貼上 HOLA1:... 代碼匯入"></textarea>
+      <button class="menu-btn" style="background:#4fc3f7; color:#000;" onclick="applyImportCode()">
+        📥 匯入並套用代碼
+      </button>
+      <button class="menu-btn" style="background:#ff9800; color:#000;" onclick="clearAllStoreItems()">
+        🗑️ 清空場上所有家具與人員（保留外牆大門）
+      </button>
+      <button class="menu-btn" style="background:#ff5252; color:#fff;" onclick="buildDefaultHolaMap(); saveMaps(); closeDialog();">
+        🧹 還原 HOLA 大墩店預設配置
+      </button>
+      <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">關閉</button>
+    </div>
+  `;
+  dialogBox.style.display = 'block';
+}
+
+function applyImportCode() {
+  let raw = (document.getElementById('importCodeArea')?.value || '').trim();
+  let idx = raw.indexOf('HOLA1:');
+  if (idx === -1) return alert('找不到有效的 HOLA1: 代碼！');
+  try {
+    let obj = JSON.parse(atob(raw.slice(idx + 6).split(/\s+/)[0]));
+    let nm = decodeGridRLE(obj.m, MAP_ROWS, MAP_COLS);
+    let nf = decodeGridRLE(obj.f, MAP_ROWS, MAP_COLS);
+    if (!nm || !nf) return alert('代碼尺寸不符！');
+    holaStoreMap = nm; holaStoreFlip = nf;
+    saveMaps();
+    closeDialog();
+  } catch (e) {
+    alert('代碼解析失敗！');
+  }
+}
+
+function clearAllStoreItems() {
+  if (!confirm('確定要清空場上所有家具、櫃檯與人員嗎？（外牆與大門會保留）')) return;
+  for (let r = 1; r < MAP_ROWS - 1; r++) {
+    for (let c = 1; c < MAP_COLS - 1; c++) {
+      holaStoreMap[r][c] = 0;
+      holaStoreFlip[r][c] = 0;
+    }
+  }
+  saveMaps();
+  closeDialog();
+}
+
+function openHelpModal() {
+  showDialog(`
+    <div>
+      <div class="modal-title">📖 HOLA 大墩店：店長模擬操作指南</div>
+      <div class="sku-card">
+        <b style="color:#ffcc00;">👁️ 3D 類 DOOM 巡店操作</b><br>
+        • <b>手機版</b>：可使用左下角<b>虛擬十字方向鍵（▲▼◀▶）</b>或直接滑動螢幕控制移動與轉向，點擊畫面目標或按右下角藍色<b>「調查」</b>鈕互動。<br>
+        • <b>電腦版</b>：<code>W / S</code> 前進後退、<code>A / D</code> 或方向鍵左右轉身、<code>Q / E</code> 橫移；準心對準目標按 <code>空白鍵 / Enter</code> 或<b>滑鼠直接點擊物件</b>互動。
+      </div>
+      <div class="sku-card">
+        <b style="color:#00e676;">🏪 服務櫃檯與賣場系統</b><br>
+        • <b>貓咪店員</b>：隔桌調查開啟 SKU 庫存與促銷查詢。<br>
+        • <b>Kobe 專員</b>：隔桌調查開啟 60 天盲盒網址鑄造器。<br>
+        • <b>廣播麥克風</b>：手動插播促銷（每 50 秒也會自動廣播並提升成交率）。<br>
+        • <b>排隊結帳</b>：顧客自動結帳，店長親自調查可秒結帳並享 <b>+10%</b> 服務加成！
+      </div>
+      <button class="menu-btn" style="background:#444; color:#fff; margin-bottom:0;" onclick="closeDialog()">知道了</button>
+    </div>
+  `, 15000);
+}
+
+// ==========================================
+// 【CSV 解析與 Google 試算表雙連線（支援多幀 PNG 輪播）】
+// ==========================================
+function parseCSVText(text) {
+  let result = [], row = [], col = "", quote = false;
+  for (let i = 0; i < text.length; i++) {
+    let cc = text[i], nc = text[i + 1];
+    if (cc === '"' && quote && nc === '"') { col += '"'; i++; continue; }
+    if (cc === '"') { quote = !quote; continue; }
+    if (cc === ',' && !quote) { row.push(col); col = ""; continue; }
+    if (cc === '\r' && nc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; i++; continue; }
+    if (cc === '\n' && !quote) { row.push(col); result.push(row); row = []; col = ""; continue; }
+    col += cc;
+  }
+  if (col !== "" || text.endsWith(',')) row.push(col);
+  if (row.length > 0) result.push(row);
+
+  let objects = [];
+  if (result.length > 1) {
+    const headers = result[0].map(h => h.replace(/^\uFEFF/, '').trim());
+    for (let i = 1; i < result.length; i++) {
+      let obj = {};
+      headers.forEach((h, idx) => obj[h] = (result[i][idx] || "").trim());
+      objects.push(obj);
+    }
+  }
+  return objects;
+}
+
+async function fetchInventory() {
+  try {
+    const res = await fetch(PRODUCT_SHEET_URL);
+    if (res.ok) {
+      inventoryData = parseCSVText(await res.text());
+      sheetStateText = `完成(${inventoryData.length}筆)`;
+    }
+  } catch (e) {
+    sheetStateText = "離線模式";
+  } finally {
+    sheetSettled = true;
+    checkStartGame();
+  }
+}
+
+async function fetchCustomItems() {
+  try {
+    let csvUrl = CUSTOM_SHEET_URL.replace('/pubhtml', '/pub');
+    if (!csvUrl.includes('output=csv')) csvUrl += (csvUrl.includes('?') ? '&' : '?') + 'output=csv';
+    const res = await fetch(csvUrl);
+    if (res.ok) {
+      const rows = parseCSVText(await res.text());
+      rows.forEach(rawRow => {
+        let row = {};
+        Object.keys(rawRow).forEach(k => row[k.trim().toLowerCase()] = rawRow[k]);
+        let id = parseInt(row['id']);
+        if (isNaN(id)) return;
+
+        let rawName = (row['name'] || "").trim();
+        let rawCat = (row['category'] || "").trim().toLowerCase();
+        let w = Math.max(1, parseInt(row['w']) || (itemDims[id]?.w || 1));
+        let h = Math.max(1, parseInt(row['h']) || (itemDims[id]?.h || 1));
+        let scaleH = parseFloat(row['scaleh']) || 1.0;
+        let dialogLines = (row['dialog'] || "").split('|').map(s => s.trim()).filter(Boolean);
+        let lineBtn = ['true', '1', 'yes', '是'].includes((row['linebtn'] || '').toLowerCase());
+        let clicks = parseInt(row['clicks']) || 0;
+        let transformId = parseInt(row['transformid']) || 0;
+        let frames = Math.max(1, parseInt(row['frames']) || 1);
+        let fps = Math.max(1, parseInt(row['fps']) || 6);
+        let file = (row['file'] || "").trim();
+
+        let imgKey = null, imgSrc = null;
+        if (file) {
+          let fileList = file.split('|').map(f => f.trim()).filter(Boolean);
+          const resolvePath = f => {
+            if (!/\.[a-zA-Z0-9]+$/.test(f)) f += '.png';
+            return (f.startsWith('http') || f.startsWith('custom/')) ? f : ('custom/' + f);
+          };
+          imgSrc = resolvePath(fileList[0]);
+          imgKey = 'custom_' + id;
+          let imgObj = new Image();
+          imgObj.src = imgSrc;
+          images[imgKey] = imgObj;
+
+          if (fileList.length > 1) {
+            let fKeys = fileList.map((f, idx) => {
+              let k = `custom_${id}_f${idx}`;
+              let im = new Image();
+              im.src = resolvePath(f);
+              images[k] = im;
+              return k;
+            });
+            animatedAssets[imgKey] = { frames: 1, fps, frameKeys: fKeys };
+          } else if (frames > 1) {
+            animatedAssets[imgKey] = { frames, fps };
+          }
+        }
+
+        itemDims[id] = { w, h };
+        if (id < 501) {
+          builtInOverrides[id] = { name: rawName || null, imgKey, imgSrc, scaleH, dialogs: dialogLines, lineBtn, clicks, transformId, dialogIdx: 0 };
+          let catItem = catalogItems.find(c => c.tile === id);
+          if (catItem) {
+            if (rawName) catItem.name = rawName;
+            if (imgSrc) catItem.imgSrc = imgSrc;
+            catItem.size = `${w}×${h}`;
+          }
+        } else {
+          let meta = {
+            tile: id,
+            cat: ['hola', 'npc', 'props'].includes(rawCat) ? rawCat : 'hola',
+            name: rawName || `自訂物件 #${id}`,
+            img: imgKey || 'icon',
+            imgSrc: imgSrc || 'icon.png',
+            size: `${w}×${h}`,
+            scaleH,
+            dialogs: dialogLines,
+            lineBtn,
+            clicks,
+            transformId,
+            isCustom: true
+          };
+          customItemMeta[id] = meta;
+          customDialogIndex[id] = 0;
+          catalogItems.push(meta);
+        }
+      });
+      customSheetStateText = `完成(${rows.length}筆)`;
+    }
+  } catch (e) {
+    customSheetStateText = "離線模式";
+  } finally {
+    customSheetSettled = true;
+    checkStartGame();
+  }
+}
+
+function tryPlayBGM() {
+  if (!bgmPlayed) {
+    bgm.volume = 0.45;
+    bgm.play().catch(() => {});
+    bgmPlayed = true;
+  }
+}
+
+// ==========================================
+// 【主迴圈與啟動流程】
+// ==========================================
+function checkStartGame() {
+  document.getElementById('loadStatus').innerText = `圖資：${settledImages}/${assetNames.length} ｜ 商品庫：${sheetStateText} ｜ 自訂庫：${customSheetStateText}`;
+  if (settledImages >= assetNames.length && sheetSettled && customSheetSettled) {
+    launchGame();
+  }
+}
+
+function launchGame() {
+  if (gameStarted) return;
+  gameStarted = true;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('gameWrapper').style.display = 'flex';
+  document.getElementById('topHud').style.display = 'flex';
+  syncFloatingControlsVisibility();
+  resizeCanvas();
+  setTimeout(() => spawnCustomer(), 1200);
+  requestAnimationFrame(gameLoop);
+}
+
+function resizeCanvas() {
+  const area = document.getElementById('canvasArea');
+  if (!area) return;
+  canvas.width = Math.max(640, area.clientWidth);
+  canvas.height = Math.max(400, area.clientHeight);
+}
+window.addEventListener('resize', resizeCanvas);
+
+function gameLoop() {
+  updatePlayer();
+  updateCustomers();
+  if (viewMode === '3d') draw3DView();
+  else draw2DView();
+  drawDoomCatFace();
+  requestAnimationFrame(gameLoop);
+}
+
+assetNames.forEach(name => {
+  images[name] = new Image();
+  images[name].src = name + '.png';
+  images[name].onload = () => { settledImages++; checkStartGame(); };
+  images[name].onerror = () => { settledImages++; checkStartGame(); };
+});
+
+setTimeout(() => { if (!gameStarted) document.getElementById('forceStartBtn').style.display = 'inline-block'; }, 3000);
+setTimeout(() => { if (!gameStarted) launchGame(); }, 6000);
+
+fetchInventory();
+fetchCustomItems();
+</script>
+</body>
+</html>
