@@ -24,9 +24,11 @@ body, html {
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   display: none;
   flex-direction: column;
   background: #0d0f14;
+  overflow: hidden;
 }
 #canvasArea {
   position: relative;
@@ -107,6 +109,7 @@ body, html {
   box-shadow: 0 3px 10px rgba(0,0,0,0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 .hud-btn {
   cursor: pointer;
@@ -123,7 +126,9 @@ body, html {
   position: fixed;
   top: 52px;
   left: 50%;
-  transform: translateX(-50%) translateY(-220%);
+  transform: translateX(-50%) translateY(-18px);
+  opacity: 0;
+  visibility: hidden;
   width: 94%;
   max-width: 680px;
   background: linear-gradient(90deg, rgba(160, 20, 20, 0.95), rgba(215, 75, 10, 0.95));
@@ -135,13 +140,15 @@ body, html {
   font-weight: bold;
   z-index: 118;
   box-shadow: 0 6px 20px rgba(0,0,0,0.7);
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease, visibility 0.25s ease;
   overflow: hidden;
   white-space: nowrap;
   pointer-events: none;
 }
 #broadcastBar.active {
   transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
 }
 .marquee-inner {
   display: inline-block;
@@ -155,7 +162,8 @@ body, html {
 
 /* 3D DOOM 經典底部狀態列 HUD */
 #doomHud {
-  height: 76px;
+  height: 74px;
+  flex-shrink: 0;
   width: 100%;
   background: linear-gradient(180deg, #2b2e38 0%, #191b22 100%);
   border-top: 3px solid #555966;
@@ -171,21 +179,21 @@ body, html {
   border: 2px inset #444854;
   border-radius: 6px;
   padding: 4px 8px;
-  height: 60px;
+  height: 58px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 0;
 }
 .doom-label {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: #9aa0b0;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   white-space: nowrap;
 }
 .doom-val {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 1rem;
+  font-size: 0.96rem;
   font-weight: 900;
   color: #ffcc00;
   white-space: nowrap;
@@ -193,8 +201,8 @@ body, html {
   text-overflow: ellipsis;
 }
 #doomFaceBox {
-  width: 64px;
-  height: 64px;
+  width: 62px;
+  height: 62px;
   background: #0d0f14;
   border: 2px solid #d4af37;
   border-radius: 8px;
@@ -206,18 +214,18 @@ body, html {
   box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
 }
 #doomFaceCanvas {
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
   image-rendering: pixelated;
 }
 
 /* 手機版左下角虛擬十字方向鍵 (D-Pad) */
 #mobileDpad {
   position: fixed;
-  bottom: 88px;
+  bottom: 84px;
   left: 14px;
-  width: 132px;
-  height: 132px;
+  width: 128px;
+  height: 128px;
   display: none;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
@@ -259,10 +267,10 @@ body, html {
 /* 右下角調查按鈕 */
 #actionBtn {
   position: fixed;
-  bottom: 92px;
+  bottom: 88px;
   right: 18px;
-  width: 68px;
-  height: 68px;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   background: radial-gradient(circle at 32% 28%, #5cc8ff 0%, #157efb 48%, #0747a6 88%, #042b69 100%);
   border: 2px solid #8ad4ff;
@@ -279,7 +287,7 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 900;
   color: #fff;
   text-shadow: 0 2px 4px rgba(0, 20, 70, 0.95);
@@ -394,15 +402,21 @@ body, html {
   pointer-events: none;
 }
 
-/* 手機窄螢幕自動將跑馬燈與創造提示列下移，避免遮擋第二排按鈕 */
+/* 手機窄螢幕自適應微調 */
 @media (max-width: 720px) {
-  #broadcastBar { top: 88px; }
-  #editModeUI { top: 88px; font-size: 0.76rem; }
+  #topHud { top: 8px; left: 8px; right: 8px; gap: 4px; }
+  .hud-group { gap: 4px; }
+  .hud-pill { padding: 4px 8px; font-size: 0.75rem; }
+  #broadcastBar { top: 80px; }
+  #editModeUI { top: 80px; font-size: 0.75rem; }
+  .doom-panel { padding: 3px 6px; height: 56px; }
+  .doom-label { font-size: 0.56rem; }
+  .doom-val { font-size: 0.86rem; }
 }
 
 #hotbar {
   position: fixed;
-  bottom: 84px;
+  bottom: 82px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(18, 18, 22, 0.95);
@@ -582,16 +596,16 @@ body, html {
       <div class="doom-label">TODAY REVENUE</div>
       <div id="doomRevVal" class="doom-val" style="color:#00e676;">$0</div>
     </div>
-    <div class="doom-panel" style="flex:0.85; margin:0 6px;">
+    <div class="doom-panel" style="flex:0.85; margin:0 5px;">
       <div class="doom-label">GUESTS / QUEUE</div>
       <div id="doomGuestVal" class="doom-val">0 / 0</div>
     </div>
     <div id="doomFaceBox" title="店長狀態監控">
-      <canvas id="doomFaceCanvas" width="60" height="60"></canvas>
+      <canvas id="doomFaceCanvas" width="58" height="58"></canvas>
     </div>
-    <div class="doom-panel" style="flex:1.55; margin-left:6px;">
+    <div class="doom-panel" style="flex:1.55; margin-left:5px;">
       <div id="doomTargetLabel" class="doom-label">CROSSHAIR TARGET</div>
-      <div id="doomTargetVal" class="doom-val" style="color:#4fc3f7; font-size:0.86rem;">自由巡店中</div>
+      <div id="doomTargetVal" class="doom-val" style="color:#4fc3f7; font-size:0.84rem;">自由巡店中</div>
     </div>
   </div>
 </div>
@@ -626,7 +640,6 @@ const MAP_ROWS = 20;
 const TILE_SIZE = 64;
 const OCCUPIED_TILE = -999;
 
-// 根目錄圖片資產清單
 const assetNames = [
   'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
   'blessing_lantern_wall',
@@ -791,7 +804,6 @@ const catalogItems = [
   { tile: 33, cat: 'props', name: '大墩變形金剛', img: 'robot', size: '1×1' }
 ];
 
-// 比對是否為根目錄既有圖資（忽略大小寫與副檔名）
 function findRootAssetName(rawFile) {
   let clean = String(rawFile || '').replace(/^custom\//i, '').replace(/\.[a-zA-Z0-9]+$/, '').trim();
   if (!clean) return null;
@@ -807,7 +819,6 @@ function getItemPreviewSrc(tile, fallbackImg) {
   return 'icon.png';
 }
 
-// 圖片載入失敗時的多層備援（custom/ -> 根目錄 -> 內建預設圖 -> icon.png）
 function handleUiImgError(imgEl, tile) {
   let step = parseInt(imgEl.getAttribute('data-err-step') || '0');
   let curSrc = imgEl.getAttribute('src') || '';
@@ -887,13 +898,11 @@ function buildDefaultHolaMap() {
     }
   };
 
-  // 【左上：智能選枕區 & 睡眠體驗區】
   placeObj(2, 3, 213);
   placeObj(2, 6, 214);
   placeObj(5, 2, 110);
   placeObj(5, 6, 111);
 
-  // 【右上：完整服務收銀櫃檯 & 賣場廣播】
   placeObj(2, 14, 212);
   placeObj(2, 16, 6);
   placeObj(2, 18, 61);
@@ -902,20 +911,17 @@ function buildDefaultHolaMap() {
     placeObj(3, c, 210);
   }
 
-  // 【中區：沙發與客廳體驗區】
   placeObj(9, 10, 112);
   placeObj(9, 15, 113);
   placeObj(13, 10, 114);
   placeObj(13, 15, 115);
   placeObj(13, 19, 116);
 
-  // 【左側：La-Z-Boy 休閒椅專區】
   placeObj(10, 2, 119);
   placeObj(12, 2, 118);
   placeObj(14, 2, 117);
   placeObj(16, 2, 120);
 
-  // 【入口迎賓區】
   placeObj(16, 15, 121);
   placeObj(16, 7, 33);
 
@@ -2149,7 +2155,6 @@ function draw3DView() {
     let srcFrameH = sp.img.naturalHeight || 64;
     let srcFrameX = frameIdx * srcFrameW;
 
-    // 依圖片原始長寬比與家具佔地格數計算寬高，避免奧丁沙發等寬幅家具被擠成窄方塊
     let imgAspect = Math.max(0.25, srcFrameW / srcFrameH);
     let dim = sp.dim || { w: 1, h: 1 };
     let unitWallH = H / transformY;
@@ -2323,7 +2328,6 @@ function drawItemTile2D(tile, posX, posY, flipped = false) {
     let fh = drawable.img.naturalHeight || 64;
     let imgAspect = Math.max(0.25, fw / fh);
 
-    // 依原始長寬比等比例縮放並貼齊佔地格底部，避免寬幅家具被壓縮變形
     let drawW = boxW;
     let drawH = drawW / imgAspect;
     if (drawH > boxH * 1.25) {
@@ -2406,7 +2410,6 @@ function draw2DView() {
     ctx.fillText(cust.bubble, cust.x + 32, cust.y - 14);
   }
 
-  // 四向貓咪店長貼圖與走路律動（解決倒退走問題，並移除胸前綠線）
   let catKey = 'cat_down_idle';
   let flipCatX = false;
   let bobY = 0;
@@ -2476,9 +2479,9 @@ function draw2DView() {
 // 【DOOM 經典底部貓咪店長動態大頭貼 HUD】
 // ==========================================
 function drawDoomCatFace() {
-  faceCtx.clearRect(0, 0, 60, 60);
+  faceCtx.clearRect(0, 0, 58, 58);
   faceCtx.fillStyle = '#151822';
-  faceCtx.fillRect(0, 0, 60, 60);
+  faceCtx.fillRect(0, 0, 58, 58);
 
   if (doomFaceMood !== 'normal' && Date.now() > doomFaceTimer) {
     doomFaceMood = 'normal';
@@ -2487,25 +2490,25 @@ function drawDoomCatFace() {
   let baseImg = images['cat_down_idle'] || images['npc_bluecat'];
   let lookOffsetX = Math.sin(Date.now() / 700) * 3;
   if (baseImg && baseImg.complete && baseImg.naturalWidth > 0) {
-    faceCtx.drawImage(baseImg, 4 + lookOffsetX, 4, 52, 54);
+    faceCtx.drawImage(baseImg, 3 + lookOffsetX, 3, 52, 52);
   }
 
   if (doomFaceMood === 'cool') {
     faceCtx.fillStyle = '#000';
-    faceCtx.fillRect(14 + lookOffsetX, 22, 13, 7);
-    faceCtx.fillRect(32 + lookOffsetX, 22, 13, 7);
-    faceCtx.fillRect(27 + lookOffsetX, 24, 5, 2);
+    faceCtx.fillRect(13 + lookOffsetX, 21, 13, 7);
+    faceCtx.fillRect(31 + lookOffsetX, 21, 13, 7);
+    faceCtx.fillRect(26 + lookOffsetX, 23, 5, 2);
     faceCtx.fillStyle = '#00e676';
-    faceCtx.fillRect(16 + lookOffsetX, 23, 4, 2);
-    faceCtx.fillRect(34 + lookOffsetX, 23, 4, 2);
+    faceCtx.fillRect(15 + lookOffsetX, 22, 4, 2);
+    faceCtx.fillRect(33 + lookOffsetX, 22, 4, 2);
   } else if (doomFaceMood === 'happy') {
     faceCtx.fillStyle = '#ffcc00';
     faceCtx.font = 'bold 12px sans-serif';
-    faceCtx.fillText('$$', 22 + lookOffsetX, 16);
+    faceCtx.fillText('$$', 21 + lookOffsetX, 15);
   } else if (doomFaceMood === 'busy') {
     faceCtx.fillStyle = '#ff5252';
     faceCtx.font = 'bold 14px sans-serif';
-    faceCtx.fillText('!', 46, 18);
+    faceCtx.fillText('!', 44, 17);
   }
 }
 
@@ -3099,7 +3102,6 @@ function loadCustomImageWithFallback(key, rawFile, id) {
   let cleanFile = rawFile.trim();
   if (!/\.[a-zA-Z0-9]+$/.test(cleanFile)) cleanFile += '.png';
 
-  // 若檔名屬於根目錄既有資產，直接讀取根目錄 PNG（避免錯加 custom/ 導致破圖）
   let rootMatch = findRootAssetName(cleanFile);
   if (rootMatch) {
     let rootSrc = rootMatch + '.png';
@@ -3254,9 +3256,12 @@ function resizeCanvas() {
   const area = document.getElementById('canvasArea');
   if (!area) return;
   canvas.width = Math.max(640, area.clientWidth);
-  canvas.height = Math.max(400, area.clientHeight);
+  canvas.height = Math.max(360, area.clientHeight);
 }
 window.addEventListener('resize', resizeCanvas);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resizeCanvas);
+}
 
 function gameLoop() {
   updatePlayer();
