@@ -123,7 +123,7 @@ body, html {
   position: fixed;
   top: 52px;
   left: 50%;
-  transform: translateX(-50%) translateY(-150%);
+  transform: translateX(-50%) translateY(-220%);
   width: 94%;
   max-width: 680px;
   background: linear-gradient(90deg, rgba(160, 20, 20, 0.95), rgba(215, 75, 10, 0.95));
@@ -393,6 +393,13 @@ body, html {
   z-index: 125;
   pointer-events: none;
 }
+
+/* 手機窄螢幕自動將跑馬燈與創造提示列下移，避免遮擋第二排按鈕 */
+@media (max-width: 720px) {
+  #broadcastBar { top: 88px; }
+  #editModeUI { top: 88px; font-size: 0.76rem; }
+}
+
 #hotbar {
   position: fixed;
   bottom: 84px;
@@ -431,7 +438,7 @@ body, html {
   background: rgba(255, 204, 0, 0.25);
 }
 .hb-slot img {
-  max-width: 22px;
+  max-width: 24px;
   max-height: 22px;
   object-fit: contain;
   image-rendering: pixelated;
@@ -499,7 +506,7 @@ body, html {
   text-align: center;
   position: relative;
 }
-.cat-card img { width: 42px; height: 42px; object-fit: contain; image-rendering: pixelated; margin-bottom: 4px; }
+.cat-card img { width: 46px; height: 42px; object-fit: contain; image-rendering: pixelated; margin-bottom: 4px; }
 .cat-card-name { font-size: 0.76rem; font-weight: bold; color: #fff; }
 .cat-card-size { font-size: 0.68rem; color: #aaa; margin-top: 2px; }
 .cat-badge-custom {
@@ -619,7 +626,7 @@ const MAP_ROWS = 20;
 const TILE_SIZE = 64;
 const OCCUPIED_TILE = -999;
 
-// 完整保留原有圖片資產名稱
+// 根目錄圖片資產清單
 const assetNames = [
   'floor2', 'wall', 'wall_lotus', 'gate', 'altar', 'fortune_box', 'npc_bluecat',
   'blessing_lantern_wall',
@@ -640,8 +647,8 @@ const assetNames = [
 ];
 
 const images = {};
-const animatedAssets = {}; // 多幀 PNG 輪播設定：{ key: { frames: 4, fps: 6, frameKeys: [...] } }
-const procTextures = {};   // 程式繪製像素貼圖（櫃檯、收銀機、麥克風、智能選枕儀）
+const animatedAssets = {};
+const procTextures = {};
 
 let settledImages = 0;
 let sheetSettled = false;
@@ -684,7 +691,6 @@ function buildProceduralTextures() {
     procTextures[id] = c;
   };
 
-  // 210: HOLA 服務收銀櫃檯
   makeTex(210, g => {
     g.fillStyle = '#5d4037'; g.fillRect(0, 18, 64, 46);
     g.fillStyle = '#8d6e63'; g.fillRect(0, 14, 64, 8);
@@ -694,7 +700,6 @@ function buildProceduralTextures() {
     g.fillText('HOLA', 32, 46);
   });
 
-  // 211: POS 收銀結帳台
   makeTex(211, g => {
     g.fillStyle = '#4e342e'; g.fillRect(4, 34, 56, 30);
     g.fillStyle = '#263238'; g.fillRect(14, 12, 36, 24);
@@ -704,7 +709,6 @@ function buildProceduralTextures() {
     g.fillText('CASH', 32, 26);
   });
 
-  // 212: 賣場臨時廣播麥克風
   makeTex(212, g => {
     g.fillStyle = '#37474f'; g.fillRect(20, 54, 24, 8);
     g.fillStyle = '#90a4ae'; g.fillRect(30, 22, 4, 32);
@@ -714,7 +718,6 @@ function buildProceduralTextures() {
     g.beginPath(); g.arc(32, 16, 14, Math.PI - 0.6, Math.PI + 0.6); g.stroke();
   });
 
-  // 213: 智能選枕檢測儀
   makeTex(213, g => {
     g.fillStyle = '#1e2736'; g.fillRect(10, 10, 44, 52);
     g.strokeStyle = '#4fc3f7'; g.lineWidth = 2; g.strokeRect(10, 10, 44, 52);
@@ -724,7 +727,6 @@ function buildProceduralTextures() {
     g.fillStyle = '#eceff1'; g.fillRect(16, 44, 32, 10);
   });
 
-  // 214: 人體工學枕頭展示架 (2x1)
   makeTex(214, g => {
     g.fillStyle = '#6d4c41'; g.fillRect(2, 14, 60, 48);
     g.fillStyle = '#fff8e1'; g.fillRect(6, 18, 24, 14); g.fillRect(34, 18, 24, 14);
@@ -734,7 +736,7 @@ function buildProceduralTextures() {
 buildProceduralTextures();
 
 // ==========================================
-// 【物件尺寸、圖鑑與自訂素材註冊表】
+// 【物件尺寸、圖鑑與根目錄/自訂素材防破圖註冊表】
 // ==========================================
 const itemDims = {
   3: {w:2, h:1}, 201: {w:2, h:1},
@@ -750,6 +752,14 @@ const itemDims = {
   117: {w:1, h:1}, 118: {w:1, h:1}, 119: {w:1, h:1}, 120: {w:1, h:1},
   121: {w:2, h:2},
   210: {w:1, h:1}, 211: {w:1, h:1}, 212: {w:1, h:1}, 213: {w:1, h:1}, 214: {w:2, h:1}
+};
+
+const tileToDefaultAsset = {
+  6: 'npc_bluecat', 7: 'npc_golden', 8: 'npc_hairless', 61: 'Kobe', 33: 'robot',
+  110: 'hola_bed2', 111: 'hola_bed3', 112: 'matchy_sofa2', 113: 'matchy_sofa3',
+  114: 'dining_table', 115: 'wooden_cabinet2', 116: 'wooden_cabinet3',
+  117: 'lazboy_chair', 118: 'lazboy_chair2', 119: 'lazboy_chair3', 120: 'blue_chair',
+  121: 'xmas_tree'
 };
 
 const customItemMeta = {};
@@ -781,9 +791,38 @@ const catalogItems = [
   { tile: 33, cat: 'props', name: '大墩變形金剛', img: 'robot', size: '1×1' }
 ];
 
+// 比對是否為根目錄既有圖資（忽略大小寫與副檔名）
+function findRootAssetName(rawFile) {
+  let clean = String(rawFile || '').replace(/^custom\//i, '').replace(/\.[a-zA-Z0-9]+$/, '').trim();
+  if (!clean) return null;
+  return assetNames.find(a => a.toLowerCase() === clean.toLowerCase()) || null;
+}
+
 function getItemPreviewSrc(tile, fallbackImg) {
   if (procTextures[tile]) return procTextures[tile].toDataURL();
-  return fallbackImg ? (fallbackImg + '.png') : 'icon.png';
+  let defAsset = tileToDefaultAsset[tile] || fallbackImg;
+  if (defAsset && !defAsset.startsWith('proc_')) {
+    return defAsset.endsWith('.png') ? defAsset : (defAsset + '.png');
+  }
+  return 'icon.png';
+}
+
+// 圖片載入失敗時的多層備援（custom/ -> 根目錄 -> 內建預設圖 -> icon.png）
+function handleUiImgError(imgEl, tile) {
+  let step = parseInt(imgEl.getAttribute('data-err-step') || '0');
+  let curSrc = imgEl.getAttribute('src') || '';
+  if (step === 0 && curSrc.startsWith('custom/')) {
+    imgEl.setAttribute('data-err-step', '1');
+    imgEl.src = curSrc.replace(/^custom\//, '');
+    return;
+  }
+  if (step <= 1 && tileToDefaultAsset[tile]) {
+    imgEl.setAttribute('data-err-step', '2');
+    imgEl.src = tileToDefaultAsset[tile] + '.png';
+    return;
+  }
+  imgEl.onerror = null;
+  imgEl.src = 'icon.png';
 }
 
 function getItemMeta(tile) {
@@ -792,7 +831,7 @@ function getItemMeta(tile) {
   let found = catalogItems.find(i => i.tile === tile);
   let dim = itemDims[tile] || { w: 1, h: 1 };
   if (found) {
-    let defaultSrc = procTextures[tile] ? procTextures[tile].toDataURL() : (found.img + '.png');
+    let defaultSrc = getItemPreviewSrc(tile, found.img);
     return {
       ...found,
       name: (ov && ov.name) ? ov.name : found.name,
@@ -803,8 +842,8 @@ function getItemMeta(tile) {
   return {
     tile,
     name: (ov && ov.name) ? ov.name : `自訂物件 #${tile}`,
-    img: (ov && ov.imgKey) ? ov.imgKey : 'icon',
-    imgSrc: (ov && ov.imgSrc) ? ov.imgSrc : 'icon.png',
+    img: (ov && ov.imgKey) ? ov.imgKey : (tileToDefaultAsset[tile] || 'icon'),
+    imgSrc: (ov && ov.imgSrc) ? ov.imgSrc : getItemPreviewSrc(tile, 'icon'),
     size: `${dim.w}×${dim.h}`
   };
 }
@@ -835,7 +874,6 @@ function buildDefaultHolaMap() {
       if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) m[r][c] = 101;
     }
   }
-  // 下方正中央大門 (r=19, c=11..12)
   m[19][11] = 201;
   m[19][12] = 201;
 
@@ -850,26 +888,26 @@ function buildDefaultHolaMap() {
   };
 
   // 【左上：智能選枕區 & 睡眠體驗區】
-  placeObj(2, 3, 213); // 智能選枕檢測儀
-  placeObj(2, 6, 214); // 人體工學枕頭架 (2x1)
-  placeObj(5, 2, 110); // 比佛利石墨烯床 (2x2)
-  placeObj(5, 6, 111); // LADY抗菌床墊 (2x2)
+  placeObj(2, 3, 213);
+  placeObj(2, 6, 214);
+  placeObj(5, 2, 110);
+  placeObj(5, 6, 111);
 
   // 【右上：完整服務收銀櫃檯 & 賣場廣播】
-  placeObj(2, 14, 212); // 廣播麥克風
-  placeObj(2, 16, 6);   // 人員 A：貓咪店員（SKU庫存查詢）
-  placeObj(2, 18, 61);  // 人員 B：Kobe專員（60天盲盒鑄造器）
-  placeObj(2, 20, 211); // 收銀結帳機
+  placeObj(2, 14, 212);
+  placeObj(2, 16, 6);
+  placeObj(2, 18, 61);
+  placeObj(2, 20, 211);
   for (let c = 15; c <= 21; c++) {
-    placeObj(3, c, 210); // 服務收銀櫃檯桌面（玩家與客人站 r=4 隔桌互動）
+    placeObj(3, c, 210);
   }
 
   // 【中區：沙發與客廳體驗區】
-  placeObj(9, 10, 112);  // 奧丁雙電動沙發 (3x2)
-  placeObj(9, 15, 113);  // 伊登麻吉兩人座 (2x2)
-  placeObj(13, 10, 114); // 克萊歐岩紋餐桌 (2x2)
-  placeObj(13, 15, 115); // 艾禮思木藝邊櫃 (2x1)
-  placeObj(13, 19, 116); // 艾禮思二抽高櫃 (2x2)
+  placeObj(9, 10, 112);
+  placeObj(9, 15, 113);
+  placeObj(13, 10, 114);
+  placeObj(13, 15, 115);
+  placeObj(13, 19, 116);
 
   // 【左側：La-Z-Boy 休閒椅專區】
   placeObj(10, 2, 119);
@@ -878,8 +916,8 @@ function buildDefaultHolaMap() {
   placeObj(16, 2, 120);
 
   // 【入口迎賓區】
-  placeObj(16, 15, 121); // 聖誕迎賓展示樹 (2x2)
-  placeObj(16, 7, 33);   // 大墩變形金剛
+  placeObj(16, 15, 121);
+  placeObj(16, 7, 33);
 
   holaStoreMap = m;
   holaStoreFlip = f;
@@ -914,19 +952,29 @@ function loadMaps() {
 loadMaps();
 
 // ==========================================
-// 【玩家狀態（3D 第一人稱 & 2D 上帝視角共用座標）】
+// 【玩家狀態（3D 第一人稱 & 2D 上帝視角共用座標與四向狀態）】
 // ==========================================
 const player = {
   x: 11.5 * TILE_SIZE,
   y: 16.5 * TILE_SIZE,
   angle: -Math.PI / 2,
+  dir: 'up',
+  isMoving: false,
   speed: 4.2,
   rotSpeed: 0.045,
   isInteracting: false
 };
 
-let viewMode = '3d'; // '3d' 類DOOM巡店 | '2d' 上帝俯視
-let zoom2dLevel = 0; // 0: 0.65x, 1: 1.0x, 2: 1.45x
+function syncPlayerDirFromAngle() {
+  let deg = ((player.angle * 180 / Math.PI) % 360 + 360) % 360;
+  if (deg >= 45 && deg < 135) player.dir = 'down';
+  else if (deg >= 135 && deg < 225) player.dir = 'left';
+  else if (deg >= 225 && deg < 315) player.dir = 'up';
+  else player.dir = 'right';
+}
+
+let viewMode = '3d';
+let zoom2dLevel = 0;
 let isDecorating = false;
 let isBlindBoxOpen = false;
 let activeTransformState = null;
@@ -995,6 +1043,7 @@ function toggleViewMode(forceMode = null) {
     viewToggleBtn.className = 'hud-pill hud-btn mode-3d';
     zoom2dBtn.style.display = 'none';
   } else {
+    syncPlayerDirFromAngle();
     viewToggleBtn.innerText = '🗺️ 2D俯視';
     viewToggleBtn.className = 'hud-pill hud-btn';
     zoom2dBtn.style.display = 'flex';
@@ -1394,7 +1443,6 @@ function getBestPromoPrice(item) {
   return validPromos[0].price;
 }
 
-// 對話框內建「㊙️切換外觀」按鈕
 function handleTransformBtnClick(event) {
   if (event) event.stopPropagation();
   if (!activeTransformState) return;
@@ -1877,7 +1925,7 @@ function getCrosshairTarget() {
 }
 
 // ==========================================
-// 【3D 類 DOOM Raycasting 渲染引擎（完整支援多幀 PNG 輪播）】
+// 【3D 類 DOOM Raycasting 渲染引擎（等比例寬幅渲染＋多幀輪播）】
 // ==========================================
 let screenSprites = [];
 
@@ -1922,14 +1970,7 @@ function getSpriteDrawable(tile) {
   }
   if (procTextures[tile]) return { img: procTextures[tile], frames: 1, fps: 6 };
 
-  const tileToAsset = {
-    6: 'npc_bluecat', 7: 'npc_golden', 8: 'npc_hairless', 61: 'Kobe', 33: 'robot',
-    110: 'hola_bed2', 111: 'hola_bed3', 112: 'matchy_sofa2', 113: 'matchy_sofa3',
-    114: 'dining_table', 115: 'wooden_cabinet2', 116: 'wooden_cabinet3',
-    117: 'lazboy_chair', 118: 'lazboy_chair2', 119: 'lazboy_chair3', 120: 'blue_chair',
-    121: 'xmas_tree'
-  };
-  let assetKey = tileToAsset[tile];
+  let assetKey = tileToDefaultAsset[tile];
   if (assetKey && images[assetKey] && images[assetKey].complete && images[assetKey].naturalWidth > 0) {
     return { img: images[assetKey], frames: 1, fps: 6 };
   }
@@ -2040,8 +2081,7 @@ function draw3DView() {
       let centerX = c + dim.w / 2;
       let centerY = r + dim.h / 2;
       let dist = Math.hypot(centerX - px, centerY - py);
-      let scaleFactor = Math.min(1.65, Math.max(0.75, Math.max(dim.w, dim.h) * 0.72));
-      if (tile === 210) scaleFactor = 0.78;
+      let customScaleH = (customItemMeta[tile]?.scaleH || builtInOverrides[tile]?.scaleH || 1.0);
 
       let tag = '';
       if (tile === 6) tag = '🐱 查庫存';
@@ -2056,7 +2096,9 @@ function draw3DView() {
         img: drawable.img,
         frames: drawable.frames,
         fps: drawable.fps,
-        scale: scaleFactor,
+        dim,
+        customScaleH,
+        flipped: holaStoreFlip[r][c] === 1,
         tag,
         targetInfo: { type: 'tile', r, c, tile }
       });
@@ -2075,7 +2117,9 @@ function draw3DView() {
         img: cImg,
         frames: 1,
         fps: 6,
-        scale: 0.76,
+        dim: { w: 1, h: 1 },
+        customScaleH: 0.96,
+        flipped: false,
         tag: cust.bubble,
         targetInfo: { type: 'customer', customer: cust }
       });
@@ -2099,20 +2143,42 @@ function draw3DView() {
 
     if (transformY <= 0.22) continue;
 
+    let frameCount = sp.frames > 1 ? sp.frames : 1;
+    let frameIdx = frameCount > 1 ? (Math.floor((Date.now() / 1000) * (sp.fps || 6)) % frameCount) : 0;
+    let srcFrameW = sp.img.naturalWidth / frameCount;
+    let srcFrameH = sp.img.naturalHeight || 64;
+    let srcFrameX = frameIdx * srcFrameW;
+
+    // 依圖片原始長寬比與家具佔地格數計算寬高，避免奧丁沙發等寬幅家具被擠成窄方塊
+    let imgAspect = Math.max(0.25, srcFrameW / srcFrameH);
+    let dim = sp.dim || { w: 1, h: 1 };
+    let unitWallH = H / transformY;
+    let spriteHeight, spriteWidth;
+
+    if (dim.w > 1 || dim.h > 1) {
+      let footprint = Math.max(dim.w, dim.h) * 0.84;
+      if (imgAspect >= 1.0) {
+        spriteWidth = Math.abs(Math.floor(unitWallH * footprint));
+        spriteHeight = Math.abs(Math.floor(spriteWidth / imgAspect));
+      } else {
+        spriteHeight = Math.abs(Math.floor(unitWallH * Math.min(1.55, footprint) * (sp.customScaleH || 1.0)));
+        spriteWidth = Math.abs(Math.floor(spriteHeight * imgAspect));
+      }
+    } else {
+      let baseH = 0.78 * (sp.customScaleH || 1.0);
+      spriteHeight = Math.abs(Math.floor(unitWallH * baseH));
+      spriteWidth = Math.abs(Math.floor(spriteHeight * imgAspect));
+    }
+
+    if (spriteWidth < 2 || spriteHeight < 2) continue;
+
     let spriteScreenX = Math.floor((W / 2) * (1 + transformX / transformY));
-    let spriteHeight = Math.abs(Math.floor((H / transformY) * sp.scale));
-    let spriteWidth = spriteHeight;
-    let floorAnchorY = H / 2 + (H / transformY) * 0.5;
+    let floorAnchorY = H / 2 + unitWallH * 0.5;
     let drawTopY = floorAnchorY - spriteHeight;
     let drawStartX = Math.floor(spriteScreenX - spriteWidth / 2);
     let drawEndX = drawStartX + spriteWidth;
 
     if (drawEndX < 0 || drawStartX >= W) continue;
-
-    let frameCount = sp.frames > 1 ? sp.frames : 1;
-    let frameIdx = frameCount > 1 ? (Math.floor((Date.now() / 1000) * (sp.fps || 6)) % frameCount) : 0;
-    let srcFrameW = sp.img.naturalWidth / frameCount;
-    let srcFrameX = frameIdx * srcFrameW;
 
     let visibleStrips = 0;
     for (let sx = Math.max(0, drawStartX); sx < Math.min(W, drawEndX); sx += 3) {
@@ -2120,8 +2186,11 @@ function draw3DView() {
       if (transformY < zBuffer[rayIdx]) {
         visibleStrips++;
         let u = (sx - drawStartX) / spriteWidth;
+        if (sp.flipped) u = 1.0 - u;
         let texX = srcFrameX + u * srcFrameW;
-        ctx.drawImage(sp.img, texX, 0, Math.max(1, srcFrameW / spriteWidth * 3), sp.img.naturalHeight, sx, drawTopY, 3.2, spriteHeight);
+        let sliceW = Math.max(1, (srcFrameW / spriteWidth) * 3);
+        if (texX + sliceW > srcFrameX + srcFrameW) texX = Math.max(srcFrameX, srcFrameX + srcFrameW - sliceW);
+        ctx.drawImage(sp.img, texX, 0, sliceW, srcFrameH, sx, drawTopY, 3.2, spriteHeight);
       }
     }
 
@@ -2183,8 +2252,10 @@ function drawMiniMap() {
   const cell = 5;
   const mw = MAP_COLS * cell;
   const mh = MAP_ROWS * cell;
+  const topHudEl = document.getElementById('topHud');
+  const hudBottom = topHudEl ? (topHudEl.offsetTop + topHudEl.offsetHeight + 8) : 56;
   const ox = canvas.width - mw - 14;
-  const oy = 56;
+  const oy = Math.max(54, hudBottom);
 
   ctx.save();
   ctx.fillStyle = 'rgba(10, 12, 18, 0.78)';
@@ -2229,14 +2300,16 @@ function drawMiniMap() {
 }
 
 // ==========================================
-// 【2D 上帝俯視 ＋ 麥塊創造模式渲染】
+// 【2D 上帝俯視 ＋ 麥塊創造模式渲染（等比例貼齊＋四向人物走路）】
 // ==========================================
 function drawItemTile2D(tile, posX, posY, flipped = false) {
   let dim = itemDims[tile] || { w: 1, h: 1 };
   let drawable = getSpriteDrawable(tile);
+  let boxW = dim.w * TILE_SIZE;
+  let boxH = dim.h * TILE_SIZE;
 
   if (flipped) {
-    let pivotX = posX + (dim.w * TILE_SIZE) / 2;
+    let pivotX = posX + boxW / 2;
     ctx.save();
     ctx.translate(pivotX, 0);
     ctx.scale(-1, 1);
@@ -2247,11 +2320,22 @@ function drawItemTile2D(tile, posX, posY, flipped = false) {
     let frames = drawable.frames > 1 ? drawable.frames : 1;
     let fIdx = frames > 1 ? (Math.floor((Date.now() / 1000) * (drawable.fps || 6)) % frames) : 0;
     let fw = drawable.img.naturalWidth / frames;
-    let fh = drawable.img.naturalHeight;
-    ctx.drawImage(drawable.img, fIdx * fw, 0, fw, fh, posX, posY, dim.w * TILE_SIZE, dim.h * TILE_SIZE);
+    let fh = drawable.img.naturalHeight || 64;
+    let imgAspect = Math.max(0.25, fw / fh);
+
+    // 依原始長寬比等比例縮放並貼齊佔地格底部，避免寬幅家具被壓縮變形
+    let drawW = boxW;
+    let drawH = drawW / imgAspect;
+    if (drawH > boxH * 1.25) {
+      drawH = boxH * 1.25;
+      drawW = drawH * imgAspect;
+    }
+    let drawX = posX + (boxW - drawW) / 2;
+    let drawY = posY + boxH - drawH;
+    ctx.drawImage(drawable.img, fIdx * fw, 0, fw, fh, drawX, drawY, drawW, drawH);
   } else {
     ctx.fillStyle = 'rgba(0, 230, 118, 0.35)';
-    ctx.fillRect(posX + 4, posY + 4, dim.w * TILE_SIZE - 8, dim.h * TILE_SIZE - 8);
+    ctx.fillRect(posX + 4, posY + 4, boxW - 8, boxH - 8);
   }
 
   if (flipped) ctx.restore();
@@ -2322,16 +2406,37 @@ function draw2DView() {
     ctx.fillText(cust.bubble, cust.x + 32, cust.y - 14);
   }
 
-  let catImg = images['cat_down_idle'] || images['npc_bluecat'];
-  if (catImg && catImg.complete && catImg.naturalWidth > 0) {
-    ctx.drawImage(catImg, player.x, player.y - 8, TILE_SIZE, TILE_SIZE + 8);
+  // 四向貓咪店長貼圖與走路律動（解決倒退走問題，並移除胸前綠線）
+  let catKey = 'cat_down_idle';
+  let flipCatX = false;
+  let bobY = 0;
+  let walkStep = Math.floor(Date.now() / 160) % 2;
+
+  if (player.dir === 'up') {
+    catKey = 'cat_up2';
+    if (player.isMoving) { flipCatX = (walkStep === 1); bobY = walkStep === 1 ? -3 : 0; }
+  } else if (player.dir === 'down') {
+    catKey = player.isMoving ? 'cat_down' : 'cat_down_idle';
+    if (player.isMoving) { flipCatX = (walkStep === 1); bobY = walkStep === 1 ? -3 : 0; }
+  } else if (player.dir === 'left') {
+    catKey = 'cat_left';
+    if (player.isMoving) { bobY = walkStep === 1 ? -3 : 0; }
+  } else if (player.dir === 'right') {
+    catKey = 'cat_right';
+    if (player.isMoving) { bobY = walkStep === 1 ? -3 : 0; }
   }
-  ctx.strokeStyle = '#00e676';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(player.x + 32, player.y + 32);
-  ctx.lineTo(player.x + 32 + Math.cos(player.angle) * 42, player.y + 32 + Math.sin(player.angle) * 42);
-  ctx.stroke();
+
+  let catImg = images[catKey] || images['cat_down_idle'] || images['npc_bluecat'];
+  if (catImg && catImg.complete && catImg.naturalWidth > 0) {
+    ctx.save();
+    if (flipCatX) {
+      ctx.translate(player.x + TILE_SIZE / 2, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-(player.x + TILE_SIZE / 2), 0);
+    }
+    ctx.drawImage(catImg, player.x, player.y - 8 + bobY, TILE_SIZE, TILE_SIZE + 8);
+    ctx.restore();
+  }
 
   if (isDecorating) {
     ctx.strokeStyle = 'rgba(255,255,255,0.22)';
@@ -2480,7 +2585,10 @@ function isPlayerWalkable(nx, ny) {
   return true;
 }
 
+let isTouchDragging = false;
+
 function updatePlayer() {
+  if (!isTouchDragging) player.isMoving = false;
   if (player.isInteracting || isDecorating || isBlindBoxOpen) return;
 
   let upPressed = keys['w'] || keys['ArrowUp'] || dpadState.up;
@@ -2490,10 +2598,10 @@ function updatePlayer() {
 
   if (viewMode === '2d') {
     let dx = 0, dy = 0;
-    if (upPressed) { dy -= player.speed; player.angle = -Math.PI / 2; }
-    if (downPressed) { dy += player.speed; player.angle = Math.PI / 2; }
-    if (leftPressed) { dx -= player.speed; player.angle = Math.PI; }
-    if (rightPressed) { dx += player.speed; player.angle = 0; }
+    if (upPressed) { dy -= player.speed; player.angle = -Math.PI / 2; player.dir = 'up'; player.isMoving = true; }
+    if (downPressed) { dy += player.speed; player.angle = Math.PI / 2; player.dir = 'down'; player.isMoving = true; }
+    if (leftPressed) { dx -= player.speed; player.angle = Math.PI; player.dir = 'left'; player.isMoving = true; }
+    if (rightPressed) { dx += player.speed; player.angle = 0; player.dir = 'right'; player.isMoving = true; }
     if (dx !== 0 && isPlayerWalkable(player.x + dx, player.y)) player.x += dx;
     if (dy !== 0 && isPlayerWalkable(player.x, player.y + dy)) player.y += dy;
     return;
@@ -2503,7 +2611,15 @@ function updatePlayer() {
   let turn = (rightPressed ? 1 : 0) - (leftPressed ? 1 : 0);
   let strafe = (keys['e'] ? 1 : 0) - (keys['q'] ? 1 : 0);
 
-  if (turn !== 0) player.angle += turn * player.rotSpeed;
+  if (turn !== 0) {
+    player.angle += turn * player.rotSpeed;
+    syncPlayerDirFromAngle();
+  }
+
+  if (moveForward !== 0 || strafe !== 0) {
+    player.isMoving = true;
+    syncPlayerDirFromAngle();
+  }
 
   let vx = (Math.cos(player.angle) * moveForward - Math.sin(player.angle) * strafe) * player.speed;
   let vy = (Math.sin(player.angle) * moveForward + Math.cos(player.angle) * strafe) * player.speed;
@@ -2571,8 +2687,11 @@ canvas.addEventListener('touchmove', e => {
   let dy = e.touches[0].clientY - touchStartY;
   if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
     touchMoved = true;
+    isTouchDragging = true;
+    player.isMoving = true;
     if (viewMode === '3d') {
       player.angle += dx * 0.0022;
+      syncPlayerDirFromAngle();
       let step = -dy * 0.14;
       let vx = Math.cos(player.angle) * step;
       let vy = Math.sin(player.angle) * step;
@@ -2580,6 +2699,13 @@ canvas.addEventListener('touchmove', e => {
       if (isPlayerWalkable(player.x, player.y + vy)) player.y += vy;
     } else {
       let vx = dx * 0.16, vy = dy * 0.16;
+      if (Math.abs(vx) > Math.abs(vy)) {
+        player.dir = vx > 0 ? 'right' : 'left';
+        player.angle = vx > 0 ? 0 : Math.PI;
+      } else {
+        player.dir = vy > 0 ? 'down' : 'up';
+        player.angle = vy > 0 ? Math.PI / 2 : -Math.PI / 2;
+      }
       if (isPlayerWalkable(player.x + vx, player.y)) player.x += vx;
       if (isPlayerWalkable(player.x, player.y + vy)) player.y += vy;
     }
@@ -2589,6 +2715,8 @@ canvas.addEventListener('touchmove', e => {
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
+  isTouchDragging = false;
+  player.isMoving = false;
   if (!isDecorating && !touchMoved) {
     handleCanvasClick(touchStartX, touchStartY);
   }
@@ -2673,8 +2801,8 @@ function renderHotbar() {
     let meta = getItemMeta(tile);
     let isActive = (creativeMode === 'place' && activeSlot === i);
     html += `
-      <div class="hb-slot ${isActive ? 'active' : ''}" onclick="selectHotbarSlot(${i})" title="${meta.name}">
-        <img src="${meta.imgSrc}" class="${isActive && heldFlipped ? 'flipped' : ''}" onerror="this.src='icon.png'">
+      <div class="hb-slot ${isActive ? 'active' : ''}" onclick="selectHotbarSlot(${i})" title="${escapeHtml(meta.name)}">
+        <img src="${escapeHtml(meta.imgSrc)}" class="${isActive && heldFlipped ? 'flipped' : ''}" onerror="handleUiImgError(this, ${tile})">
         <span class="hb-label">${meta.size}</span>
       </div>
     `;
@@ -2724,8 +2852,8 @@ function openCatalogModal() {
     html += `
       <div class="cat-card" onclick="pickCatalogItem(${item.tile})">
         ${item.isCustom ? '<span class="cat-badge-custom">自訂</span>' : ''}
-        <img src="${src}" onerror="this.src='icon.png'">
-        <div class="cat-card-name">${item.name}</div>
+        <img src="${escapeHtml(src)}" onerror="handleUiImgError(this, ${item.tile})">
+        <div class="cat-card-name">${escapeHtml(item.name)}</div>
         <div class="cat-card-size">${item.size} 格</div>
       </div>
     `;
@@ -2924,7 +3052,7 @@ function openHelpModal() {
 }
 
 // ==========================================
-// 【CSV 解析與 Google 試算表雙連線（支援多幀 PNG 輪播）】
+// 【CSV 解析與 Google 試算表雙連線（優先對應根目錄圖資＋多層備援）】
 // ==========================================
 function parseCSVText(text) {
   let result = [], row = [], col = "", quote = false;
@@ -2967,6 +3095,37 @@ async function fetchInventory() {
   }
 }
 
+function loadCustomImageWithFallback(key, rawFile, id) {
+  let cleanFile = rawFile.trim();
+  if (!/\.[a-zA-Z0-9]+$/.test(cleanFile)) cleanFile += '.png';
+
+  // 若檔名屬於根目錄既有資產，直接讀取根目錄 PNG（避免錯加 custom/ 導致破圖）
+  let rootMatch = findRootAssetName(cleanFile);
+  if (rootMatch) {
+    let rootSrc = rootMatch + '.png';
+    if (!images[key]) {
+      images[key] = images[rootMatch] || new Image();
+      if (!images[key].src) images[key].src = rootSrc;
+    }
+    return rootSrc;
+  }
+
+  let primarySrc = (cleanFile.startsWith('http') || cleanFile.startsWith('custom/')) ? cleanFile : ('custom/' + cleanFile);
+  let imgObj = new Image();
+  let triedRoot = false;
+  imgObj.onerror = () => {
+    if (!triedRoot && primarySrc.startsWith('custom/')) {
+      triedRoot = true;
+      imgObj.src = cleanFile;
+    } else if (tileToDefaultAsset[id] && images[tileToDefaultAsset[id]]) {
+      images[key] = images[tileToDefaultAsset[id]];
+    }
+  };
+  imgObj.src = primarySrc;
+  images[key] = imgObj;
+  return primarySrc;
+}
+
 async function fetchCustomItems() {
   try {
     let csvUrl = CUSTOM_SHEET_URL.replace('/pubhtml', '/pub');
@@ -2996,22 +3155,13 @@ async function fetchCustomItems() {
         let imgKey = null, imgSrc = null;
         if (file) {
           let fileList = file.split('|').map(f => f.trim()).filter(Boolean);
-          const resolvePath = f => {
-            if (!/\.[a-zA-Z0-9]+$/.test(f)) f += '.png';
-            return (f.startsWith('http') || f.startsWith('custom/')) ? f : ('custom/' + f);
-          };
-          imgSrc = resolvePath(fileList[0]);
           imgKey = 'custom_' + id;
-          let imgObj = new Image();
-          imgObj.src = imgSrc;
-          images[imgKey] = imgObj;
+          imgSrc = loadCustomImageWithFallback(imgKey, fileList[0], id);
 
           if (fileList.length > 1) {
             let fKeys = fileList.map((f, idx) => {
               let k = `custom_${id}_f${idx}`;
-              let im = new Image();
-              im.src = resolvePath(f);
-              images[k] = im;
+              loadCustomImageWithFallback(k, f, id);
               return k;
             });
             animatedAssets[imgKey] = { frames: 1, fps, frameKeys: fKeys };
@@ -3022,7 +3172,17 @@ async function fetchCustomItems() {
 
         itemDims[id] = { w, h };
         if (id < 501) {
-          builtInOverrides[id] = { name: rawName || null, imgKey, imgSrc, scaleH, dialogs: dialogLines, lineBtn, clicks, transformId, dialogIdx: 0 };
+          builtInOverrides[id] = {
+            name: rawName || null,
+            imgKey: imgKey || tileToDefaultAsset[id] || null,
+            imgSrc: imgSrc || getItemPreviewSrc(id, tileToDefaultAsset[id]),
+            scaleH,
+            dialogs: dialogLines,
+            lineBtn,
+            clicks,
+            transformId,
+            dialogIdx: 0
+          };
           let catItem = catalogItems.find(c => c.tile === id);
           if (catItem) {
             if (rawName) catItem.name = rawName;
@@ -3030,12 +3190,13 @@ async function fetchCustomItems() {
             catItem.size = `${w}×${h}`;
           }
         } else {
+          let fallbackDefault = tileToDefaultAsset[id] || 'icon';
           let meta = {
             tile: id,
             cat: ['hola', 'npc', 'props'].includes(rawCat) ? rawCat : 'hola',
             name: rawName || `自訂物件 #${id}`,
-            img: imgKey || 'icon',
-            imgSrc: imgSrc || 'icon.png',
+            img: imgKey || fallbackDefault,
+            imgSrc: imgSrc || getItemPreviewSrc(id, fallbackDefault),
             size: `${w}×${h}`,
             scaleH,
             dialogs: dialogLines,
